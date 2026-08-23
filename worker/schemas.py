@@ -10,6 +10,8 @@ class StrategyConfig(BaseModel):
     commission: float = 0.1             # % por lado
     folds: int = 5
     split: int = 70                     # % train
+    start: str = "2023-01-01"           # rango de datos OHLCV reales
+    end: str = "2023-12-31"
 
 
 class Metrics(BaseModel):
