@@ -3,10 +3,5 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@quantlab-supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@quantlab-supabase-anon",
-    "NEXT_PUBLIC_WORKER_URL": "@quantlab-worker-url"
-  }
+  "outputDirectory": ".next"
 }
