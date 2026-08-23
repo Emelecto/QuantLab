@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: quantlab-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: oregon        # cámbialo a sao-paulo si Render lo soporta para menos latencia
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: SUPABASE_URL
+        sync: false        # pon tu valor real en el dashboard de Render
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
