@@ -48,10 +48,8 @@ export default function FeaturesPage() {
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
           <div className="grid gap-4 md:grid-cols-2">
             {FEATURES.map((f, i) => (
-              <article
-                key={f.title}
-                className="rounded-lg border border-line bg-surface p-6 transition-colors hover:border-[#2f3b4f]"
-              >
+              <div key={f.title} className="ql-perspective">
+              <article className="ql-glass ql-tilt flex flex-col p-6">
                 <span className="metric text-[11px] tracking-widest text-muted">
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -62,6 +60,7 @@ export default function FeaturesPage() {
                   {f.text}
                 </p>
               </article>
+              </div>
             ))}
           </div>
         </div>

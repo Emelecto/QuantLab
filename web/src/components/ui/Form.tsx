@@ -2,9 +2,8 @@ import { cn } from "@/lib/cn";
 
 /** Clases compartidas para inputs de formularios en tema dark. */
 export const inputClasses = cn(
-  "h-10 w-full rounded-md border border-line bg-bg px-3 text-sm text-ink",
-  "placeholder:text-muted outline-none transition-colors",
-  "focus:border-accent/60 focus:ring-1 focus:ring-accent/30",
+  "ql-input h-10 w-full rounded-md px-3 text-sm",
+  "outline-none",
 );
 
 export function Field({
@@ -41,7 +40,7 @@ export function AuthShell({
   return (
     <div className="flex flex-1 items-start justify-center px-6 py-16">
       <div className="w-full max-w-sm">
-        <div className="rounded-lg border border-line bg-surface p-6">
+        <div className="ql-glass ql-glow-soft rounded-xl p-6">
           <h1 className="text-xl font-semibold tracking-tight text-ink">
             {title}
           </h1>

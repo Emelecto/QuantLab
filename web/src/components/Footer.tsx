@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-line bg-bg">
+    <footer className="mt-auto border-t border-line">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-8 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-[13px] text-muted">
           <Link href="/legal" className="transition-colors hover:text-ink">

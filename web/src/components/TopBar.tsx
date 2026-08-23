@@ -10,7 +10,8 @@ const NAV = [
 
 export function TopBar() {
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur">
+    <header className="sticky top-0 z-50 border-0 bg-[rgba(10,12,16,0.72)] backdrop-blur-[14px] relative">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-8 px-6">
         <Link
           href="/"
@@ -18,7 +19,7 @@ export function TopBar() {
         >
           <span
             aria-hidden
-            className="inline-block h-2.5 w-2.5 rounded-sm bg-accent"
+            className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent"
           />
           QuantLab
         </Link>

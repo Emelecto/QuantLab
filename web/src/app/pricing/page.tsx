@@ -89,10 +89,8 @@ export default function PricingPage() {
               <div
                 key={tier.name}
                 className={cn(
-                  "flex flex-col rounded-lg border bg-surface p-6",
-                  tier.featured
-                    ? "border-accent/40 ring-1 ring-accent/20"
-                    : "border-line",
+                  "flex flex-col ql-glass p-6",
+                  tier.featured && "ql-tier-featured",
                 )}
               >
                 <div className="flex items-center gap-2">

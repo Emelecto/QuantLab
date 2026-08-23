@@ -1,30 +1,35 @@
 @import "tailwindcss";
 
 /* ============================================================
-   QuantLab — tema dark quant (tokens exactos)
+   QuantLab — tema dark quant minimalista / futurista / 3D
    ============================================================ */
 :root {
-  --ql-bg: #0b0e14; /* fondo */
-  --ql-surface: #141925; /* card */
-  --ql-line: #222b3a; /* borde */
-  --ql-ink: #e5e9f0; /* texto principal */
-  --ql-muted: #8b92a5; /* texto muteado */
-  --ql-long: #10b981; /* LONG / positivo */
-  --ql-short: #ef4444; /* SHORT / negativo */
-  --ql-accent: #10b981; /* acento primario (CTA) */
-  --ql-cyan: #38bdf8; /* acento secundario / links */
+  --ql-bg: #0a0c10; /* fondo base (un pelo más oscuro) */
+  --ql-surface: rgba(255, 255, 255, 0.025); /* glass */
+  --ql-surface-solid: #11151c; /* superficie sólida */
+  --ql-line: rgba(255, 255, 255, 0.07); /* borde sutil */
+  --ql-ink: #eef2f7; /* texto principal */
+  --ql-muted: #8b93a7; /* texto muteado */
+  --ql-accent: #5eead4; /* acento primario (teal/menta eléctrico) */
+  --ql-accent-2: #38bdf8; /* acento secundario (cian) */
+  --ql-long: #10b981; /* SOLO long / positivo */
+  --ql-short: #ef4444; /* SOLO short / negativo */
+  --ql-glow: rgba(94, 234, 212, 0.16); /* glow de acento */
 }
 
 @theme inline {
   --color-bg: var(--ql-bg);
   --color-surface: var(--ql-surface);
+  --color-surface-solid: var(--ql-surface-solid);
   --color-line: var(--ql-line);
   --color-ink: var(--ql-ink);
   --color-muted: var(--ql-muted);
   --color-long: var(--ql-long);
   --color-short: var(--ql-short);
   --color-accent: var(--ql-accent);
-  --color-cyan: var(--ql-cyan);
+  --color-accent-2: var(--ql-accent-2);
+  --color-cyan: var(--ql-accent-2);
+  --color-glow: var(--ql-glow);
 
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
@@ -43,27 +48,178 @@ body {
   color: var(--ql-ink);
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-/* Tipografía densa para números y métricas */
+/* ------------------------------------------------------------
+   CAPA ATMOSFÉRICA — profundidad espacial sin grid
+   ------------------------------------------------------------ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  opacity: 0.5;
+  background:
+    radial-gradient(55% 45% at 12% 6%, rgba(94, 234, 212, 0.12), transparent 60%),
+    radial-gradient(50% 45% at 88% 94%, rgba(56, 189, 248, 0.12), transparent 60%),
+    radial-gradient(38% 38% at 72% 22%, rgba(99, 102, 241, 0.10), transparent 60%);
+}
+
+/* ------------------------------------------------------------
+   GLASS + ESCALA DE ELEVACIÓN
+   ------------------------------------------------------------ */
+.ql-glass {
+  background: var(--ql-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ql-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 30px rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+}
+
+.ql-elev-1 {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+.ql-elev-2 {
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* tier destacado (Pro) — borde teal + glow */
+.ql-tier-featured {
+  border-color: rgba(94, 234, 212, 0.45);
+  box-shadow:
+    0 0 30px rgba(94, 234, 212, 0.16),
+    0 14px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* glow suave de acento para superficies destacadas (login/register) */
+.ql-glow-soft {
+  box-shadow:
+    0 14px 44px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(94, 234, 212, 0.14);
+}
+
+/* ------------------------------------------------------------
+   TILT 3D EN HOVER
+   ------------------------------------------------------------ */
+.ql-perspective {
+  perspective: 1000px;
+}
+.ql-tilt {
+  transition:
+    transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.ql-tilt:hover {
+  transform: translateY(-6px) rotateX(3deg) rotateY(-2deg);
+  box-shadow:
+    0 0 0 1px rgba(94, 234, 212, 0.18),
+    0 18px 50px rgba(94, 234, 212, 0.1),
+    0 14px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* ------------------------------------------------------------
+   GLOW DE ACENTO
+   ------------------------------------------------------------ */
+.ql-glow-text {
+  text-shadow: 0 0 18px var(--ql-glow);
+}
+.ql-glow-box {
+  box-shadow: 0 0 14px var(--ql-glow);
+}
+
+/* gradiente de acento para palabras clave */
+.ql-gradient-text {
+  background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ------------------------------------------------------------
+   INPUTS GLASS
+   ------------------------------------------------------------ */
+.ql-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ql-line);
+  color: var(--ql-ink);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+.ql-input::placeholder {
+  color: var(--ql-muted);
+}
+.ql-input:focus {
+  outline: none;
+  border-color: var(--ql-accent);
+  box-shadow: 0 0 0 3px var(--ql-glow);
+}
+
+/* fila de tabla con hover glass sutil */
+.ql-row {
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+.ql-row:hover {
+  background: rgba(94, 234, 212, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.12);
+}
+
+/* ------------------------------------------------------------
+   BOTONES
+   ------------------------------------------------------------ */
+.ql-btn-primary {
+  background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
+  color: #04110d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+.ql-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 10px 30px rgba(94, 234, 212, 0.25);
+}
+
+.ql-btn-secondary {
+  background: var(--ql-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ql-line);
+  color: var(--ql-ink);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+.ql-btn-secondary:hover {
+  border-color: var(--ql-accent);
+  transform: translateY(-1px);
+}
+
+/* ------------------------------------------------------------
+   TIPOGRAFÍA DENSA (métricas)
+   ------------------------------------------------------------ */
 .metric {
   font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
-/* Grid sutil de fondo — decoración no centrada, alineada a la izquierda */
-.ql-grid-bg {
-  background-image:
-    linear-gradient(to right, rgba(34, 43, 58, 0.35) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(34, 43, 58, 0.35) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(to bottom, black, transparent 70%);
-  -webkit-mask-image: linear-gradient(to bottom, black, transparent 70%);
-}
-
 ::selection {
-  background: rgba(16, 185, 129, 0.28);
+  background: rgba(94, 234, 212, 0.28);
   color: var(--ql-ink);
 }
 

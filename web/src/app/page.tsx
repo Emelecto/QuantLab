@@ -51,15 +51,23 @@ export default function Home() {
   return (
     <>
       {/* HERO */}
-      <section className="relative border-b border-line">
-        <div aria-hidden className="ql-grid-bg absolute inset-0" />
-        <div className="relative mx-auto w-full max-w-6xl px-6 pt-20 pb-16">
+      <section className="relative overflow-hidden border-b border-line">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0 h-[28rem] w-[44rem] max-w-full -translate-x-1/2 rounded-full blur-3xl"
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(94,234,212,0.18), transparent)",
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-5xl px-6 py-24 md:py-28">
           <span className="metric mb-6 inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
             FASE 1 · BACKTESTING OOS EN LA NUBE
           </span>
           <h1 className="max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-ink md:text-[56px]">
-            Crea estrategias de trading que de verdad funcionan.
+            Crea estrategias de trading que de verdad{" "}
+            <span className="ql-gradient-text ql-glow-text">funcionan.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
             Prueba tus ideas en la nube y descubre si realmente ganarían o solo
@@ -133,12 +141,14 @@ export default function Home() {
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
-              <Card key={f.title} className="hover:border-[#2f3b4f]">
-                <CardHeader>
-                  <CardTitle>{f.title}</CardTitle>
-                </CardHeader>
-                <CardBody>{f.text}</CardBody>
-              </Card>
+              <div key={f.title} className="ql-perspective">
+                <Card className="ql-tilt h-full">
+                  <CardHeader>
+                    <CardTitle>{f.title}</CardTitle>
+                  </CardHeader>
+                  <CardBody>{f.text}</CardBody>
+                </Card>
+              </div>
             ))}
           </div>
         </div>

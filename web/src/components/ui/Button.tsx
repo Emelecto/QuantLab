@@ -9,9 +9,8 @@ const base =
   "focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-[#04120C] hover:bg-[#0ea373] shadow-sm",
-  secondary:
-    "border border-line bg-surface text-ink hover:border-[#2f3b4f] hover:bg-[#1a2131]",
+  primary: "ql-btn-primary",
+  secondary: "ql-btn-secondary",
   ghost: "text-muted hover:text-ink hover:bg-surface",
 };
 

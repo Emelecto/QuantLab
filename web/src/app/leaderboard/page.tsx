@@ -18,7 +18,7 @@ export default function LeaderboardPage() {
 
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="ql-glass overflow-x-auto">
             <table className="w-full min-w-[820px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-line">
@@ -52,7 +52,7 @@ export default function LeaderboardPage() {
                 {MOCK_LEADERBOARD.map((row) => (
                   <tr
                     key={row.rank}
-                    className="border-b border-line last:border-0 transition-colors hover:bg-[#1a2131]"
+                    className="ql-row border-b border-line last:border-0 transition-colors"
                   >
                     <td className="metric px-4 py-3 text-[13px] text-muted">
                       {row.rank}

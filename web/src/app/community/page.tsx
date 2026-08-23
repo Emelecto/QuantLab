@@ -23,7 +23,7 @@ export default function CommunityPage() {
           <select
             aria-label="Filtrar por activo"
             defaultValue="all"
-            className="h-9 rounded-md border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-[#2f3b4f]"
+            className="ql-input h-9 rounded-md px-3 text-[13px]"
           >
             <option value="all">Activo ▾</option>
             <option value="BTC">BTC</option>
@@ -35,7 +35,7 @@ export default function CommunityPage() {
           <select
             aria-label="Ordenar por"
             defaultValue="sharpe"
-            className="h-9 rounded-md border border-line bg-surface px-3 text-[13px] text-ink outline-none focus:border-[#2f3b4f]"
+            className="ql-input h-9 rounded-md px-3 text-[13px]"
           >
             <option value="sharpe">Orden ▾</option>
             <option value="recent">Más recientes</option>
@@ -46,7 +46,7 @@ export default function CommunityPage() {
             type="search"
             placeholder="Buscar estrategia…"
             aria-label="Buscar estrategia"
-            className="h-9 w-full max-w-xs rounded-md border border-line bg-surface px-3 text-[13px] text-ink placeholder:text-muted outline-none focus:border-[#2f3b4f]"
+            className="ql-input h-9 w-full max-w-xs rounded-md px-3 text-[13px]"
           />
 
           <span className="metric ml-auto text-[12px] text-muted">
@@ -60,10 +60,8 @@ export default function CommunityPage() {
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {MOCK_STRATEGIES.map((s) => (
-              <article
-                key={s.id}
-                className="flex flex-col rounded-lg border border-line bg-surface transition-colors hover:border-[#2f3b4f]"
-              >
+              <div key={s.id} className="ql-perspective">
+              <article className="ql-glass ql-tilt flex flex-col">
                 <div className="flex items-center gap-2.5 px-5 pt-5">
                   <span
                     aria-hidden
@@ -109,6 +107,7 @@ export default function CommunityPage() {
                   </Link>
                 </div>
               </article>
+              </div>
             ))}
           </div>
         </div>

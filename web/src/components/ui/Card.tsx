@@ -6,7 +6,7 @@ export function Card({ className, ...props }: DivProps) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-line bg-surface transition-colors",
+        "ql-glass transition-[transform,box-shadow,border-color] rounded-xl",
         className,
       )}
       {...props}
