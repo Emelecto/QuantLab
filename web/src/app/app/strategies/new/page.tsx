@@ -13,6 +13,7 @@ import {
   type BacktestResult,
 } from "@/lib/api";
 import { saveRun } from "@/lib/runs";
+import { saveStrategy, saveBacktestRun } from "@/lib/db";
 
 type AssetType = "crypto" | "stock";
 
@@ -32,6 +33,7 @@ const DEFAULTS: StrategyConfig = {
 export default function NewStrategyPage() {
   const router = useRouter();
   const [config, setConfig] = useState<StrategyConfig>(DEFAULTS);
+  const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +64,27 @@ export default function NewStrategyPage() {
         integrity_label: result.integrity_label,
         equity_curve: result.equity_curve,
       };
+      // Caché local (source of truth es Supabase, pero esto permite ver el
+      // resultado de inmediato aunque falle la nube).
       saveRun(run);
+
+      try {
+        const strategyId = await saveStrategy(config, config.code, isPublic);
+        await saveBacktestRun(strategyId, result);
+      } catch (dbErr) {
+        const msg = dbErr instanceof Error ? dbErr.message : "Error desconocido";
+        if (msg === "AUTH_REQUIRED") {
+          // Sin sesión: la estrategia no se puede guardar en la nube.
+          router.push("/login");
+          return;
+        }
+        setError(
+          "El backtest salió bien, pero no se pudo guardar en la nube: " + msg,
+        );
+        setRunning(false);
+        return;
+      }
+
       router.push(`/app/strategies/${run.id}/results`);
     } catch (e) {
       const msg =
@@ -216,6 +238,21 @@ export default function NewStrategyPage() {
               Integridad activada: el backtest usa datos que la estrategia
               nunca vio. No se puede desactivar.
             </p>
+
+            <label className="mt-4 flex items-start gap-2.5 rounded-md border border-line bg-white/[0.02] px-3 py-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+              />
+              <span className="text-xs leading-relaxed text-ink">
+                Compartir en la comunidad
+                <span className="mt-0.5 block text-[11px] text-muted">
+                  Tu estrategia aparecerá en /community y en el ranking OOS.
+                </span>
+              </span>
+            </label>
           </div>
 
           {error && (

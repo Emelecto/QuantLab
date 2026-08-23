@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EquityChart } from "@/components/EquityChart";
 import { buttonClasses } from "@/components/ui/Button";
 import { getRun } from "@/lib/runs";
+import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
 import type { BacktestResult } from "@/lib/api";
 
 function Metric({
@@ -43,8 +44,27 @@ export default function ResultsPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setRun(getRun(params.id));
-    setLoaded(true);
+    // 1) Caché local (runs propios del editor).
+    const local = getRun(params.id);
+    if (local) {
+      setRun(local);
+      setLoaded(true);
+      return;
+    }
+    // 2) Fallback: vista pública por strategy id (desde /community o /leaderboard).
+    let active = true;
+    getPublicStrategy(params.id)
+      .then((res) => {
+        if (!active) return;
+        if (res && res.run) {
+          setRun(supabaseRunToResult(res.strategy, res.run));
+        }
+        setLoaded(true);
+      })
+      .catch(() => active && setLoaded(true));
+    return () => {
+      active = false;
+    };
   }, [params.id]);
 
   if (loaded && !run) {

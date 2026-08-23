@@ -1,7 +1,38 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MOCK_LEADERBOARD } from "@/lib/mock";
+import { getLeaderboard, type LeaderboardRow } from "@/lib/db";
+
+function assetLabel(asset_type: string): string {
+  return asset_type === "crypto" ? "Cripto" : "Acción";
+}
 
 export default function LeaderboardPage() {
+  const [rows, setRows] = useState<LeaderboardRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getLeaderboard()
+      .then((data) => {
+        if (!active) return;
+        setRows(data);
+        setFetchError(null);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setFetchError(
+          e instanceof Error ? e.message : "No se pudo cargar el ranking.",
+        );
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <>
       <section className="border-b border-line">
@@ -18,83 +49,107 @@ export default function LeaderboardPage() {
 
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
-          <div className="ql-glass overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-line">
-                  <th className="metric px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
-                    #
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
-                    Estrategia
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
-                    Autor
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
-                    Activo
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
-                    Deflated Sharpe OOS
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
-                    MaxDD
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
-                    Win%
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
-                    <span className="sr-only">Abrir</span>↗
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_LEADERBOARD.map((row) => (
-                  <tr
-                    key={row.rank}
-                    className="ql-row border-b border-line last:border-0 transition-colors"
-                  >
-                    <td className="metric px-4 py-3 text-[13px] text-muted">
-                      {row.rank}
-                    </td>
-                    <td className="px-4 py-3 text-[13px] font-medium text-ink">
-                      {row.name}
-                    </td>
-                    <td className="metric px-4 py-3 text-[13px] text-muted">
-                      @{row.author}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="metric rounded border border-line bg-[#1a2131] px-1.5 py-0.5 text-[11px] text-muted">
-                        {row.asset}
-                      </span>
-                    </td>
-                    <td className="metric px-4 py-3 text-right text-[13px] font-medium text-long">
-                      {row.deflatedSharpeOos.toFixed(2)}
-                    </td>
-                    <td className="metric px-4 py-3 text-right text-[13px] text-short">
-                      {row.maxDd.toFixed(1)}%
-                    </td>
-                    <td className="metric px-4 py-3 text-right text-[13px] text-ink">
-                      {row.winRate.toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href="/community"
-                        aria-label={`Abrir ${row.name}`}
-                        className="metric inline-flex h-6 w-6 items-center justify-center rounded border border-line text-muted transition-colors hover:border-[#2f3b4f] hover:text-ink"
-                      >
-                        ↗
-                      </Link>
-                    </td>
+          {loading ? (
+            <p className="metric text-sm text-muted">Cargando ranking…</p>
+          ) : fetchError ? (
+            <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short">
+              {fetchError}
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-16 text-center">
+              <p className="text-lg font-semibold text-ink">
+                Sé el primero en compartir
+              </p>
+              <p className="max-w-md text-sm text-muted">
+                Aún no hay estrategias públicas con backtest. Comparte la tuya
+                para entrar al ranking.
+              </p>
+              <Link
+                href="/app/strategies/new"
+                className="ql-btn-primary ql-btn h-9 rounded-md px-3 text-[13px]"
+              >
+                Crear estrategia
+              </Link>
+            </div>
+          ) : (
+            <div className="ql-glass overflow-x-auto">
+              <table className="w-full min-w-[820px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-line">
+                    <th className="metric px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
+                      #
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
+                      Estrategia
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
+                      Autor
+                    </th>
+                    <th className="px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
+                      Activo
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
+                      Deflated Sharpe OOS
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
+                      MaxDD
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
+                      Win%
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
+                      <span className="sr-only">Abrir</span>↗
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr
+                      key={row.strategy_id}
+                      className="ql-row border-b border-line last:border-0 transition-colors"
+                    >
+                      <td className="metric px-4 py-3 text-[13px] text-muted">
+                        {i + 1}
+                      </td>
+                      <td className="px-4 py-3 text-[13px] font-medium text-ink">
+                        {row.name}
+                      </td>
+                      <td className="metric px-4 py-3 text-[13px] text-muted">
+                        @{row.author ?? "anónimo"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="metric rounded border border-line bg-[#1a2131] px-1.5 py-0.5 text-[11px] text-muted">
+                          {assetLabel(row.asset)}
+                        </span>
+                      </td>
+                      <td className="metric px-4 py-3 text-right text-[13px] font-medium text-long">
+                        {row.deflatedSharpeOos.toFixed(2)}
+                      </td>
+                      <td className="metric px-4 py-3 text-right text-[13px] text-short">
+                        {row.maxDd.toFixed(1)}%
+                      </td>
+                      <td className="metric px-4 py-3 text-right text-[13px] text-ink">
+                        {row.winRate.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/app/strategies/${row.strategy_id}/results`}
+                          aria-label={`Abrir ${row.name}`}
+                          className="metric inline-flex h-6 w-6 items-center justify-center rounded border border-line text-muted transition-colors hover:border-[#2f3b4f] hover:text-ink"
+                        >
+                          ↗
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <p className="metric mt-4 text-[12px] text-muted">
-            Datos de demostración · el ranking real se calcula sobre corridas
-            verificadas fuera de muestra.
+            Datos reales · el ranking se calcula sobre corridas verificadas
+            fuera de muestra (walk-forward OOS).
           </p>
         </div>
       </section>
