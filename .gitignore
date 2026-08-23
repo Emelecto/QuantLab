@@ -1,8 +1,11 @@
 node_modules
 .next
 dist
+dist/
 venv
-exclude=.venv
+.venv
 __pycache__
 *.pyc
 .env
+.DS_Store
+.exclude
