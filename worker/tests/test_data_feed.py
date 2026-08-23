@@ -23,7 +23,7 @@ def _check_ohlcv(df, min_rows=1):
 
 
 def test_crypto_binance_btc_real():
-    df = get_ohlcv("crypto", "BTCUSDT", "1d", "2023-01-01", "2023-01-10")
+    df = get_ohlcv("crypto", "BTCUSDT", "1d", "2023-01-01", "2023-01-10", use_cache=False)
     _check_ohlcv(df, min_rows=5)
     # Enero 2023: BTC cotizaba muy por debajo de 100k.
     assert df["close"].max() < 100_000
@@ -32,12 +32,12 @@ def test_crypto_binance_btc_real():
 
 def test_crypto_symbol_normalization():
     # 'BTC' debe normalizarse a 'BTCUSDT' y traer datos reales.
-    df = get_ohlcv("crypto", "btc", "1d", "2023-01-01", "2023-01-05")
+    df = get_ohlcv("crypto", "btc", "1d", "2023-01-01", "2023-01-05", use_cache=False)
     _check_ohlcv(df, min_rows=2)
 
 
 def test_stock_yfinance_aapl_real():
-    df = get_ohlcv("stock", "AAPL", "1d", "2023-01-01", "2023-01-10")
+    df = get_ohlcv("stock", "AAPL", "1d", "2023-01-01", "2023-01-10", use_cache=False)
     _check_ohlcv(df, min_rows=3)
     # AAPL en enero 2023 cotizaba entre ~100 y ~200 USD.
     assert df["close"].mean() > 100, "precio AAPL fuera de rango realista (muy bajo)"
@@ -49,10 +49,10 @@ def test_stock_yfinance_aapl_real():
 
 def test_invalid_crypto_symbol_raises():
     with pytest.raises(ValueError) as exc:
-        get_ohlcv("crypto", "ZZZTOPUSDT", "1d", "2023-01-01", "2023-01-10")
+        get_ohlcv("crypto", "ZZZTOPUSDT", "1d", "2023-01-01", "2023-01-10", use_cache=False)
     assert "Binance" in str(exc.value) or "ZZZTOP" in str(exc.value)
 
 
 def test_invalid_asset_type_raises():
     with pytest.raises(ValueError):
-        get_ohlcv("commodity", "GOLD", "1d", "2023-01-01", "2023-01-10")
+        get_ohlcv("commodity", "GOLD", "1d", "2023-01-01", "2023-01-10", use_cache=False)

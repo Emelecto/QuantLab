@@ -8,9 +8,20 @@ Toda función devuelve un pandas.DataFrame con columnas
 [open, high, low, close, volume] y un DatetimeIndex (nombre 'timestamp').
 No se generan datos simulados bajo ninguna circunstancia: si la fuente
 no responde o el símbolo no existe, se lanza una excepción clara.
+
+CACHE (opcional, best-effort):
+  get_ohlcv(..., use_cache=True) intenta primero leer desde Supabase Storage
+  (bucket 'market-data', ruta '{asset_type}/{symbol}/{timeframe}.parquet').
+  Si el archivo existe y cubre el rango pedido, lo devuelve sin tocar la API.
+  Si no, descarga de la fuente en vivo y (opcionalmente) escribe a cache.
+  Cualquier fallo de cache es SILENCIOSO y cae siempre a la descarga directa,
+  de modo que el comportamiento de red nunca se rompe por culpa del cache.
 """
 from __future__ import annotations
 
+import io
+import logging
+import os
 import time
 from datetime import datetime, timezone
 from typing import Union
@@ -23,9 +34,22 @@ try:  # yfinance es pesado; lo importamos de forma diferida en get_ohlcv.
 except Exception:  # pragma: no cover - sólo para entornos sin yfinance
     yf = None
 
+# ¿pyarrow disponible? Si no, el cache usa JSON en lugar de Parquet.
+try:
+    import pyarrow  # noqa: F401
+
+    _HAS_PARQUET = True
+except Exception:  # pragma: no cover
+    _HAS_PARQUET = False
+
 BINANCE_KLINES = "https://api.binance.com/api/v3/klines"
 _BINANCE_LIMIT = 1000  # máximo por petición según API de Binance
 _REQUEST_TIMEOUT = 30
+
+# Bucket de Supabase Storage donde se guarda el cache de mercado.
+_CACHE_BUCKET = "market-data"
+
+logger = logging.getLogger(__name__)
 
 # Mapeo timeframe -> intervalo de Binance (soportados por la API).
 _BINANCE_INTERVALS = {
@@ -34,7 +58,167 @@ _BINANCE_INTERVALS = {
     "1d": "1d", "3d": "3d", "1w": "1w", "1M": "1M",
 }
 
+# Cliente Supabase cacheado en memoria (lazy). None = sin credenciales/indisponible.
+_CACHE_CLIENT = None
 
+
+# ---------------------------------------------------------------------------
+# Cache en Supabase Storage (best-effort, no bloquea la descarga directa)
+# ---------------------------------------------------------------------------
+def cache_file_ext() -> str:
+    """Extensión del archivo de cache según la disponibilidad de pyarrow."""
+    return ".parquet" if _HAS_PARQUET else ".json"
+
+
+def _cache_path(asset_type: str, symbol: str, timeframe: str) -> str:
+    """Ruta del objeto en el bucket: '{asset_type}/{SYMBOL}/{timeframe}.ext'."""
+    asset_type = (asset_type or "").lower()
+    sym = (symbol or "").strip().upper()
+    return f"{asset_type}/{sym}/{timeframe}{cache_file_ext()}"
+
+
+def _cache_client():
+    """Devuelve un cliente de Supabase o None si no hay credenciales/disponible.
+
+    Lee SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY desde el entorno (.env cargado
+    por python-dotenv si existe). Nunca lanza; en fallo devuelve None para que
+    el llamador caiga a la descarga directa.
+    """
+    global _CACHE_CLIENT
+    if _CACHE_CLIENT is not None:
+        return _CACHE_CLIENT
+    try:
+        from dotenv import load_dotenv
+        from supabase import create_client
+
+        load_dotenv()  # no-op si no hay .env
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if not url or not key:
+            logger.warning("Cache Supabase desactivado: faltan SUPABASE_URL/KEY.")
+            _CACHE_CLIENT = False  # marca negativa para no reintentar
+            return None
+        _CACHE_CLIENT = create_client(url, key)
+    except Exception as exc:  # pragma: no cover - entorno sin supabase
+        logger.warning("No se pudo inicializar el cliente Supabase: %s", exc)
+        _CACHE_CLIENT = False
+        return None
+    return _CACHE_CLIENT
+
+
+def ensure_cache_bucket() -> bool:
+    """Crea el bucket 'market-data' (privado) si no existe. Idempotente."""
+    client = _cache_client()
+    if client is None:
+        return False
+    try:
+        client.storage.create_bucket(_CACHE_BUCKET, options={"public": False})
+        logger.info("Bucket '%s' listo (privado).", _CACHE_BUCKET)
+    except Exception as exc:
+        # Ya existe o no hay permiso para crearlo; lo ignoramos.
+        logger.info("Bucket '%s' ya existente o sin permiso de creación: %s",
+                    _CACHE_BUCKET, exc)
+    return True
+
+
+def _df_to_bytes(df: pd.DataFrame) -> bytes:
+    buf = io.BytesIO()
+    if _HAS_PARQUET:
+        df.to_parquet(buf)
+    else:
+        # JSON: serializamos el índice 'timestamp' como columna ISO.
+        tmp = df.reset_index()
+        tmp.to_json(buf, orient="records", date_format="iso")
+    return buf.getvalue()
+
+
+def _df_from_bytes(data: bytes, path: str) -> pd.DataFrame:
+    if path.endswith(".parquet"):
+        df = pd.read_parquet(io.BytesIO(data))
+    else:
+        tmp = pd.read_json(io.BytesIO(data), orient="records")
+        tmp["timestamp"] = pd.to_datetime(tmp["timestamp"])
+        tmp = tmp.set_index("timestamp")
+    df.index.name = "timestamp"
+    return df
+
+
+def _as_utc(value: Union[str, datetime, pd.Timestamp]) -> pd.Timestamp:
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    return ts
+
+
+def read_from_cache(
+    asset_type: str,
+    symbol: str,
+    timeframe: str,
+    start: Union[str, datetime, pd.Timestamp],
+    end: Union[str, datetime, pd.Timestamp],
+) -> Union[pd.DataFrame, None]:
+    """Lee desde Supabase Storage si el archivo existe y cubre [start, end].
+
+    Devuelve el DataFrame recortado al rango, o None si no aplica.
+    Cualquier fallo (red, credenciales, archivo ausente) -> None.
+    """
+    client = _cache_client()
+    if client is None:
+        return None
+    path = _cache_path(asset_type, symbol, timeframe)
+    try:
+        data = client.storage.from_(_CACHE_BUCKET).download(path)
+    except Exception as exc:
+        logger.info("Cache miss para %s: %s", path, exc)
+        return None
+    try:
+        df = _df_from_bytes(data, path)
+    except Exception as exc:
+        logger.warning("Cache ilegible para %s: %s", path, exc)
+        return None
+    # Normaliza el índice a UTC para comparar rangos de forma uniforme.
+    idx = df.index
+    if getattr(idx, "tz", None) is None:
+        idx = idx.tz_localize("UTC")
+        df = df.copy()
+        df.index = idx
+    s = _as_utc(start)
+    e = _as_utc(end)
+    if idx.min() <= s and idx.max() >= e:
+        return df.loc[s:e]
+    logger.info("Cache %s no cubre el rango pedido; se descarga en vivo.", path)
+    return None
+
+
+def write_to_cache(
+    asset_type: str,
+    symbol: str,
+    timeframe: str,
+    df: pd.DataFrame,
+) -> bool:
+    """Escribe el DataFrame completo al bucket de Supabase Storage (upsert)."""
+    client = _cache_client()
+    if client is None:
+        return False
+    path = _cache_path(asset_type, symbol, timeframe)
+    data = _df_to_bytes(df)
+    content_type = "application/octet-stream"
+    try:
+        client.storage.from_(_CACHE_BUCKET).upload(
+            path,
+            data,
+            file_options={"upsert": "true", "content-type": content_type},
+        )
+        logger.info("Cache escrito: %s (%d bytes).", path, len(data))
+        return True
+    except Exception as exc:
+        logger.warning("No se pudo escribir cache %s: %s", path, exc)
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Descarga directa (red real)
+# ---------------------------------------------------------------------------
 def _normalize_symbol(asset_type: str, symbol: str) -> str:
     """Normaliza el símbolo.
 
@@ -152,20 +336,15 @@ def _fetch_yfinance(symbol: str, interval: str, start, end) -> pd.DataFrame:
     return df
 
 
-def get_ohlcv(
+def _download_live(
     asset_type: str,
     symbol: str,
     timeframe: str,
     start: Union[str, datetime, pd.Timestamp],
     end: Union[str, datetime, pd.Timestamp],
 ) -> pd.DataFrame:
-    """Descarga OHLCV REALES.
-
-    Devuelve DataFrame con columnas [open, high, low, close, volume]
-    y DatetimeIndex (nombre 'timestamp'). Lanza ValueError si la fuente
-    falla o el símbolo no existe.
-    """
-    asset_type = (asset_type or "").lower()
+    """Descarga OHLCV REALES desde la fuente (sin cache)."""
+    asset_type = asset_type.lower()
     timeframe = timeframe or "1d"
 
     if asset_type == "crypto":
@@ -215,4 +394,47 @@ def get_ohlcv(
         out.index.name = "timestamp"
         return out.sort_index()
 
-    raise ValueError(f"asset_type no soportado: '{asset_type}' (usa 'crypto' o 'stock').")
+    raise ValueError(
+        f"asset_type no soportado: '{asset_type}' (usa 'crypto' o 'stock')."
+    )
+
+
+def get_ohlcv(
+    asset_type: str,
+    symbol: str,
+    timeframe: str,
+    start: Union[str, datetime, pd.Timestamp],
+    end: Union[str, datetime, pd.Timestamp],
+    use_cache: bool = True,
+) -> pd.DataFrame:
+    """Descarga OHLCV REALES, usando cache de Supabase Storage cuando es posible.
+
+    Comportamiento:
+      - Si use_cache=True (por defecto) y el archivo de cache existe y cubre el
+        rango pedido, se devuelve desde Supabase Storage sin tocar la API.
+      - Si no hay cache utilizable, se descarga de la fuente en vivo y (cuando
+        use_cache=True) se escribe a cache para futuros requests.
+      - Cualquier fallo del cache es silencioso y cae SIEMPRE a la descarga
+        directa, de modo que la capa de datos nunca deja de funcionar.
+
+    Devuelve DataFrame con columnas [open, high, low, close, volume] y
+    DatetimeIndex (nombre 'timestamp'). Lanza ValueError si la fuente falla.
+    """
+    if use_cache:
+        try:
+            cached = read_from_cache(asset_type, symbol, timeframe, start, end)
+            if cached is not None:
+                logger.info("get_ohlcv(%s,%s,%s): servido desde cache.",
+                            asset_type, symbol, timeframe)
+                return cached
+        except Exception as exc:  # pragma: no cover - defensa adicional
+            logger.warning("Cache read falló; descarga en vivo: %s", exc)
+
+    df = _download_live(asset_type, symbol, timeframe, start, end)
+
+    if use_cache and df is not None and not df.empty:
+        try:
+            write_to_cache(asset_type, symbol, timeframe, df)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Cache write falló: %s", exc)
+    return df

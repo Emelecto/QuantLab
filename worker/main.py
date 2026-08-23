@@ -125,6 +125,14 @@ def validate_strategy(config: StrategyConfig) -> dict:
     return {"valid": valid, "warnings": warnings}
 
 
+def _validate_config(config: StrategyConfig) -> None:
+    """Valida la entrada del usuario ANTES de descargar datos.
+
+    Delega en engine._validate_config (única fuente de verdad).
+    """
+    engine._validate_config(config)
+
+
 @app.get("/health")
 def health() -> dict:
     """Healthcheck sin red, para el deploy."""
@@ -135,14 +143,15 @@ def health() -> dict:
 def backtest(config: StrategyConfig) -> dict:
     """Ejecuta un backtest OOS real y devuelve el dict del motor.
 
-    En caso de error de descarga/datos (ValueError de data_feed) devuelve 400
+    En caso de error de validación/descarga/datos (ValueError) devuelve 400
     con {"error": mensaje_claro}.
     """
     try:
+        _validate_config(config)
         result = engine.run_backtest(config)
         return result
     except ValueError as exc:
-        # Errores de red/datos (Binance, yfinance, símbolo inexistente...).
+        # Errores de validación, red o datos (Binance, yfinance, símbolo...).
         return JSONResponse(status_code=400, content={"error": str(exc)})
     except Exception as exc:  # noqa: BLE001 - no queremos romper la API con 500 crudo
         return JSONResponse(

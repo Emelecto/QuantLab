@@ -7,7 +7,10 @@ class StrategyConfig(BaseModel):
     symbol: str = "BTCUSDT"
     timeframe: str = "1d"
     capital: float = 10000.0
-    commission: float = 0.1             # % por lado
+    commission: float = 0.1             # % por lado (cada trade/transición)
+    slippage: float = 0.0005            # slippage por lado (5 bps por defecto)
+    fast: int = 20                      # ventana SMA rápida del cruce
+    slow: int = 50                      # ventana SMA lenta del cruce
     folds: int = 5
     split: int = 70                     # % train
     start: str = "2023-01-01"           # rango de datos OHLCV reales
@@ -24,6 +27,9 @@ class Metrics(BaseModel):
     n_trades: int = 0
     ret_total: float = 0.0
     vol: float = 0.0
+    # --- Nuevos campos: realismo / valor del reporte ---
+    calmar: float = 0.0                 # ret_total / |maxdd|
+    n_trades_per_year: float = 0.0      # operaciones anualizadas
 
 
 class RunResult(BaseModel):
