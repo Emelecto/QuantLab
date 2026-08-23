@@ -1,0 +1,57 @@
+import { cn } from "@/lib/cn";
+
+/** Clases compartidas para inputs de formularios en tema dark. */
+export const inputClasses = cn(
+  "h-10 w-full rounded-md border border-line bg-bg px-3 text-sm text-ink",
+  "placeholder:text-muted outline-none transition-colors",
+  "focus:border-accent/60 focus:ring-1 focus:ring-accent/30",
+);
+
+export function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[13px] font-medium text-ink">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** Card centrada para /login y /register. */
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+  footer,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-1 items-start justify-center px-6 py-16">
+      <div className="w-full max-w-sm">
+        <div className="rounded-lg border border-line bg-surface p-6">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">
+            {title}
+          </h1>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+            {subtitle}
+          </p>
+          <div className="mt-6">{children}</div>
+        </div>
+        <p className="mt-4 text-center text-[13px] text-muted">{footer}</p>
+      </div>
+    </div>
+  );
+}

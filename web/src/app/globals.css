@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
+/* ============================================================
+   QuantLab — tema dark quant (tokens exactos)
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ql-bg: #0b0e14; /* fondo */
+  --ql-surface: #141925; /* card */
+  --ql-line: #222b3a; /* borde */
+  --ql-ink: #e5e9f0; /* texto principal */
+  --ql-muted: #8b92a5; /* texto muteado */
+  --ql-long: #10b981; /* LONG / positivo */
+  --ql-short: #ef4444; /* SHORT / negativo */
+  --ql-accent: #10b981; /* acento primario (CTA) */
+  --ql-cyan: #38bdf8; /* acento secundario / links */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--ql-bg);
+  --color-surface: var(--ql-surface);
+  --color-line: var(--ql-line);
+  --color-ink: var(--ql-ink);
+  --color-muted: var(--ql-muted);
+  --color-long: var(--ql-long);
+  --color-short: var(--ql-short);
+  --color-accent: var(--ql-accent);
+  --color-cyan: var(--ql-cyan);
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--ql-line);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ql-bg);
+  color: var(--ql-ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tipografía densa para números y métricas */
+.metric {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Grid sutil de fondo — decoración no centrada, alineada a la izquierda */
+.ql-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(34, 43, 58, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 43, 58, 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.28);
+  color: var(--ql-ink);
+}
+
+/* Scrollbar dark */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ql-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #2b3547;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a465c;
 }
