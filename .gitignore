@@ -1,0 +1,8 @@
+node_modules
+.next
+dist
+venv
+exclude=.venv
+__pycache__
+*.pyc
+.env
