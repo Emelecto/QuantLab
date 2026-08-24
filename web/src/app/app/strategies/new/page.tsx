@@ -44,6 +44,7 @@ export default function NewStrategyPage() {
   const router = useRouter();
   const [config, setConfig] = useState<StrategyConfig>(DEFAULTS);
   const [mode, setMode] = useState<Mode>("visual");
+  const [visualTab, setVisualTab] = useState<"templates" | "builder" | "blocks" | "signals">("builder");
   const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,34 +143,65 @@ export default function NewStrategyPage() {
 
           {mode === "visual" ? (
             <div className="flex flex-col gap-4">
-              <StrategyTemplates
-                onSelect={(code) => update("code", code)}
-              />
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="flex flex-wrap gap-1 rounded-lg border border-line bg-white/[0.02] p-1">
+                {(
+                  [
+                    { k: "templates", label: "Plantillas" },
+                    { k: "builder", label: "Constructor" },
+                    { k: "blocks", label: "Por bloques" },
+                    { k: "signals", label: "Señales en vivo" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.k}
+                    onClick={() => setVisualTab(t.k)}
+                    className={
+                      "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors " +
+                      (visualTab === t.k
+                        ? "bg-accent/15 text-accent"
+                        : "text-muted hover:text-ink")
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {visualTab === "templates" && (
+                <StrategyTemplates onSelect={(code) => update("code", code)} />
+              )}
+
+              {visualTab === "builder" && (
                 <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
                   <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Constructor
+                    Constructor visual
                   </div>
                   <StrategyBuilder code={config.code} onChange={(c) => update("code", c)} />
                 </div>
+              )}
+
+              {visualTab === "blocks" && (
                 <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
                   <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Por bloques
+                    Constructor por bloques
                   </div>
                   <BlockBuilder onGenerate={(c) => update("code", c)} />
                 </div>
-              </div>
-              <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
-                <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Señales en vivo (datos reales)
+              )}
+
+              {visualTab === "signals" && (
+                <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
+                  <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
+                    Señales en vivo (datos reales)
+                  </div>
+                  <LiveSignals
+                    asset_type={config.asset_type}
+                    symbol={config.symbol}
+                    timeframe={config.timeframe}
+                    code={config.code}
+                  />
                 </div>
-                <LiveSignals
-                  asset_type={config.asset_type}
-                  symbol={config.symbol}
-                  timeframe={config.timeframe}
-                  code={config.code}
-                />
-              </div>
+              )}
             </div>
           ) : (
             <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">

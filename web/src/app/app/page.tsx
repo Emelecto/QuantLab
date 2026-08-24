@@ -37,7 +37,29 @@ function MetricCard({
 function DashboardContent() {
   const { user, signOut } = useAuth();
   const email = user?.email ?? "";
+  const [displayName, setDisplayName] = useState<string>("");
   const [runs, setRuns] = useState<BacktestResult[]>([]);
+
+  // Carga el nombre a mostrar desde profiles (username > display_name > email).
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserSupabaseClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, display_name")
+        .maybeSingle();
+      if (active && data) {
+        setDisplayName(data.display_name || data.username || "");
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  const greeting = displayName || email.split("@")[0] || "trader";
 
   // B7: % de estrategias que superaron al benchmark (buy & hold real).
   const [beatPct, setBeatPct] = useState<number | null>(null);
@@ -151,7 +173,7 @@ function DashboardContent() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-ink">
-              Hola {email || "trader"}
+              Hola {greeting}
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
               Crea una estrategia, pruébala con datos reales y mira si

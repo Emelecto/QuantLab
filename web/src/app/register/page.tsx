@@ -11,6 +11,7 @@ import { PasswordField } from "@/components/ui/PasswordField";
 export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,15 @@ export default function RegisterPage() {
     setError(null);
     setInfo(null);
 
+    const cleanUser = username.trim();
+    if (cleanUser.length < 3 || cleanUser.length > 20) {
+      setError("El nombre de usuario debe tener entre 3 y 20 caracteres.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(cleanUser)) {
+      setError("Solo letras, números, guiones y puntos en el nombre de usuario.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Las contraseñas no coinciden");
       return;
@@ -39,7 +49,10 @@ export default function RegisterPage() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: redirectTo },
+        options: {
+          emailRedirectTo: redirectTo,
+          data: { username: cleanUser, display_name: cleanUser },
+        },
       });
 
       if (error) {
@@ -53,6 +66,20 @@ export default function RegisterPage() {
         }
         setLoading(false);
         return;
+      }
+
+      // Guardamos el username en la tabla profiles (el trigger ya creó la fila).
+      if (data.user) {
+        const { error: profErr } = await supabase
+          .from("profiles")
+          .upsert(
+            { id: data.user.id, username: cleanUser, display_name: cleanUser },
+            { onConflict: "id" },
+          );
+        if (profErr) {
+          // No bloquea el registro; el usuario puede editarlo luego.
+          console.warn("No se pudo guardar el username:", profErr.message);
+        }
       }
 
       // Sesión presente => confirmación de email desactivada: entramos directo.
@@ -118,6 +145,22 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tu@correo.com"
+            className={inputClasses}
+          />
+        </Field>
+
+        <Field id="username" label="Nombre de usuario">
+          <input
+            id="username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            required
+            minLength={3}
+            maxLength={20}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="tu_alias"
             className={inputClasses}
           />
         </Field>

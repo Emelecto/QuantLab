@@ -57,44 +57,8 @@ const OOS_PATH =
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* HEADER (A4) */}
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"
-          >
-            <span
-              aria-hidden
-              className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent"
-            />
-            QuantLab
-          </Link>
-          <nav className="ml-6 hidden items-center gap-6 text-sm text-muted md:flex">
-            <Link href="/features" className="transition-colors hover:text-ink">
-              Funciones
-            </Link>
-            <Link href="/community" className="transition-colors hover:text-ink">
-              Comunidad
-            </Link>
-            <Link href="/leaderboard" className="transition-colors hover:text-ink">
-              Ranking
-            </Link>
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden text-sm font-medium text-muted transition-colors hover:text-ink sm:inline"
-            >
-              Entrar
-            </Link>
-            <Link href="/register" className={buttonClasses("primary", "sm")}>
-              Empieza gratis
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col">
+      {/* El header global (TopBar) lo aporta el layout. No duplicar aquí. */}
 
       {/* HERO (A1: demo en vivo) */}
       <section className="relative overflow-hidden border-b border-line">
