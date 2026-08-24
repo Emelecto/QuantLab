@@ -344,3 +344,23 @@ a, button, input, select, textarea, [role="button"] {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ===== QuantLab v3 — Glass Terminal ===== */
+@keyframes qlv3-chart-reveal {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+.qlv3-chart-reveal {
+  animation: qlv3-chart-reveal 1.8s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qlv3-chart-reveal {
+    animation: none;
+  }
+}

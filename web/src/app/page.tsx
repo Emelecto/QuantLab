@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { LiveSignals } from "@/components/studio";
 import { AuthAwareCTA } from "@/components/AuthAwareCTA";
+import { HeroChart } from "@/components/charts/HeroChart";
 
 const STEPS = [
   {
@@ -100,18 +100,35 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Demo en vivo: mini-gráfico real con señales de la estrategia */}
-            <div className="ql-perspective">
-              <LiveSignals
-                asset_type="crypto"
-                symbol="BTCUSDT"
-                timeframe="1d"
-                code="fast=20,slow=50"
-              />
-            </div>
+            {/* Demo en vivo: equity curve animada estilo TradingView con métricas flotantes */}
+            <HeroChart />
           </div>
         </div>
       </section>
+
+      {/* BARRA DE CONFIANZA */}
+      <div className="border-b border-line bg-surface/60">
+        <div className="mx-auto w-full max-w-6xl overflow-x-auto px-6 py-3">
+          <div className="flex min-w-max items-center gap-6 font-mono text-[11px] tracking-wide text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
+              Datos reales Binance
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
+              Yahoo Finance
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
+              Split OOS anti-overfitting
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
+              Sin simulación
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* FRANJA DISCLAIMER */}
       <div className="border-b border-line bg-surface/60">
