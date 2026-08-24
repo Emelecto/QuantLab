@@ -2,6 +2,7 @@ services:
   - type: web
     name: quantlab-worker
     runtime: docker
+    rootDirectory: worker
     dockerfilePath: ./Dockerfile
     plan: starter
     region: oregon        # cámbialo a sao-paulo si Render lo soporta para menos latencia
