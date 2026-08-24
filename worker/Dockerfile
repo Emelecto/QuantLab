@@ -18,9 +18,7 @@ COPY . .
 
 EXPOSE 8000
 
-# Uvicorn detrás de gunicorn (workers=2, suficiente para el motor single-thread de backtest)
-CMD ["gunicorn", "main:app", \
-     "-k", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:${PORT:-8000}", \
-     "--workers", "2", \
-     "--timeout", "120"]
+# Uvicorn detrás de gunicorn (workers=2, suficiente para el motor single-thread de backtest).
+# Usamos shell form (sh -c) para que $PORT se expanda con la variable de entorno
+# que inyecta Render/Vercel (sin llaves para evitar el error '${PORT' no válido).
+CMD sh -c "gunicorn main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"
