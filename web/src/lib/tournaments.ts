@@ -174,10 +174,15 @@ export type LeaderboardTab = "qp" | "tournaments" | "country";
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL || "http://localhost:8001";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${WORKER}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  const supabase = getSupabase();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${WORKER}${path}`, { ...init, headers });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json as T;
