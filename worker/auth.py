@@ -36,12 +36,14 @@ def _fetch_jwks() -> dict:
             api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
                 "SUPABASE_ANON_KEY"
             )
+            logger.info(f"[AUTH DEBUG] JWKS url={_get_jwks_url()} apikey_present={bool(api_key)}")
             headers = {"apikey": api_key} if api_key else {}
             resp = requests.get(_get_jwks_url(), headers=headers, timeout=10)
             resp.raise_for_status()
             _JWKS = resp.json()
+            logger.info(f"[AUTH DEBUG] JWKS obtenido, keys={len(_JWKS.get('keys', []))}")
         except Exception as e:
-            logger.warning(f"No se pudo obtener JWKS de Supabase: {e}")
+            logger.error(f"[AUTH DEBUG] No se pudo obtener JWKS de Supabase: {e}")
             _JWKS = {}
     return _JWKS
 
@@ -83,8 +85,10 @@ def _verify_jwt(token: str) -> dict | None:
         )
         return payload
     except jwt.ExpiredSignatureError:
+        logger.warning("[AUTH DEBUG] JWT expirado")
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"[AUTH DEBUG] JWT inválido: {e}")
         return None
     except Exception as e:
         logger.warning(f"Error verificando JWT: {e}")
