@@ -56,8 +56,8 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          // Llama 3.1 8B en Groq: gratis y muy rápido para serverless.
-          model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
+          // Llama 3.1 70B en Groq: gratis en tier free y estable.
+          model: process.env.GROQ_MODEL ?? "llama-3.1-70b-versatile",
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },
