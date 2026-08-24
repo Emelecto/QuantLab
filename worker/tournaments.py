@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from auth import require_user, get_optional_user
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ class SubmitBody(BaseModel):
 
 
 @router.post("/tournament/submit")
-def tournament_submit(body: SubmitBody):
+def tournament_submit(body: SubmitBody, request: Request):
     sb = get_supabase()
     # 1. Validar torneo existe y está abierto
     t = sb.table("tournaments").select("*").eq("id", body.tournament_id).execute()
@@ -76,7 +77,7 @@ def tournament_submit(body: SubmitBody):
         raise HTTPException(400, "El torneo no está abierto a submissions")
 
     # 2. Validar QP si hay stake
-    uid = _get_user_id()
+    uid = require_user(request)
     if body.qp_stake > 0:
         bal = sb.table("tokens").select("balance").eq("user_id", uid).execute()
         balance = bal.data[0]["balance"] if bal.data else 0
@@ -123,7 +124,7 @@ def tournament_leaderboard(tournament_id: str):
 @router.get("/tournament/{tournament_id}/my-submission")
 def tournament_my_submission(tournament_id: str):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     res = (
         sb.table("submissions")
         .select("*")
@@ -139,17 +140,17 @@ def tournament_my_submission(tournament_id: str):
 # ---------------------------------------------------------------------------
 
 @router.get("/tokens/balance")
-def tokens_balance():
+def tokens_balance(request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     res = sb.table("tokens").select("*").eq("user_id", uid).execute()
     return res.data[0] if res.data else {"balance": 0, "lifetime_earned": 0, "lifetime_spent": 0, "tier": "free"}
 
 
 @router.get("/tokens/ledger")
-def tokens_ledger():
+def tokens_ledger(request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     res = (
         sb.table("token_ledger")
         .select("*")
@@ -169,9 +170,9 @@ class TransactionBody(BaseModel):
 
 
 @router.post("/tokens/transaction")
-def tokens_transaction(body: TransactionBody):
+def tokens_transaction(body: TransactionBody, request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     # Insert ledger entry
     sb.table("token_ledger").insert({
         "user_id": uid, "amount": body.amount, "type": body.type,
@@ -212,9 +213,9 @@ class PublishBody(BaseModel):
 
 
 @router.post("/marketplace/publish")
-def marketplace_publish(body: PublishBody):
+def marketplace_publish(body: PublishBody, request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     slug = _slugify(body.title)
     res = sb.table("marketplace_strategies").insert({
         "author_id": uid,
@@ -236,9 +237,9 @@ def marketplace_publish(body: PublishBody):
 
 
 @router.post("/marketplace/{strategy_id}/subscribe")
-def marketplace_subscribe(strategy_id: str):
+def marketplace_subscribe(strategy_id: str, request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     # Verificar que no esté ya suscrito
     existing = sb.table("strategy_subscriptions").select("id").eq("strategy_id", strategy_id).eq("subscriber_id", uid).execute()
     if existing.data:
@@ -270,17 +271,17 @@ def marketplace_subscribe(strategy_id: str):
 
 
 @router.post("/marketplace/{strategy_id}/unsubscribe")
-def marketplace_unsubscribe(strategy_id: str):
+def marketplace_unsubscribe(strategy_id: str, request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     sb.table("strategy_subscriptions").update({"status": "cancelled"}).eq("strategy_id", strategy_id).eq("subscriber_id", uid).execute()
     return {"status": "cancelled"}
 
 
 @router.get("/marketplace/my-subscriptions")
-def marketplace_my_subscriptions():
+def marketplace_my_subscriptions(request: Request):
     sb = get_supabase()
-    uid = _get_user_id()
+    uid = require_user(request)
     res = (
         sb.table("strategy_subscriptions")
         .select("*,marketplace_strategies!inner(*)")
@@ -309,10 +310,7 @@ def signals_list(strategy_id: str):
 # HELPERS
 # ---------------------------------------------------------------------------
 
-def _get_user_id() -> str:
-    # En producción viene del JWT/Supabase auth. Por ahora devuelve un placeholder.
-    # TODO: extraer del header Authorization
-    return "00000000-0000-0000-0000-000000000000"
+
 
 
 def _get_balance(uid: str) -> int:
