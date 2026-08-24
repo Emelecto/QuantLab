@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getBalance, getLedger } from "@/lib/tokens";
 import { QP_PRICES, TIER } from "@/lib/constants";
+import { TierBadge } from "@/components/ui/TierBadge";
 import type { TokenBalance, TokenLedgerEntry } from "@/lib/tournaments";
 
 type PlanKey = "plus" | "pro" | "legend";
@@ -146,9 +147,12 @@ export default function WalletPage() {
   return (
     <main className="flex min-h-screen flex-col">
       <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-14">
-        <h1 className="text-3xl font-semibold tracking-tight text-ink animate-fadeIn">
-          Mi Wallet
-        </h1>
+        <div className="flex flex-wrap items-center gap-3 animate-fadeIn">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">
+            Mi Wallet
+          </h1>
+          <TierBadge tier={balance?.tier} />
+        </div>
         <p className="mt-2 text-sm text-muted animate-fadeIn">
           Gestiona tus QuantPoints (QP).
         </p>

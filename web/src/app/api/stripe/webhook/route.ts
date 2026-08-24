@@ -4,8 +4,11 @@
  * Webhook de Stripe que procesa eventos de suscripción.
  *
  * Eventos manejados:
- * - checkout.session.completed → acredita QP al usuario (worker /tokens/transaction)
- * - customer.subscription.deleted → degrada tier a 'free'
+ * - checkout.session.completed → acredita QP vía endpoint INTERNO del worker
+ *   (/internal/tokens/grant, autenticado con X-Scheduler-Key). Un webhook
+ *   nunca lleva JWT de usuario, por eso NO se usa /tokens/transaction.
+ * - customer.subscription.deleted → solo se registra en metadata; el downgrade
+ *   a 'free' queda pendiente (se resuelve desde el worker/scheduler).
  *
  * IMPORTANTE: Siempre devuelve 200 a Stripe (incluso en error) para evitar
  * reintentos. Los errores se loguean internamente.
@@ -81,31 +84,51 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const plan = session.metadata?.plan;
   const qpAmount = Number(session.metadata?.qp_amount);
 
-  if (!userId || !plan || !qpAmount) {
+  if (!userId || !plan || !Number.isFinite(qpAmount)) {
     console.error("[stripe/webhook] Session sin metadata completa:", session.id);
     return;
   }
 
-  console.log(`[stripe/webhook] Acreditando ${qpAmount} QP a usuario ${userId} (plan: ${plan})`);
+  // Contrato interno del worker: un webhook nunca tiene JWT de usuario,
+  // por eso se usa el endpoint /internal/* autenticado con X-Scheduler-Key.
+  const schedulerKey = process.env.SCHEDULER_KEY;
+  if (!schedulerKey) {
+    console.error(
+      "[stripe/webhook] SCHEDULER_KEY no configurado: no se puede acreditar QP (session:",
+      session.id,
+      ")",
+    );
+    return;
+  }
 
-  // Acreditar QP llamando al worker
-  const res = await fetch(`${WORKER}/tokens/transaction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user_id: userId,
-      amount: qpAmount,
-      type: "purchase",
-      memo: `Suscripción ${plan} - Stripe`,
-      ref_id: session.subscription?.toString() || session.id,
-    }),
-  });
+  console.log(
+    `[stripe/webhook] Acreditando ${qpAmount} QP a usuario ${userId} (plan: ${plan})`,
+  );
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error(`[stripe/webhook] Error del worker acreditando QP: ${res.status} ${text}`);
-  } else {
-    console.log(`[stripe/webhook] ${qpAmount} QP acreditados a ${userId}`);
+  try {
+    const res = await fetch(`${WORKER}/internal/tokens/grant`, {
+      method: "POST",
+      headers: {
+        "X-Scheduler-Key": schedulerKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        amount: qpAmount,
+        memo: `Compra Stripe ${plan}`,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error(
+        `[stripe/webhook] Error del worker acreditando QP: ${res.status} ${text}`,
+      );
+    } else {
+      console.log(`[stripe/webhook] ${qpAmount} QP acreditados a ${userId}`);
+    }
+  } catch (err) {
+    console.error("[stripe/webhook] Falló la llamada a /internal/tokens/grant:", err);
   }
 }
 
@@ -117,29 +140,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return;
   }
 
-  console.log(`[stripe/webhook] Suscripción cancelada para usuario ${userId}, degradando a free`);
-
-  // El worker debería tener un endpoint para degradar tier.
-  // Si no existe, el tier se maneja del lado del worker.
-  // Intentamos llamar al worker para actualizar el tier.
-  const res = await fetch(`${WORKER}/tokens/tier/downgrade`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      user_id: userId,
-      tier: "free",
-      reason: "subscription_deleted",
-    }),
-  });
-
-  if (!res.ok) {
-    // Si el endpoint no existe (404), el worker puede manejar la degradación
-    // de otra forma (ej: verificando la suscripción activa en Stripe).
-    if (res.status !== 404) {
-      const text = await res.text().catch(() => "");
-      console.error(`[stripe/webhook] Error degradando tier: ${res.status} ${text}`);
-    }
-  } else {
-    console.log(`[stripe/webhook] Usuario ${userId} degradado a free`);
-  }
+  // El downgrade a 'free' queda PENDIENTE: los endpoints de usuario exigen JWT
+  // (imposible desde un webhook) y aún no existe endpoint interno de tiers.
+  // Registramos el evento y devolvemos 200 para que Stripe no reintente;
+  // el worker/scheduler resolverá el tier verificando la suscripción en Stripe.
+  console.log(
+    `[stripe/webhook] Suscripción cancelada (downgrade pendiente) — user_id: ${userId}, subscription: ${subscription.id}`,
+  );
 }

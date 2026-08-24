@@ -7,6 +7,7 @@ import { EquityChart, DrawdownChart } from "@/components/EquityChart";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { getMarketplaceStrategy, type MarketplaceStrategy } from "@/lib/tokens";
+import { getStrategySignals, type Signal } from "@/lib/tournaments";
 import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
 import type { BacktestResult } from "@/lib/api";
 
@@ -55,12 +56,126 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+/* ---------------------------------------------------------------- */
+/* Señales recientes                                                 */
+/* ---------------------------------------------------------------- */
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "ahora";
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `hace ${days} d`;
+  return new Date(iso).toLocaleDateString("es-ES");
+}
+
+/** Normaliza strength a 0–100 (acepta fracciones 0–1 o porcentajes). */
+function strengthPct(strength?: number): number | null {
+  if (strength == null || !Number.isFinite(strength)) return null;
+  const pct = Math.abs(strength) <= 1 ? strength * 100 : strength;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+function SignalsEmptyState() {
+  return (
+    <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-12 text-center animate-fadeIn">
+      <svg
+        className="opacity-50"
+        width="80"
+        height="80"
+        viewBox="0 0 80 80"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <circle cx="40" cy="40" r="30" stroke="rgba(94,234,212,0.25)" strokeWidth="1.5" fill="none" />
+        <path d="M22 46 L34 36 L42 42 L58 30" stroke="#5eead4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M52 30 H58 V36" stroke="#5eead4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <circle cx="40" cy="40" r="38" stroke="rgba(56,189,248,0.15)" strokeWidth="1" strokeDasharray="4 4" fill="none" />
+      </svg>
+      <p className="max-w-md text-sm text-muted">
+        Aún no hay señales generadas para esta estrategia. Se generan
+        automáticamente cada semana.
+      </p>
+    </div>
+  );
+}
+
+function SignalRow({ signal }: { signal: Signal }) {
+  const isLong = signal.direction === "long";
+  const isClose = signal.direction === "close";
+  const dirColor = isClose ? "text-muted" : isLong ? "text-long" : "text-short";
+  const barColor = isClose ? "bg-muted" : isLong ? "bg-long" : "bg-short";
+  const dirIcon = isClose ? "●" : isLong ? "▲" : "▼";
+  const dirLabel = isClose ? "Cerrar" : isLong ? "Long" : "Short";
+  const pct = strengthPct(signal.strength);
+
+  return (
+    <li className="ql-row flex items-center gap-3 px-5 py-3">
+      {/* Dirección */}
+      <span
+        className={`metric flex w-[70px] shrink-0 items-center justify-center gap-1 rounded-md border border-line px-1.5 py-1 text-[11px] font-semibold ${dirColor}`}
+      >
+        <span aria-hidden="true">{dirIcon}</span>
+        {dirLabel}
+      </span>
+
+      {/* Símbolo */}
+      <div className="min-w-0 flex-1">
+        <p className="metric truncate text-[13px] font-medium text-ink">
+          {signal.symbol}
+        </p>
+      </div>
+
+      {/* Fuerza (barra + %) */}
+      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-line">
+          {pct != null && (
+            <div
+              className={`h-full rounded-full ${barColor}`}
+              style={{ width: `${pct}%` }}
+            />
+          )}
+        </div>
+        <span className="metric w-9 text-right text-[11px] text-muted">
+          {pct != null ? `${pct}%` : "—"}
+        </span>
+      </div>
+
+      {/* Fecha relativa */}
+      <span className="metric w-20 shrink-0 text-right text-[11px] text-muted">
+        {relativeDate(signal.created_at)}
+      </span>
+    </li>
+  );
+}
+
 export default function StrategyDetailPage() {
   const params = useParams<{ id: string }>();
   const [strategy, setStrategy] = useState<MarketplaceStrategy | null>(null);
   const [run, setRun] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  // null = cargando; [] = sin señales (o error/404 → empty state)
+  const [signals, setSignals] = useState<Signal[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getStrategySignals(params.id, 20)
+      .then((list) => {
+        if (active) setSignals(Array.isArray(list) ? list : []);
+      })
+      .catch(() => {
+        // 404 u otro error del worker → mostramos el empty state, sin crash
+        if (active) setSignals([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [params.id]);
 
   useEffect(() => {
     let active = true;
@@ -239,16 +354,40 @@ export default function StrategyDetailPage() {
           )}
         </div>
 
-        {/* Panel de señales recientes (placeholder) */}
-        <div className="mt-8">
-          <h2 className="mb-4 text-sm font-semibold tracking-tight text-ink">
-            Señales recientes
-          </h2>
-          <div className="ql-glass ql-elev-1 rounded-xl px-6 py-10 text-center">
-            <p className="text-sm text-muted">
-              Las señales aparecerán aquí al suscribirte.
-            </p>
+        {/* Señales recientes */}
+        <div className="mt-8 animate-fadeIn">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold tracking-tight text-ink">
+              Señales recientes
+            </h2>
+            {signals && signals.length > 0 && (
+              <span className="metric text-[11px] text-muted">
+                {signals.length} señales
+              </span>
+            )}
           </div>
+
+          {signals === null ? (
+            <div className="ql-glass ql-elev-1 space-y-3 rounded-xl p-5">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="ql-skeleton-line h-8 w-full" />
+              ))}
+            </div>
+          ) : signals.length === 0 ? (
+            <SignalsEmptyState />
+          ) : (
+            <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
+              <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+                {signals.map((s) => (
+                  <SignalRow key={s.id} signal={s} />
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="mt-2 text-[10px] text-muted">
+            Las señales son informativas. No es asesoría financiera.
+          </p>
         </div>
       </section>
     </main>

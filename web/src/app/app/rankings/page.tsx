@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getGlobalLeaderboard,
   type LeaderboardTab,
@@ -9,10 +9,17 @@ import {
 import { LeaderboardRow } from "../components/LeaderboardRow";
 import { useAuth } from "@/lib/useAuth";
 
+type RankMode = "global" | "country";
+
+const modeTabs: { id: RankMode; label: string }[] = [
+  { id: "global", label: "Global" },
+  { id: "country", label: "Por país" },
+];
+
+// Métricas del modo Global (el viejo tab agregado "País" lo sustituye el modo "Por país")
 const tabs: { id: LeaderboardTab; label: string }[] = [
   { id: "qp", label: "QP Ganados" },
   { id: "tournaments", label: "Torneos" },
-  { id: "country", label: "País" },
 ];
 
 const countryNames: Record<string, string> = {
@@ -41,6 +48,25 @@ const countryNames: Record<string, string> = {
   FR: "Francia",
   DE: "Alemania",
   IT: "Italia",
+  GB: "Reino Unido",
+  CA: "Canadá",
+  AU: "Australia",
+  JP: "Japón",
+  KR: "Corea del Sur",
+  CN: "China",
+  IN: "India",
+  NL: "Países Bajos",
+  CH: "Suiza",
+  SE: "Suecia",
+  NO: "Noruega",
+  PL: "Polonia",
+  RU: "Rusia",
+  UA: "Ucrania",
+  TR: "Turquía",
+  ZA: "Sudáfrica",
+  SG: "Singapur",
+  AE: "Emiratos Árabes Unidos",
+  MA: "Marruecos",
 };
 
 function RankingsSkeleton() {
@@ -132,7 +158,9 @@ function RankingCard({ entry, tab, highlight }: { entry: PublicLeaderboardEntry;
 
 export default function RankingsPage() {
   const { user } = useAuth();
+  const [mode, setMode] = useState<RankMode>("global");
   const [tab, setTab] = useState<LeaderboardTab>("qp");
+  const [countrySel, setCountrySel] = useState<string>("");
   const [rows, setRows] = useState<PublicLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +168,8 @@ export default function RankingsPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    getGlobalLeaderboard(tab, 100)
+    // En modo país traemos la lista individual para filtrar por profiles.country en cliente
+    getGlobalLeaderboard(mode === "country" ? "qp" : tab, 100)
       .then((data) => {
         if (!active) return;
         setRows(data as any);
@@ -156,11 +185,42 @@ export default function RankingsPage() {
     return () => {
       active = false;
     };
-  }, [tab]);
+  }, [mode, tab]);
+
+  // Países presentes en los datos, ordenados alfabéticamente por nombre legible
+  const countries = useMemo(
+    () =>
+      Array.from(
+        new Set(rows.map((r) => r.country).filter((c): c is string => !!c)),
+      ).sort((a, b) =>
+        (countryNames[a] ?? a).localeCompare(countryNames[b] ?? b),
+      ),
+    [rows],
+  );
+  const withoutCountry = rows.filter((r) => !r.country).length;
+
+  // Auto-seleccionar el primer país al entrar al modo o cuando cambian los datos
+  useEffect(() => {
+    if (
+      mode === "country" &&
+      countries.length > 0 &&
+      !countries.includes(countrySel)
+    ) {
+      setCountrySel(countries[0]);
+    }
+  }, [mode, countries, countrySel]);
+
+  // Modo país: solo usuarios del país elegido, re-ranqueados desde 1
+  let displayRows = rows;
+  if (mode === "country" && countrySel) {
+    displayRows = rows
+      .filter((r) => r.country === countrySel)
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+  }
 
   // Top 3 podio
-  const top3 = rows.slice(0, 3);
-  const rest = rows.slice(3);
+  const top3 = displayRows.slice(0, 3);
+  const rest = displayRows.slice(3);
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -175,23 +235,77 @@ export default function RankingsPage() {
         </div>
       </section>
 
-      {/* Tabs */}
+      {/* Modo (Global / Por país) + métricas o selector de país */}
       <div className="border-b border-line bg-surface/40">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-1 px-6 py-3">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors active:scale-95 ${
-                tab === t.id
-                  ? "bg-accent/15 text-accent border border-accent/30"
-                  : "text-muted hover:text-ink border border-transparent"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="mx-auto w-full max-w-6xl px-6 py-3">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div className="flex items-center gap-1">
+              {modeTabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setMode(t.id)}
+                  className={`h-8 rounded-md px-3 text-[13px] font-semibold transition-colors active:scale-95 ${
+                    mode === t.id
+                      ? "bg-accent/15 text-accent border border-accent/30"
+                      : "text-ink hover:text-accent border border-transparent"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {mode === "global" ? (
+              <div className="flex items-center gap-1">
+                {tabs.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors active:scale-95 ${
+                      tab === t.id
+                        ? "bg-accent/15 text-accent border border-accent/30"
+                        : "text-muted hover:text-ink border border-transparent"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <label className="flex items-center gap-2">
+                <span className="metric text-[10px] uppercase tracking-wider text-muted">
+                  País
+                </span>
+                <select
+                  value={countrySel}
+                  onChange={(e) => setCountrySel(e.target.value)}
+                  disabled={countries.length === 0}
+                  className="h-8 rounded-md border border-line bg-surface-solid px-2 text-[13px] text-ink outline-none transition-colors focus:border-accent/50 disabled:opacity-50"
+                >
+                  {countries.length === 0 && (
+                    <option value="">Sin países</option>
+                  )}
+                  {countries.map((c) => (
+                    <option key={c} value={c}>
+                      {countryNames[c] ?? c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+
+          {mode === "country" && withoutCountry > 0 && (
+            <p className="mt-2 animate-fadeIn text-[11px] text-muted">
+              {withoutCountry}{" "}
+              {withoutCountry === 1
+                ? "usuario sin país especificado"
+                : "usuarios sin país especificado"}
+              .
+            </p>
+          )}
         </div>
       </div>
 
@@ -291,7 +405,7 @@ export default function RankingsPage() {
                 <div className="block md:hidden space-y-3 animate-fadeIn">
                   {rest.map((entry) => (
                     <RankingCard
-                      key={`${tab}-${entry.user_id}`}
+                      key={`${mode}-${countrySel}-${entry.user_id}`}
                       entry={entry}
                       tab={tab}
                       highlight={user?.id === entry.user_id}
@@ -327,7 +441,7 @@ export default function RankingsPage() {
                       <tbody>
                         {rest.map((entry) => (
                           <LeaderboardRow
-                            key={`${tab}-${entry.user_id}`}
+                            key={`${mode}-${countrySel}-${entry.user_id}`}
                             entry={entry}
                             highlight={user?.id === entry.user_id}
                           />

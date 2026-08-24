@@ -92,7 +92,7 @@ export interface TokenBalance {
   balance: number;
   lifetime_earned: number;
   lifetime_spent: number;
-  tier: "free" | "plus" | "pro";
+  tier: "free" | "plus" | "pro" | "legend";
   updated_at: string;
 }
 
@@ -388,6 +388,14 @@ export async function unsubscribeFromStrategy(id: string): Promise<void> {
 
 export async function getSignals(strategyId: string): Promise<Signal[]> {
   return call<Signal[]>(`/signals/${strategyId}`);
+}
+
+/** Señales recientes de una estrategia del marketplace (vía worker). */
+export async function getStrategySignals(
+  id: string,
+  limit = 20,
+): Promise<Signal[]> {
+  return call<Signal[]>(`/marketplace/${id}/signals?limit=${limit}`);
 }
 
 export async function getMySubscriptions(): Promise<Subscription[]> {

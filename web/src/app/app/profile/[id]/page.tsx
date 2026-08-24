@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getPublicProfile } from "@/lib/tokens";
 import { getProfileTournamentHistory, type TournamentSummary } from "@/lib/tournaments";
-import { QPBadge, QPTierBadge } from "../components/QPBadge";
+import { QPBadge } from "../components/QPBadge";
+import { TierBadge } from "@/components/ui/TierBadge";
 import { buttonClasses } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
@@ -128,7 +129,7 @@ export default function ProfilePage() {
                 <h1 className="text-2xl font-semibold tracking-tight text-ink">
                   @{profile.username}
                 </h1>
-                {profile.tier && <QPTierBadge tier={profile.tier as "bronze" | "silver" | "gold" | "platinum" | "diamond"} />}
+                <TierBadge tier={profile.tier} />
               </div>
 
               {profile.display_name && (
