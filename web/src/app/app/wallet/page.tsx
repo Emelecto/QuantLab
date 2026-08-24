@@ -199,23 +199,25 @@ export default function WalletPage() {
               const plan = PLAN_MAP[p.amount];
               const isSubscribing = subscribing === plan;
               return (
-                <div key={p.usd} className="rounded-lg border border-line bg-white/[0.02] p-4 text-center">
+                <div key={p.usd} className="flex flex-col rounded-lg border border-line bg-white/[0.02] p-4 text-center">
                   <p className="text-2xl font-semibold text-ink">{p.amount} QP</p>
                   <p className="mt-1 text-sm text-muted">${p.usd}/mes</p>
+                  <div className="mt-2 flex min-h-[20px] items-center justify-center gap-1">
                   {"popular" in p && (
-                    <span className="mt-2 inline-block rounded bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">
+                    <span className="inline-block rounded bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">
                       Popular
                     </span>
                   )}
                   {"bonus" in p && (
-                    <span className="mt-2 ml-1 inline-block rounded bg-long/15 px-2 py-0.5 text-[11px] font-medium text-long">
-                      {"bonus" in p ? p.bonus : ""}
+                    <span className="inline-block rounded bg-long/15 px-2 py-0.5 text-[11px] font-medium text-long">
+                      {p.bonus}
                     </span>
                   )}
+                  </div>
                   <button
                     onClick={() => handleSubscribe(p.amount)}
                     disabled={isSubscribing || stripeDisabled}
-                    className="mt-3 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-bg hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ql-btn"
+                    className="mt-auto w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-bg hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ql-btn"
                   >
                     {isSubscribing ? "Procesando..." : "Suscribirse"}
                   </button>
