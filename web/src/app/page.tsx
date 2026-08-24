@@ -3,8 +3,8 @@ import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { AuthAwareCTA } from "@/components/AuthAwareCTA";
 import { HeroChart } from "@/components/charts/HeroChart";
-import { TickerTape } from "@/components/TickerTape";
 import { SpotlightCard } from "@/components/SpotlightCard";
+import { OverfitMiniChart, OosMiniChart } from "@/components/charts/MiniCharts";
 
 const STEPS = [
   {
@@ -51,34 +51,24 @@ const FEATURES = [
   },
 ];
 
-/** Curva que se ve increíble en muestra y luego se desploma (sobreajuste). */
-const OVERFIT_PATH =
-  "M0,104 C40,96 62,74 92,52 C122,30 152,16 186,13 C222,11 244,52 272,92 C284,108 292,110 300,112";
-/** Curva modesta y sostenida (validación walk-forward OOS). */
-const OOS_PATH =
-  "M0,104 C56,98 112,88 168,78 C222,69 266,63 300,58";
-
 export default function Home() {
   return (
     <div className="flex flex-col">
-      {/* Ticker en vivo: precios reales de Binance */}
-      <TickerTape />
-
       {/* HERO (A1: demo en vivo) — sin kicker, sin gradient text (craft-floor) */}
       <section className="relative overflow-hidden border-b border-line">
-        {/* Aurora animada: blobs atmosféricos que derivan */}
+        {/* Aurora animada: blobs blancos/grises sutiles que derivan */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div
             className="ql-aurora-blob ql-aurora-1 left-[8%] top-[-30%] h-[26rem] w-[36rem]"
-            style={{ background: "rgba(94,234,212,0.13)" }}
+            style={{ background: "rgba(248,250,252,0.06)" }}
           />
           <div
             className="ql-aurora-blob ql-aurora-2 right-[4%] top-[-20%] h-[22rem] w-[30rem]"
-            style={{ background: "rgba(56,189,248,0.10)" }}
+            style={{ background: "rgba(203,213,225,0.05)" }}
           />
           <div
             className="ql-aurora-blob ql-aurora-3 left-[38%] top-[10%] h-[18rem] w-[26rem]"
-            style={{ background: "rgba(99,102,241,0.07)" }}
+            style={{ background: "rgba(148,163,184,0.04)" }}
           />
         </div>
         <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
@@ -170,22 +160,9 @@ export default function Home() {
                 Sube sin parar en el histórico&hellip; y luego se desploma. Bonito en
                 el reporte, desastroso en la vida real.
               </p>
-              <svg
-                viewBox="0 0 300 120"
-                className="mt-4 h-28 w-full"
-                preserveAspectRatio="none"
-                role="img"
-                aria-label="Curva sobreajustada que cae"
-              >
-                <path
-                  d={OVERFIT_PATH}
-                  fill="none"
-                  stroke="var(--ql-short)"
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <div className="mt-4 overflow-hidden rounded-lg border border-line">
+                <OverfitMiniChart />
+              </div>
             </Card>
 
             <Card className="p-5">
@@ -196,22 +173,9 @@ export default function Home() {
                 Más modesta, pero honesta: es lo que ocurre cuando la estrategia
                 enfrenta datos nuevos. Lo que sobrevive, cuenta.
               </p>
-              <svg
-                viewBox="0 0 300 120"
-                className="mt-4 h-28 w-full"
-                preserveAspectRatio="none"
-                role="img"
-                aria-label="Curva de validación out-of-sample sostenida"
-              >
-                <path
-                  d={OOS_PATH}
-                  fill="none"
-                  stroke="var(--ql-long)"
-                  strokeWidth={2}
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <div className="mt-4 overflow-hidden rounded-lg border border-line">
+                <OosMiniChart />
+              </div>
             </Card>
           </div>
 

@@ -10,11 +10,11 @@
   --ql-line: rgba(255, 255, 255, 0.07); /* borde sutil */
   --ql-ink: #eef2f7; /* texto principal */
   --ql-muted: #8b93a7; /* texto muteado */
-  --ql-accent: #5eead4; /* acento primario (teal/menta eléctrico) */
-  --ql-accent-2: #38bdf8; /* acento secundario (cian) */
+  --ql-accent: #f8fafc; /* acento primario: blanco hueso (Vercel-style) */
+  --ql-accent-2: #cbd5e1; /* acento secundario: gris claro cálido */
   --ql-long: #10b981; /* SOLO long / positivo */
   --ql-short: #ef4444; /* SOLO short / negativo */
-  --ql-glow: rgba(94, 234, 212, 0.16); /* glow de acento */
+  --ql-glow: rgba(248, 250, 252, 0.10); /* glow de acento (blanco tenue) */
 }
 
 @theme inline {
@@ -62,7 +62,7 @@ body::before {
   pointer-events: none;
   opacity: 0.5;
   background:
-    radial-gradient(55% 45% at 12% 6%, rgba(94, 234, 212, 0.12), transparent 60%),
+    radial-gradient(55% 45% at 12% 6%, rgba(248, 250, 252, 0.08), transparent 60%),
     radial-gradient(50% 45% at 88% 94%, rgba(56, 189, 248, 0.12), transparent 60%),
     radial-gradient(38% 38% at 72% 22%, rgba(99, 102, 241, 0.10), transparent 60%);
 }
@@ -90,9 +90,9 @@ body::before {
 
 /* tier destacado (Pro) — borde teal + glow */
 .ql-tier-featured {
-  border-color: rgba(94, 234, 212, 0.45);
+  border-color: rgba(248, 250, 252, 0.40);
   box-shadow:
-    0 0 30px rgba(94, 234, 212, 0.16),
+    0 0 30px rgba(248, 250, 252, 0.09),
     0 14px 44px rgba(0, 0, 0, 0.55);
 }
 
@@ -100,7 +100,7 @@ body::before {
 .ql-glow-soft {
   box-shadow:
     0 14px 44px rgba(0, 0, 0, 0.55),
-    0 0 26px rgba(94, 234, 212, 0.14);
+    0 0 26px rgba(248, 250, 252, 0.08);
 }
 
 /* ------------------------------------------------------------
@@ -118,8 +118,8 @@ body::before {
 .ql-tilt:hover {
   transform: translateY(-6px) rotateX(3deg) rotateY(-2deg);
   box-shadow:
-    0 0 0 1px rgba(94, 234, 212, 0.18),
-    0 18px 50px rgba(94, 234, 212, 0.1),
+    0 0 0 1px rgba(248, 250, 252, 0.12),
+    0 18px 50px rgba(248, 250, 252, 0.06),
     0 14px 44px rgba(0, 0, 0, 0.55);
 }
 
@@ -169,8 +169,8 @@ body::before {
     box-shadow 160ms ease;
 }
 .ql-row:hover {
-  background: rgba(94, 234, 212, 0.05);
-  box-shadow: inset 0 0 0 1px rgba(94, 234, 212, 0.12);
+  background: rgba(248, 250, 252, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(248, 250, 252, 0.08);
 }
 
 /* ------------------------------------------------------------
@@ -189,7 +189,7 @@ body::before {
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 10px 30px rgba(94, 234, 212, 0.25);
+    0 10px 30px rgba(248, 250, 252, 0.20);
 }
 
 .ql-btn-secondary {
@@ -219,7 +219,7 @@ body::before {
 }
 
 ::selection {
-  background: rgba(94, 234, 212, 0.28);
+  background: rgba(248, 250, 252, 0.22);
   color: var(--ql-ink);
 }
 
@@ -304,7 +304,7 @@ body::before {
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 .ql-glass-hover:hover {
-  border-color: rgba(94, 234, 212, 0.5);
+  border-color: rgba(248, 250, 252, 0.45);
 }
 
 /* Botones con active scale — 0.96 es el estándar táctil correcto */
@@ -427,7 +427,7 @@ p {
   transition: opacity 300ms ease;
   background: radial-gradient(
     240px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-    rgba(94, 234, 212, 0.10),
+    rgba(248, 250, 252, 0.06),
     transparent 65%
   );
   pointer-events: none;

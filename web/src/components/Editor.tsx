@@ -40,10 +40,10 @@ export function StrategyEditor({
       colors: {
         "editor.background": "#0a0c10",
         "editor.foreground": "#eef2f7",
-        "editorCursor.foreground": "#5eead4",
+        "editorCursor.foreground": "#f8fafc",
         "editor.lineHighlightBackground": "#11151c",
         "editorLineNumber.foreground": "#8b93a7",
-        "editorLineNumber.activeForeground": "#5eead4",
+        "editorLineNumber.activeForeground": "#f8fafc",
         "editor.selectionBackground": "#1f6f68",
         "editorGutter.background": "#0a0c10",
         "editorIndentGuide.background1": "#1b2230",

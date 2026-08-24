@@ -109,8 +109,8 @@ export function QuantChart({
       timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
       crosshair: {
         mode: CrosshairMode.Magnet,
-        vertLine: { color: "rgba(94,234,212,0.4)", labelBackgroundColor: "#0d1017" },
-        horzLine: { color: "rgba(94,234,212,0.4)", labelBackgroundColor: "#0d1017" },
+        vertLine: { color: "rgba(248,250,252,0.35)", labelBackgroundColor: "#0d1017" },
+        horzLine: { color: "rgba(248,250,252,0.35)", labelBackgroundColor: "#0d1017" },
       },
       handleScale: { axisPressedMouseMove: false },
     });
@@ -118,8 +118,8 @@ export function QuantChart({
 
     // Equity área teal con gradiente (v5: addSeries + AreaSeries definition).
     const area = chart.addSeries(AreaSeries, {
-      lineColor: "#5eead4",
-      topColor: "rgba(94,234,212,0.25)",
+      lineColor: "#f8fafc",
+      topColor: "rgba(248,250,252,0.18)",
       bottomColor: "rgba(94,234,212,0.02)",
       lineWidth: 2,
       priceLineVisible: false,

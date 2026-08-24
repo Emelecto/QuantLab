@@ -202,7 +202,7 @@ export function OnboardingTour() {
             width: rect.width,
             height: rect.height,
             boxShadow: "0 0 0 9999px rgba(4,6,10,0.74)",
-            outline: "2px solid rgba(94,234,212,0.5)",
+            outline: "2px solid rgba(248,250,252,0.45)",
             outlineOffset: "-2px",
           }}
           onClick={finish}

@@ -37,7 +37,7 @@ export function HeroChart() {
         className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl blur-3xl"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(94,234,212,0.14), transparent)",
+            "radial-gradient(closest-side, rgba(248,250,252,0.08), transparent)",
         }}
       />
     </div>
