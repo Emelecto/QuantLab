@@ -10,5 +10,4 @@ yfinance==0.2.54
 supabase==2.15.0
 pyarrow==17.0.0
 python-dotenv==1.0.1
-pyjwt[cors]==2.9.0
-requests==2.32.3
+PyJWT[cors]==2.9.0

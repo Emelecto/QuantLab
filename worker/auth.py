@@ -71,14 +71,10 @@ def _verify_jwt(token: str) -> dict | None:
         if not key:
             return None
 
-        # Obtener la clave pública (Supabase usa ES256 / ECDSA, kty=EC)
-        from jwt.algorithms import ECAlgorithm
-        public_key = ECAlgorithm.from_jwk(key)
-
-        # Verificar token
+        # Verificar token (PyJWT 2.x acepta el dict JWK directamente)
         payload = jwt.decode(
             token,
-            public_key,
+            key,
             algorithms=["ES256"],
             audience="authenticated",
             options={"verify_exp": True},
