@@ -74,7 +74,7 @@ export function getStripe(): Stripe | null {
   }
 
   _stripe = new Stripe(key, {
-    apiVersion: "2024-12-18.acacia",
+    apiVersion: "2026-07-29.dahlia",
     typescript: true,
   });
 
