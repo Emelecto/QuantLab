@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 
 /**
  * Asistente IA para crear estrategias. Recibe una idea en lenguaje natural y
- * devuelve código compatible con el motor (formato fast/slow) + explicación.
+ * devuelve código Python real + comisión/slippage + explicación.
  *
  * Usa GROQ_API_KEY desde el entorno del SERVIDOR (nunca expuesta al cliente).
- * Groq es compatible con la API de OpenAI, así que el body es el mismo.
  * Si no hay key configurada, responde 200 con un mensaje claro (no rompe).
  */
 export async function POST(request: Request) {
@@ -33,44 +32,38 @@ export async function POST(request: Request) {
     });
   }
 
-  const system =
-    "Eres un asistente de QuantLab que convierte ideas de trading en estrategias " +
-    "de cruce de medias móviles (SMA) compatibles con el motor. " +
-    "Devuelve SIEMPRE un objeto JSON con estos campos: " +
-    '"code" (string, formato "fast=XX,slow=YY", donde XX<YY, enteros entre 2 y 400), ' +
-    '"commission" (número: comisión por operación en fracción, ej. 0.001 = 0.1%; ' +
-    "usa 0.001 para cripto y 0.0005 para acciones), " +
-    '"slippage" (número: slippage por lado en fracción, ej. 0.0005 = 0.05%; ' +
-    "usa 0.0005 para cripto y 0.0002 para acciones), " +
-    'y "explanation" (string en español, 1-2 frases explicando la lógica). ' +
-    "Si la idea no es un cruce de medias, elige fast/slow razonables que la aproximen. " +
-    "No incluyas nada más que el JSON.";
+  const system = [
+    "Eres un asistente de QuantLab que genera código Python real y funcional para estrategias de trading.",
+    "El motor espera la PRIMERA línea con la directiva: fast=XX,slow=YY (XX<YY, enteros entre 2 y 400).",
+    "Después de esa línea, escribe código Python limpio y comentado en español que implemente la lógica.",
+    "Devuelve SIEMPRE un objeto JSON con estos campos:",
+    "- code (string: PRIMERA línea = directiva fast=XX,slow=YY; líneas siguientes = código Python real con comentarios en español)",
+    "- commission (número: comisión por operación en fracción. Usa 0.001 para cripto y 0.0005 para acciones)",
+    "- slippage (número: slippage por lado en fracción. Usa 0.0005 para cripto y 0.0002 para acciones)",
+    "- explanation (string en español, 1-2 frases explicando la lógica)",
+    "Si la idea no es un cruce de medias, elige fast/slow razonables que la aproximen.",
+    "No incluyas nada más que el JSON.",
+  ].join(" ");
 
-  const user =
-    `Activo: ${body.asset_type ?? "crypto"} ${body.symbol ?? ""}. ` +
-    `Idea: ${prompt}`;
+  const user = `Activo: ${body.asset_type ?? "crypto"} ${body.symbol ?? ""}. Idea: ${prompt}`;
 
   try {
-    const resp = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          // GPT-OSS 20B en Groq: gratis en tier free, soporta JSON mode.
-          model: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-          temperature: 0.3,
-          response_format: { type: "json_object" },
-        }),
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
-    );
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+      }),
+    });
 
     if (!resp.ok) {
       const txt = await resp.text();

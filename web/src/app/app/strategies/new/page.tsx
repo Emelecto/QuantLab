@@ -49,6 +49,9 @@ export default function NewStrategyPage() {
   const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
 
   function update<K extends keyof StrategyConfig>(key: K, value: StrategyConfig[K]) {
     setConfig((c) => ({ ...c, [key]: value }));
@@ -217,14 +220,87 @@ export default function NewStrategyPage() {
               )}
             </div>
           ) : (
-            <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
-              <div className="flex items-center justify-between border-b border-line px-4 py-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                  strategy.py
-                </span>
-                <span className="text-xs text-muted">Python</span>
+            <div className="flex flex-col gap-3">
+              <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
+                <div className="flex items-center justify-between border-b border-line px-4 py-2">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                    strategy.py
+                  </span>
+                  <span className="text-xs text-muted">Python</span>
+                </div>
+                <StrategyEditor value={config.code} onChange={(v) => update("code", v)} />
               </div>
-              <StrategyEditor value={config.code} onChange={(v) => update("code", v)} />
+              {/* Chat IA para el editor de código */}
+              <div className="ql-glass ql-elev-1 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+                  Asistente IA
+                </div>
+                <p className="mt-1 text-[12px] text-muted">
+                  Describe tu idea y genera código real para el motor.
+                </p>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.target as HTMLFormElement;
+                    const input = form.elements.namedItem("ai-prompt") as HTMLTextAreaElement;
+                    const prompt = input.value.trim();
+                    if (!prompt) return;
+                    input.value = "";
+                    setAiLoading(true);
+                    setAiError(null);
+                    try {
+                      const res = await fetch("/api/strategy-ai", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          prompt,
+                          asset_type: config.asset_type,
+                          symbol: config.symbol,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        setAiError(data.error ?? "Error del asistente.");
+                      } else {
+                        if (data.code) update("code", data.code);
+                        if (typeof data.commission === "number") update("commission", data.commission);
+                        if (typeof data.slippage === "number") update("slippage", data.slippage);
+                        setAiExplanation(data.explanation ?? "");
+                      }
+                    } catch {
+                      setAiError("No se pudo contactar con la IA.");
+                    } finally {
+                      setAiLoading(false);
+                    }
+                  }}
+                  className="mt-3 flex flex-col gap-2"
+                >
+                  <textarea
+                    name="ai-prompt"
+                    rows={2}
+                    placeholder="Ej: comprar cuando la media de 10 cruza sobre la de 30"
+                    className="ql-input resize-y rounded-md px-3 py-2 text-sm text-ink"
+                  />
+                  <button
+                    type="submit"
+                    disabled={aiLoading}
+                    className={buttonClasses("secondary", "md") + " w-full justify-center"}
+                  >
+                    {aiLoading ? "Generando…" : "Generar código"}
+                  </button>
+                </form>
+                {aiError && (
+                  <p className="mt-2 rounded-md border border-short/30 bg-short/10 px-3 py-2 text-[12px] text-short">
+                    {aiError}
+                  </p>
+                )}
+                {aiExplanation && (
+                  <p className="mt-2 rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-[12px] leading-relaxed text-ink">
+                    {aiExplanation}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
