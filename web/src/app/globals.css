@@ -376,6 +376,65 @@ p {
 }
 
 /* ===== QuantLab v3 — Glass Terminal ===== */
+
+/* Ticker tape: marquee infinito, pausa en hover */
+@keyframes ql-ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ql-ticker-track {
+  animation: ql-ticker-scroll 60s linear infinite;
+}
+.ql-ticker:hover .ql-ticker-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ql-ticker-track { animation: none; }
+}
+
+/* Aurora: blobs atmosféricos que derivan lentamente (Stripe/Linear) */
+@keyframes ql-aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6%, -4%) scale(1.08); }
+  66%  { transform: translate(-5%, 5%) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.ql-aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  will-change: transform;
+  pointer-events: none;
+}
+.ql-aurora-1 { animation: ql-aurora-drift 26s ease-in-out infinite; }
+.ql-aurora-2 { animation: ql-aurora-drift 34s ease-in-out infinite reverse; }
+.ql-aurora-3 { animation: ql-aurora-drift 42s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ql-aurora-1, .ql-aurora-2, .ql-aurora-3 { animation: none; }
+}
+
+/* Spotlight hover: la card se ilumina siguiendo el cursor (Linear/Vercel) */
+.ql-spotlight {
+  position: relative;
+  overflow: hidden;
+}
+.ql-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  background: radial-gradient(
+    240px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(94, 234, 212, 0.10),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+.ql-spotlight:hover::before {
+  opacity: 1;
+}
 @keyframes qlv3-chart-reveal {
   from {
     opacity: 0;

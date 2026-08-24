@@ -3,6 +3,8 @@ import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { AuthAwareCTA } from "@/components/AuthAwareCTA";
 import { HeroChart } from "@/components/charts/HeroChart";
+import { TickerTape } from "@/components/TickerTape";
+import { SpotlightCard } from "@/components/SpotlightCard";
 
 const STEPS = [
   {
@@ -59,18 +61,26 @@ const OOS_PATH =
 export default function Home() {
   return (
     <div className="flex flex-col">
-      {/* El header global (TopBar) lo aporta el layout. No duplicar aquí. */}
+      {/* Ticker en vivo: precios reales de Binance */}
+      <TickerTape />
 
       {/* HERO (A1: demo en vivo) — sin kicker, sin gradient text (craft-floor) */}
       <section className="relative overflow-hidden border-b border-line">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 h-[24rem] w-[44rem] max-w-full -translate-x-1/2 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(closest-side, rgba(94,234,212,0.10), transparent)",
-          }}
-        />
+        {/* Aurora animada: blobs atmosféricos que derivan */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div
+            className="ql-aurora-blob ql-aurora-1 left-[8%] top-[-30%] h-[26rem] w-[36rem]"
+            style={{ background: "rgba(94,234,212,0.13)" }}
+          />
+          <div
+            className="ql-aurora-blob ql-aurora-2 right-[4%] top-[-20%] h-[22rem] w-[30rem]"
+            style={{ background: "rgba(56,189,248,0.10)" }}
+          />
+          <div
+            className="ql-aurora-blob ql-aurora-3 left-[38%] top-[10%] h-[18rem] w-[26rem]"
+            style={{ background: "rgba(99,102,241,0.07)" }}
+          />
+        </div>
         <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
@@ -315,10 +325,10 @@ export default function Home() {
           </h2>
           <ul className="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
             {FEATURES.map((f) => (
-              <li key={f.title} className="border-t border-line pt-5">
+              <SpotlightCard key={f.title} className="border-t border-line pt-5">
                 <h3 className="text-[15px] font-semibold text-ink">{f.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.text}</p>
-              </li>
+              </SpotlightCard>
             ))}
           </ul>
         </div>
