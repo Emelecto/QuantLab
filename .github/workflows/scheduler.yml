@@ -1,0 +1,43 @@
+name: QuantLab Weekly Tournament Scheduler
+
+on:
+  schedule:
+    # Cada lunes a las 00:00 UTC
+    - cron: "0 0 * * 1"
+  # Permitir ejecución manual desde la pestaña Actions
+  workflow_dispatch:
+
+jobs:
+  run-scheduler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Run scheduler via worker endpoint
+        env:
+          SCHEDULER_KEY: ${{ secrets.SCHEDULER_KEY }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+        run: |
+          if [ -z "$WORKER_URL" ] || [ -z "$SCHEDULER_KEY" ]; then
+            echo "ERROR: WORKER_URL y SCHEDULER_KEY deben estar configurados en Secrets"
+            exit 1
+          fi
+
+          echo "Llamando al scheduler en $WORKER_URL/scheduler/run ..."
+          HTTP_CODE=$(curl -s -o /tmp/scheduler_response.txt -w "%{http_code}" \
+            -X POST "$WORKER_URL/scheduler/run" \
+            -H "Content-Type: application/json" \
+            -H "X-Scheduler-Key: $SCHEDULER_KEY" \
+            --max-time 600)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response:"
+          cat /tmp/scheduler_response.txt
+          echo ""
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "ERROR: El scheduler respondió con código $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Scheduler ejecutado exitosamente."

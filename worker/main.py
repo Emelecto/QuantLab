@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -168,6 +168,66 @@ def backtest(config: StrategyConfig) -> dict:
 def validate(config: StrategyConfig) -> dict:
     """Validación ligera de coherencia y seguridad de una StrategyConfig."""
     return validate_strategy(config)
+
+
+# ---------------------------------------------------------------------------
+# Scheduler endpoint: crea torneo semanal + evalúa cerrados.
+# Protegido por X-Scheduler-Key.
+# ---------------------------------------------------------------------------
+@app.post("/scheduler/run")
+async def scheduler_run(
+    x_scheduler_key: str | None = Header(None),
+) -> dict:
+    """Ejecuta el scheduler de torneos: create + evaluate.
+
+    Header requerido: X-Scheduler-Key
+    Variable de entorno: SCHEDULER_KEY
+    """
+    expected = os.environ.get("SCHEDULER_KEY")
+    if not expected:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Scheduler no configurado (falta SCHEDULER_KEY)."},
+        )
+    if not x_scheduler_key or x_scheduler_key != expected:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
+        )
+
+    from datetime import datetime, timezone
+
+    import engine
+    from scheduler import create_weekly_tournament, evaluate_tournaments
+
+    # Crear cliente supabase
+    import os as _os
+    from supabase import create_client
+
+    url = _os.environ.get("SUPABASE_URL")
+    key = _os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Supabase no configurado."},
+        )
+    sb = create_client(url, key)
+
+    now = datetime.now(timezone.utc)
+
+    # Crear torneo semanal
+    tournament = create_weekly_tournament(sb, now)
+    created_id = tournament.get("id") if tournament else None
+
+    # Evaluar torneos cerrados
+    evaluated = evaluate_tournaments(sb, engine, now)
+
+    return {
+        "status": "ok",
+        "tournament_created": created_id,
+        "tournaments_evaluated": evaluated,
+        "timestamp": now.isoformat(),
+    }
 
 
 if __name__ == "__main__":
