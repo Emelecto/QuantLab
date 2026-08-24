@@ -41,14 +41,12 @@ def _fetch_jwks() -> dict:
             api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
                 "SUPABASE_ANON_KEY"
             )
-            logger.info(f"[AUTH DEBUG] JWKS url={_get_jwks_url()} apikey_present={bool(api_key)}")
             headers = {"apikey": api_key} if api_key else {}
             resp = requests.get(_get_jwks_url(), headers=headers, timeout=10)
             resp.raise_for_status()
             _JWKS = resp.json()
-            logger.info(f"[AUTH DEBUG] JWKS obtenido, keys={len(_JWKS.get('keys', []))}")
         except Exception as e:
-            logger.error(f"[AUTH DEBUG] No se pudo obtener JWKS de Supabase: {e}")
+            logger.error(f"No se pudo obtener JWKS de Supabase: {e}")
             _JWKS = {}
     return _JWKS
 
@@ -103,7 +101,7 @@ def _verify_jwt(token: str) -> dict | None:
         # La firma ES256 de Supabase viene en formato raw (r || s, 32 bytes c/u)
         sig_raw = _b64u(parts[2])
         if len(sig_raw) != 64:
-            logger.warning(f"[AUTH DEBUG] Firma con longitud inesperada: {len(sig_raw)}")
+            logger.warning(f"Firma con longitud inesperada: {len(sig_raw)}")
             return None
         r = int.from_bytes(sig_raw[:32], "big")
         s = int.from_bytes(sig_raw[32:], "big")
@@ -114,24 +112,24 @@ def _verify_jwt(token: str) -> dict | None:
         try:
             public_key.verify(sig_der, message, ec.ECDSA(hashes.SHA256()))
         except Exception:
-            logger.warning("[AUTH DEBUG] Firma ES256 inválida")
+            logger.warning("Firma ES256 inválida")
             return None
 
         # Decodificar payload y validar exp/aud
         payload = _b64d(parts[1])
         now = int(time.time())
         if "exp" in payload and payload["exp"] < now:
-            logger.warning("[AUTH DEBUG] JWT expirado")
+            logger.warning("JWT expirado")
             return None
         if payload.get("aud") != "authenticated":
-            logger.warning("[AUTH DEBUG] JWT audience incorrecto")
+            logger.warning("JWT audience incorrecto")
             return None
         return payload
     except _JWT_EXP_ERR:
-        logger.warning("[AUTH DEBUG] JWT expirado")
+        logger.warning("JWT expirado")
         return None
     except Exception as e:
-        logger.warning(f"[AUTH DEBUG] JWT inválido: {e}")
+        logger.warning(f"JWT inválido: {e}")
         return None
 
 
