@@ -23,7 +23,7 @@ def _get_jwks_url() -> str:
         _JWKS_URL = os.environ.get("SUPABASE_JWKS_URL")
         if not _JWKS_URL:
             base = os.environ.get("SUPABASE_URL", "")
-            _JWKS_URL = f"{base}/auth/v1/keys"
+            _JWKS_URL = f"{base}/auth/v1/.well-known/jwks.json"
     return _JWKS_URL
 
 
@@ -31,7 +31,13 @@ def _fetch_jwks() -> dict:
     global _JWKS
     if _JWKS is None:
         try:
-            resp = requests.get(_get_jwks_url(), timeout=10)
+            # Supabase requiere el header `apikey` para leer el JWKS público.
+            # Usamos la service_role key (ya disponible en el worker) como apikey.
+            api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
+                "SUPABASE_ANON_KEY"
+            )
+            headers = {"apikey": api_key} if api_key else {}
+            resp = requests.get(_get_jwks_url(), headers=headers, timeout=10)
             resp.raise_for_status()
             _JWKS = resp.json()
         except Exception as e:
@@ -63,14 +69,15 @@ def _verify_jwt(token: str) -> dict | None:
         if not key:
             return None
 
-        # Obtener el RSA public key
-        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+        # Obtener la clave pública (Supabase usa ES256 / ECDSA, kty=EC)
+        from jwt.algorithms import ECAlgorithm
+        public_key = ECAlgorithm.from_jwk(key)
 
         # Verificar token
         payload = jwt.decode(
             token,
             public_key,
-            algorithms=["RS256"],
+            algorithms=["ES256"],
             audience="authenticated",
             options={"verify_exp": True},
         )
