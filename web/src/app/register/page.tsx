@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { buttonClasses } from "@/components/ui/Button";
 import { AuthShell, Field, inputClasses } from "@/components/ui/Form";
+import { PasswordField } from "@/components/ui/PasswordField";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -121,35 +122,25 @@ export default function RegisterPage() {
           />
         </Field>
 
-        <Field id="password" label="Contraseña">
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 8 caracteres"
-            className={inputClasses}
-          />
-        </Field>
+        <PasswordField
+          id="password"
+          label="Contraseña"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          minLength={8}
+          placeholder="Mínimo 8 caracteres"
+        />
 
-        <Field id="confirmPassword" label="Confirmar contraseña">
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repite tu contraseña"
-            className={inputClasses}
-          />
-        </Field>
+        <PasswordField
+          id="confirmPassword"
+          label="Confirmar contraseña"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+          minLength={8}
+          placeholder="Repite tu contraseña"
+        />
 
         {error && (
           <p

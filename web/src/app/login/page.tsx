@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { buttonClasses } from "@/components/ui/Button";
 import { AuthShell, Field, inputClasses } from "@/components/ui/Form";
+import { PasswordField } from "@/components/ui/PasswordField";
+
+/** Mensaje único para el reset: no revela si el email existe o no. */
+const RESET_SENT_MESSAGE =
+  "Te enviamos un enlace para restablecer tu contraseña. Revisa tu correo.";
 
 function LoginInner() {
   const router = useRouter();
@@ -14,6 +19,13 @@ function LoginInner() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Recuperar contraseña
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Errores que el callback de auth puede haber reenviado como query (?error=).
   useEffect(() => {
@@ -60,6 +72,59 @@ function LoginInner() {
     }
   }
 
+  /** Abre/cierra el panel de recuperación, arrastrando el email ya escrito. */
+  function toggleReset() {
+    setShowReset((open) => {
+      const next = !open;
+      if (next) {
+        setResetEmail((current) => current || email);
+        setResetInfo(null);
+        setResetError(null);
+      }
+      return next;
+    });
+  }
+
+  async function handleReset(e: FormEvent) {
+    e.preventDefault();
+    setResetInfo(null);
+    setResetError(null);
+    setResetLoading(true);
+
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=/app`;
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo });
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (
+          error.code === "over_email_send_rate_limit" ||
+          msg.includes("rate limit") ||
+          msg.includes("security purposes")
+        ) {
+          setResetError(
+            "Demasiados intentos. Espera unos minutos antes de pedir otro enlace.",
+          );
+        } else {
+          // Cualquier otro error (email inexistente incluido) se responde igual
+          // para no filtrar qué cuentas existen.
+          setResetInfo(RESET_SENT_MESSAGE);
+        }
+        setResetLoading(false);
+        return;
+      }
+
+      setResetInfo(RESET_SENT_MESSAGE);
+      setResetLoading(false);
+    } catch {
+      setResetError(
+        "No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+      );
+      setResetLoading(false);
+    }
+  }
+
   return (
     <AuthShell
       title="Iniciar sesión"
@@ -91,19 +156,14 @@ function LoginInner() {
           />
         </Field>
 
-        <Field id="password" label="Contraseña">
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className={inputClasses}
-          />
-        </Field>
+        <PasswordField
+          id="password"
+          label="Contraseña"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
 
         {error && (
           <p
@@ -122,6 +182,71 @@ function LoginInner() {
           {loading ? "Entrando…" : "Iniciar sesión"}
         </button>
       </form>
+
+      <div className="mt-4 border-t border-line pt-4">
+        <button
+          type="button"
+          onClick={toggleReset}
+          aria-expanded={showReset}
+          aria-controls="reset-panel"
+          className="text-[13px] font-medium text-muted transition-colors hover:text-cyan"
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+
+        {showReset && (
+          <form
+            id="reset-panel"
+            onSubmit={handleReset}
+            className="mt-3 flex flex-col gap-3"
+          >
+            <p className="text-[12px] leading-relaxed text-muted">
+              Escribe tu correo y te enviamos un enlace para crear una nueva
+              contraseña.
+            </p>
+
+            <Field id="resetEmail" label="Correo electrónico">
+              <input
+                id="resetEmail"
+                name="resetEmail"
+                type="email"
+                autoComplete="email"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="tu@correo.com"
+                className={inputClasses}
+              />
+            </Field>
+
+            {resetError && (
+              <p
+                role="alert"
+                className="rounded-md border border-short/30 bg-short/10 px-3 py-2 text-[13px] text-short"
+              >
+                {resetError}
+              </p>
+            )}
+
+            {resetInfo && (
+              <p
+                role="status"
+                className="rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-[13px] text-ink"
+              >
+                {resetInfo}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={resetLoading}
+              className={buttonClasses("secondary", "md", "w-full")}
+            >
+              {resetLoading ? "Enviando…" : "Enviar enlace"}
+            </button>
+          </form>
+        )}
+      </div>
     </AuthShell>
   );
 }
