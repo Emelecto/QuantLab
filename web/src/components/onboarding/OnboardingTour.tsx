@@ -28,7 +28,8 @@ const STEPS: TourStep[] = [
   {
     title: "Tu wallet de QuantPoints",
     text: "Aquí ves tu balance QP en vivo: gana en torneos, gástalos en el marketplace.",
-    selector: '[data-tour="qp-badge"]',
+    // El badge completo está display:none en móvil; el fallback cubre ambos.
+    selector: '[data-tour="qp-badge"], a[href="/app/wallet"]',
   },
 ];
 
@@ -36,6 +37,44 @@ type Rect = { top: number; left: number; width: number; height: number };
 
 const STORAGE_KEY = "ql_onboarded";
 export const TOUR_EVENT = "ql:start-tour";
+
+/**
+ * Busca el primer selector cuyo elemento sea visible (rect válido).
+ * Los steps pueden declarar alternativos separados por coma: esto resuelve
+ * el badge QP que está display:none en móvil (rect 0×0).
+ */
+function findVisibleTarget(selector: string): HTMLElement | null {
+  for (const sel of selector.split(",")) {
+    const el = document.querySelector(sel.trim());
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el as HTMLElement;
+  }
+  return null;
+}
+
+/** Espera (en rAF) a que el rect del elemento se estabilice tras un scroll suave. */
+function waitStableRect(el: HTMLElement, timeoutMs = 800): Promise<void> {
+  return new Promise((resolve) => {
+    let last = JSON.stringify(el.getBoundingClientRect());
+    const start = performance.now();
+    const tick = () => {
+      const now = performance.now();
+      const cur = JSON.stringify(el.getBoundingClientRect());
+      if (cur === last) {
+        resolve();
+        return;
+      }
+      last = cur;
+      if (now - start > timeoutMs) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
 
 export function OnboardingTour() {
   const [open, setOpen] = useState(false);
@@ -50,7 +89,7 @@ export function OnboardingTour() {
       setRect(null);
       return;
     }
-    const el = document.querySelector(sel);
+    const el = findVisibleTarget(sel);
     if (!el) {
       setRect(null);
       return;
@@ -69,7 +108,7 @@ export function OnboardingTour() {
     });
   }, [step, open]);
 
-  // Al cambiar de paso: scroll suave al elemento y luego medir.
+  // Al cambiar de paso: scroll suave al elemento, espera a que estabilice y mide.
   useEffect(() => {
     if (!open) return;
     const sel = STEPS[step]?.selector;
@@ -77,20 +116,20 @@ export function OnboardingTour() {
       setRect(null);
       return;
     }
-    const el = document.querySelector(sel);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-      // Mide durante y después del scroll suave para seguir al elemento.
-      const t1 = setTimeout(measure, 250);
-      const t2 = setTimeout(measure, 500);
-      const t3 = setTimeout(measure, 800);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }
-    setRect(null);
+    let cancelled = false;
+    (async () => {
+      const el = findVisibleTarget(sel);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        await waitStableRect(el);
+        if (!cancelled) measure();
+      } else {
+        setRect(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, open]);
 
@@ -164,20 +203,42 @@ export function OnboardingTour() {
   const next = () => (isLast ? finish() : setStep((s) => s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
-  // Tooltip SIEMPRE dentro del viewport: lo posiciona respecto al rect pero clampeado.
+  // Tooltip SIEMPRE dentro del viewport, anclado al LADO del target con más
+  // espacio (derecha → izquierda → abajo → arriba). Nunca tapa al target.
   let tooltipStyle: React.CSSProperties;
   if (rect) {
     const estW = 320;
-    const below = rect.top + rect.height + 12;
-    const spaceBelow = window.innerHeight - below;
+    const estH = 190;
+    const gap = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const spaceRight = vw - (rect.left + rect.width);
+    const spaceLeft = rect.left;
+    const spaceBelow = vh - (rect.top + rect.height);
+    const spaceAbove = rect.top;
+
     let top: number;
-    if (spaceBelow > 200) {
-      top = below;
+    let left: number;
+
+    if (spaceRight >= estW + gap * 2 && spaceRight >= spaceLeft) {
+      // A la derecha del target.
+      left = Math.min(rect.left + rect.width + gap, vw - estW - 16);
+      top = Math.min(Math.max(rect.top, 16), Math.max(vh - estH - 16, 16));
+    } else if (spaceLeft >= estW + gap * 2) {
+      // A la izquierda del target.
+      left = Math.max(rect.left - estW - gap, 16);
+      top = Math.min(Math.max(rect.top, 16), Math.max(vh - estH - 16, 16));
+    } else if (spaceBelow > estH + gap * 2 || spaceBelow >= spaceAbove) {
+      // Debajo del target.
+      left = Math.min(Math.max(rect.left, 16), vw - estW - 16);
+      top = Math.min(rect.top + rect.height + gap, Math.max(vh - estH - 16, 16));
     } else {
       // Encima del target.
-      top = Math.max(rect.top - 190, 12);
+      left = Math.min(Math.max(rect.left, 16), vw - estW - 16);
+      top = Math.max(rect.top - estH - gap, 16);
     }
-    const left = Math.min(Math.max(rect.left, 12), window.innerWidth - estW - 12);
+
     tooltipStyle = { position: "fixed", top, left, maxWidth: estW };
   } else {
     tooltipStyle = {
