@@ -56,8 +56,8 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          // Llama 3.3 70B en Groq: reemplazo estable del 3.1, gratis en tier free.
-          model: process.env.GROQ_MODEL ?? "llama-4-scout-17b-16e-instruct",
+          // GPT-OSS 20B en Groq: gratis en tier free, soporta JSON mode.
+          model: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },
