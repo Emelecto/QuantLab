@@ -8,7 +8,12 @@ import os
 from typing import Optional
 
 from fastapi import HTTPException, Request
-import jwt
+try:
+    import jwt
+    _JWT_EXP_ERR = jwt.ExpiredSignatureError
+except Exception:
+    class _JWT_EXP_ERR(Exception):
+        pass
 import requests
 
 logger = logging.getLogger(__name__)
@@ -49,20 +54,17 @@ def _fetch_jwks() -> dict:
 
 
 def _verify_jwt(token: str) -> dict | None:
-    """Verifica un JWT de Supabase y devuelve el payload."""
+    """Verifica un JWT de Supabase (ES256/ECDSA) y devuelve el payload."""
     try:
-        # Obtener el header para ver el kid
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
         if not kid:
             return None
 
-        # Buscar la clave correspondiente en JWKS
         jwks = _fetch_jwks()
         keys = jwks.get("keys", [])
         key = next((k for k in keys if k.get("kid") == kid), None)
         if not key:
-            # Refrescar JWKS si no encontró
             global _JWKS
             _JWKS = None
             jwks = _fetch_jwks()
@@ -71,7 +73,6 @@ def _verify_jwt(token: str) -> dict | None:
         if not key:
             return None
 
-        # Verificar token (PyJWT 2.x acepta el dict JWK directamente)
         payload = jwt.decode(
             token,
             key,
@@ -80,14 +81,11 @@ def _verify_jwt(token: str) -> dict | None:
             options={"verify_exp": True},
         )
         return payload
-    except jwt.ExpiredSignatureError:
+    except _JWT_EXP_ERR:
         logger.warning("[AUTH DEBUG] JWT expirado")
         return None
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"[AUTH DEBUG] JWT inválido: {e}")
-        return None
     except Exception as e:
-        logger.warning(f"Error verificando JWT: {e}")
+        logger.warning(f"[AUTH DEBUG] JWT inválido: {e}")
         return None
 
 

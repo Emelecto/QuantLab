@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
-# Asegurar PyJWT (no el paquete 'jwt' viejo que colisiona con el import)
-RUN pip uninstall -y jwt && pip install --force-reinstall --no-cache-dir "PyJWT[cors]==2.9.0"
+# Asegurar PyJWT (no el paquete 'jwt' viejo que colisiona con el import y no soporta ES256)
+RUN pip uninstall -y jwt PyJWT 2>/dev/null; pip install --force-reinstall --no-cache-dir "PyJWT[cors]==2.9.0"
 
 COPY . .
 
