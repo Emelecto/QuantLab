@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { buttonClasses } from "@/components/ui/Button";
 import { useAuth } from "@/lib/useAuth";
 import { getBalance } from "@/lib/tokens";
+import { useCountUp } from "@/hooks/useCountUp";
 
 const PUBLIC_NAV = [
   { href: "/features", label: "Producto" },
@@ -27,6 +28,7 @@ export function TopBar() {
   // Badge QP: balance en vivo de la wallet (solo con sesión iniciada).
   const [qpBalance, setQpBalance] = useState<number | null>(null);
   const [qpError, setQpError] = useState(false);
+  const animatedQp = useCountUp(qpBalance ?? 0);
 
   useEffect(() => {
     if (!user) return;
@@ -109,6 +111,7 @@ export function TopBar() {
               <Link
                 href="/app/wallet"
                 aria-label="Mi wallet de QuantPoints"
+                data-tour="qp-badge"
                 className="ql-glass-hover hidden items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:border-accent/50 sm:flex"
               >
                 <svg
@@ -123,7 +126,7 @@ export function TopBar() {
                   <path d="M6 3h12l3 9-9 9-9-9 3-9Z" />
                   <path d="M9 8h6" />
                 </svg>
-                {qpError ? "QP —" : qpBalance == null ? "QP …" : `QP ${qpBalance}`}
+                {qpError ? "QP —" : qpBalance == null ? "QP …" : `QP ${animatedQp}`}
               </Link>
               {/* Variante móvil: ícono compacto para no romper el layout. */}
               <Link

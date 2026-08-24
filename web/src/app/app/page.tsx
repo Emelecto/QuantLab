@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { AuthGuard } from "@/lib/AuthGuard";
 import { buttonClasses } from "@/components/ui/Button";
 import { getRuns } from "@/lib/runs";
@@ -30,6 +31,79 @@ function MetricCard({
       >
         {value}
       </div>
+    </div>
+  );
+}
+
+function OnboardingChecklist() {
+  const ITEMS = [
+    { key: "ql_did_backtest", label: "Completa tu primer backtest" },
+    { key: "ql_joined_tournament", label: "Únete a un torneo" },
+    { key: "ql_published", label: "Publica una estrategia" },
+  ] as const;
+
+  const [done, setDone] = useState<boolean[]>([false, false, false]);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setDone(ITEMS.map((it) => localStorage.getItem(it.key) === "1"));
+      const allDone = ITEMS.every((it) => localStorage.getItem(it.key) === "1");
+      if (allDone) {
+        // Se completa solo: colapsar tras unos segundos no es necesario; lo ocultamos.
+        const t = setTimeout(() => setDismissed(true), 4000);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      /* noop */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const completed = done.filter(Boolean).length;
+  if (dismissed && completed === ITEMS.length) return null;
+
+  return (
+    <div className="ql-glass ql-elev-1 mt-6 rounded-xl p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-ink">Primeros pasos</h2>
+        <span className="font-mono text-xs text-muted">
+          {completed}/{ITEMS.length}
+        </span>
+      </div>
+      {/* Barra de progreso */}
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-accent transition-all duration-500"
+          style={{ width: `${(completed / ITEMS.length) * 100}%` }}
+        />
+      </div>
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {ITEMS.map((item, i) => (
+          <li key={item.key} className="flex items-center gap-2.5 text-sm">
+            <span
+              aria-hidden
+              className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border ${
+                done[i]
+                  ? "border-accent bg-accent/15 text-accent"
+                  : "border-line text-transparent"
+              }`}
+              style={{ width: 18, height: 18 }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className="h-2.5 w-2.5">
+                <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className={done[i] ? "text-muted line-through" : "text-ink"}>{item.label}</span>
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent("ql:start-tour"))}
+        className="mt-4 text-xs font-medium text-accent transition-colors hover:text-accent/80"
+      >
+        Empezar tour →
+      </button>
     </div>
   );
 }
@@ -163,11 +237,14 @@ function DashboardContent() {
           </div>
           <Link
             href="/app/strategies/new"
+            data-tour="nueva-estrategia"
             className={buttonClasses("primary", "lg")}
           >
             Nueva estrategia
           </Link>
         </div>
+
+        <OnboardingChecklist />
 
         {/* B7: tarjetas resumen */}
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -266,6 +343,7 @@ export default function AppDashboardPage() {
   return (
     <AuthGuard>
       <DashboardContent />
+      <OnboardingTour />
     </AuthGuard>
   );
 }
