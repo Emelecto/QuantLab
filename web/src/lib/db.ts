@@ -270,6 +270,7 @@ export function supabaseRunToResult(
       end: "",
       capital: Number(strategy.capital),
       commission: Number(strategy.commission),
+      slippage: Number((strategy as { slippage?: number }).slippage ?? 0.0005),
       folds: strategy.folds,
       split: strategy.split,
     },

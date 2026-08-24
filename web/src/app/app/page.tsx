@@ -35,7 +35,7 @@ function MetricCard({
 }
 
 function DashboardContent() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const email = user?.email ?? "";
   const [displayName, setDisplayName] = useState<string>("");
   const [runs, setRuns] = useState<BacktestResult[]>([]);
@@ -144,31 +144,6 @@ function DashboardContent() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-8 px-6">
-          <Link
-            href="/app"
-            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"
-          >
-            <span
-              aria-hidden
-              className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent"
-            />
-            QuantLab
-          </Link>
-          <span className="text-sm text-muted">Dashboard</span>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted sm:inline">{email}</span>
-            <button
-              onClick={signOut}
-              className="text-sm font-medium text-muted transition-colors hover:text-ink"
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </header>
-
       <section className="mx-auto w-full max-w-5xl flex-1 px-6 py-14">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

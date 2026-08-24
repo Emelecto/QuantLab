@@ -18,6 +18,7 @@ export interface StrategyConfig {
   end: string; // YYYY-MM-DD
   capital: number;
   commission: number; // fracción, p.ej. 0.001 (= 0.1%)
+  slippage: number; // fracción, p.ej. 0.0005 (= 0.05%) por lado
   folds: number; // int, p.ej. 3
   split: number; // entero = % train, p.ej. 70 (NO 0.7)
 }

@@ -33,7 +33,8 @@ const DEFAULTS: StrategyConfig = {
   start: "2023-01-01",
   end: "2023-12-31",
   capital: 1000,
-  commission: 0.1,
+  commission: 0.001, // 0.1%
+  slippage: 0.0005, // 0.05% por lado
   folds: 3,
   split: 70,
 };
@@ -168,7 +169,12 @@ export default function NewStrategyPage() {
               </div>
 
               {visualTab === "templates" && (
-                <StrategyTemplates onSelect={(code) => update("code", code)} />
+                <StrategyTemplates
+                  onSelect={(code) => {
+                    update("code", code);
+                    setVisualTab("builder");
+                  }}
+                />
               )}
 
               {visualTab === "builder" && (
@@ -176,7 +182,14 @@ export default function NewStrategyPage() {
                   <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
                     Constructor visual
                   </div>
-                  <StrategyBuilder code={config.code} onChange={(c) => update("code", c)} />
+                  <StrategyBuilder
+                    code={config.code}
+                    onChange={(c) => update("code", c)}
+                    onParams={(commission, slippage) => {
+                      update("commission", commission);
+                      update("slippage", slippage);
+                    }}
+                  />
                 </div>
               )}
 
@@ -286,8 +299,22 @@ export default function NewStrategyPage() {
                   type="number"
                   step="0.01"
                   className="ql-input rounded-md px-3 py-2 text-sm text-ink"
-                  value={config.commission}
-                  onChange={(e) => update("commission", Number(e.target.value))}
+                  value={(config.commission * 100).toFixed(3)}
+                  onChange={(e) =>
+                    update("commission", Number(e.target.value) / 100)
+                  }
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Slippage (%)
+                <input
+                  type="number"
+                  step="0.01"
+                  className="ql-input rounded-md px-3 py-2 text-sm text-ink"
+                  value={(config.slippage * 100).toFixed(3)}
+                  onChange={(e) =>
+                    update("slippage", Number(e.target.value) / 100)
+                  }
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted">

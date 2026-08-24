@@ -36,8 +36,12 @@ export async function POST(request: Request) {
   const system =
     "Eres un asistente de QuantLab que convierte ideas de trading en estrategias " +
     "de cruce de medias móviles (SMA) compatibles con el motor. " +
-    "Devuelve SIEMPRE un objeto JSON con dos campos: " +
-    '"code" (string, formato "fast=XX,slow=YY", donde XX<YY, enteros entre 2 y 400) ' +
+    "Devuelve SIEMPRE un objeto JSON con estos campos: " +
+    '"code" (string, formato "fast=XX,slow=YY", donde XX<YY, enteros entre 2 y 400), ' +
+    '"commission" (número: comisión por operación en fracción, ej. 0.001 = 0.1%; ' +
+    "usa 0.001 para cripto y 0.0005 para acciones), " +
+    '"slippage" (número: slippage por lado en fracción, ej. 0.0005 = 0.05%; ' +
+    "usa 0.0005 para cripto y 0.0002 para acciones), " +
     'y "explanation" (string en español, 1-2 frases explicando la lógica). ' +
     "Si la idea no es un cruce de medias, elige fast/slow razonables que la aproximen. " +
     "No incluyas nada más que el JSON.";
@@ -78,7 +82,12 @@ export async function POST(request: Request) {
 
     const data = await resp.json();
     const content = data?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: { code?: string; explanation?: string };
+    let parsed: {
+      code?: string;
+      commission?: number;
+      slippage?: number;
+      explanation?: string;
+    };
     try {
       parsed = JSON.parse(content);
     } catch {
@@ -87,6 +96,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       code: typeof parsed.code === "string" ? parsed.code : "",
+      commission:
+        typeof parsed.commission === "number" ? parsed.commission : undefined,
+      slippage:
+        typeof parsed.slippage === "number" ? parsed.slippage : undefined,
       explanation:
         typeof parsed.explanation === "string"
           ? parsed.explanation

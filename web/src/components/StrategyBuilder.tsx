@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { buttonClasses } from "@/components/ui/Button";
 import { inputClasses } from "@/components/ui/Form";
 
@@ -13,15 +13,26 @@ import { inputClasses } from "@/components/ui/Form";
 export function StrategyBuilder({
   code,
   onChange,
+  onParams,
 }: {
   code: string;
   onChange: (code: string) => void;
+  /** Propaga comisión/slippage sugeridos por la IA (fracciones). */
+  onParams?: (commission: number, slippage: number) => void;
 }) {
   // Parseo ligero del code actual para inicializar los sliders.
   const parsed = parseCode(code);
   const [fast, setFast] = useState(parsed.fast);
   const [slow, setSlow] = useState(parsed.slow);
   const [invert, setInvert] = useState(parsed.invert);
+
+  // Sincroniza con cambios externos al code (plantillas, IA, bloques).
+  useEffect(() => {
+    const p = parseCode(code);
+    setFast(p.fast);
+    setSlow(p.slow);
+    setInvert(p.invert);
+  }, [code]);
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
@@ -60,6 +71,12 @@ export function StrategyBuilder({
         setFast(p.fast);
         setSlow(p.slow);
         setInvert(p.invert);
+      }
+      // Aplica comisión/slippage sugeridos por la IA al backtest.
+      if (typeof data.commission === "number" && typeof data.slippage === "number") {
+        onParams?.(data.commission, data.slippage);
+      } else if (typeof data.commission === "number") {
+        onParams?.(data.commission, 0.0005);
       }
     } catch {
       setAiError("No se pudo contactar al asistente IA.");
