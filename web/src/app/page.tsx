@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { LiveSignals } from "@/components/studio";
+import { AuthAwareCTA } from "@/components/AuthAwareCTA";
 
 const STEPS = [
   {
@@ -331,9 +332,13 @@ export default function Home() {
             resultado con el de la comunidad.
           </p>
           <div className="mt-7">
-            <Link href="/register" className={buttonClasses("primary", "lg")}>
-              Empieza gratis
-            </Link>
+            <AuthAwareCTA
+              loggedOutLabel="Empieza gratis"
+              loggedOutHref="/register"
+              loggedInLabel="Ir al dashboard"
+              loggedInHref="/app"
+              size="lg"
+            />
           </div>
         </div>
       </section>

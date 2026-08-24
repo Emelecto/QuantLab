@@ -114,23 +114,8 @@ export default function ResultsPage() {
     .map((p) => ({ t: p.t, oos: p.oos as number }));
 
   return (
-    <main className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-6">
-          <Link href="/app" className="text-[15px] font-semibold tracking-tight text-ink">
-            QuantLab
-          </Link>
-          <span className="text-sm text-muted">/ Resultado · {run.config.symbol}</span>
-          <Link
-            href="/app"
-            className="ml-auto text-sm text-muted transition-colors hover:text-ink"
-          >
-            Volver
-          </Link>
-        </div>
-      </header>
-
-      <section className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <main className="flex min-h-screen flex-col">
+        <section className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink">

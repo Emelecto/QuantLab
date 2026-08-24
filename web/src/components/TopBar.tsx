@@ -38,7 +38,7 @@ export function TopBar() {
         </Link>
 
         {user ? (
-          // Sesión iniciada: navegación completa a las nuevas secciones.
+          // Sesión iniciada: navegación de app autenticada.
           <nav className="hidden items-center gap-5 md:flex">
             <Link
               href="/app"
@@ -63,12 +63,6 @@ export function TopBar() {
               className="text-sm text-muted transition-colors hover:text-ink"
             >
               Rankings
-            </Link>
-            <Link
-              href="/"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Inicio
             </Link>
           </nav>
         ) : (
@@ -102,7 +96,7 @@ export function TopBar() {
                 Iniciar sesión
               </Link>
               <Link href="/register" className={buttonClasses("primary", "sm")}>
-                Crear cuenta
+                Empieza gratis
               </Link>
             </>
           )}

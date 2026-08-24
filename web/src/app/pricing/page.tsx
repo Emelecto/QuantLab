@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { buttonClasses } from "@/components/ui/Button";
+import { AuthAwareCTA } from "@/components/AuthAwareCTA";
 import { cn } from "@/lib/cn";
 
 type Tier = {
@@ -143,15 +142,14 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Link
-                  href="/register"
-                  className={cn(
-                    buttonClasses(tier.featured ? "primary" : "secondary", "md"),
-                    "mt-6 w-full",
-                  )}
-                >
-                  {tier.cta}
-                </Link>
+                <AuthAwareCTA
+                  loggedOutLabel={tier.cta}
+                  loggedOutHref="/register"
+                  loggedInLabel={tier.name === "Gratis" ? "Ir al dashboard" : `Ir a ${tier.name}`}
+                  loggedInHref="/app"
+                  size="md"
+                  className="mt-6 w-full"
+                />
               </div>
             ))}
           </div>

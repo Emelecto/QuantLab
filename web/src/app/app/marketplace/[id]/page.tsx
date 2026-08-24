@@ -117,18 +117,6 @@ export default function StrategyDetailPage() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-6">
-          <Link
-            href="/app/marketplace"
-            className="text-[15px] font-semibold tracking-tight text-ink"
-          >
-            ← Marketplace
-          </Link>
-          <span className="text-sm text-muted">/ {strategy.title}</span>
-        </div>
-      </header>
-
       <section className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-6">

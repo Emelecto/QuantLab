@@ -21,12 +21,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-zinc-500 dark:bg-black dark:text-zinc-400">
-        Cargando…
-      </div>
-    );
-  }
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-bg text-muted">
+          Cargando…
+        </div>
+      );
+    }
 
   return <>{children}</>;
 }

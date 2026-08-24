@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { listTournaments } from "@/lib/tournaments";
 import { TournamentCard } from "./components/TournamentCard";
@@ -95,7 +97,7 @@ export default function TournamentsPage() {
         </div>
 
         {loading ? (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fadeIn">
+          <div className="mt-8 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 animate-fadeIn">
             {[1, 2, 3].map((i) => (
               <div key={i} className="ql-skeleton-card h-48 rounded-xl" />
             ))}
@@ -128,6 +130,11 @@ export default function TournamentsPage() {
             ))}
           </div>
         )}
+
+        {/* Disclaimer */}
+        <p className="mt-10 text-[11px] text-muted">
+          QuantLab es una herramienta de investigación. No es asesoría financiera ni recomendación de inversión. Los torneos usan paper trading con datos reales.
+        </p>
       </div>
     </main>
   );

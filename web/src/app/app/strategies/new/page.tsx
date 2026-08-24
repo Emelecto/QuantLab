@@ -102,21 +102,6 @@ export default function NewStrategyPage() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-6">
-          <Link href="/app" className="text-[15px] font-semibold tracking-tight text-ink">
-            QuantLab
-          </Link>
-          <span className="text-sm text-muted">/ Nueva estrategia</span>
-          <Link
-            href="/app"
-            className="ml-auto text-sm text-muted transition-colors hover:text-ink"
-          >
-            Volver
-          </Link>
-        </div>
-      </header>
-
       <section className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-6 py-10 lg:grid-cols-[1fr_360px]">
         {/* Columna principal: tabs Asistente visual <-> Código pro */}
         <div className="flex flex-col gap-4">

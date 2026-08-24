@@ -137,6 +137,11 @@ export default function TournamentDetailPage() {
             </Link>
           </div>
         )}
+
+        {/* Disclaimer */}
+        <p className="mt-8 text-[11px] text-muted">
+          QuantLab es una herramienta de investigación. No es asesoría financiera ni recomendación de inversión.
+        </p>
       </div>
     </main>
   );
