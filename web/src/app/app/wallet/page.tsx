@@ -202,7 +202,7 @@ export default function WalletPage() {
                 <div key={p.usd} className="flex flex-col rounded-lg border border-line bg-white/[0.02] p-4 text-center">
                   <p className="text-2xl font-semibold text-ink">{p.amount} QP</p>
                   <p className="mt-1 text-sm text-muted">${p.usd}/mes</p>
-                  <div className="mt-2 flex min-h-[20px] items-center justify-center gap-1">
+                  <div className="mb-4 mt-2 flex min-h-[20px] items-center justify-center gap-1">
                   {"popular" in p && (
                     <span className="inline-block rounded bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">
                       Popular
