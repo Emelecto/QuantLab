@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
  * Asistente IA para crear estrategias. Recibe una idea en lenguaje natural y
  * devuelve código compatible con el motor (formato fast/slow) + explicación.
  *
- * Usa OPENAI_API_KEY desde el entorno del SERVIDOR (nunca expuesta al cliente).
+ * Usa GROQ_API_KEY desde el entorno del SERVIDOR (nunca expuesta al cliente).
+ * Groq es compatible con la API de OpenAI, así que el body es el mismo.
  * Si no hay key configurada, responde 200 con un mensaje claro (no rompe).
  */
 export async function POST(request: Request) {
@@ -23,12 +24,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return NextResponse.json({
       code: "",
       explanation:
-        "El asistente IA aún no está configurado. Añade OPENAI_API_KEY en las variables de entorno del servidor para activarlo.",
+        "El asistente IA aún no está configurado. Añade GROQ_API_KEY en las variables de entorno del servidor para activarlo.",
     });
   }
 
@@ -46,22 +47,26 @@ export async function POST(request: Request) {
     `Idea: ${prompt}`;
 
   try {
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+    const resp = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          // Llama 3.1 8B en Groq: gratis y muy rápido para serverless.
+          model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.3,
+          response_format: { type: "json_object" },
+        }),
       },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-      }),
-    });
+    );
 
     if (!resp.ok) {
       const txt = await resp.text();
