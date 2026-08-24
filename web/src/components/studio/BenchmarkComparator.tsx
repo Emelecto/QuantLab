@@ -16,7 +16,7 @@ export function BenchmarkComparator({
   timeframe,
 }: {
   strategyEquity: Array<{ t: string; oos: number }>;
-  asset_type: "crypto" | "stock";
+  asset_type: "crypto" | "stock" | "etf";
   symbol: string;
   timeframe: string;
 }) {

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class StrategyConfig(BaseModel):
     code: str
-    asset_type: str = "crypto"          # crypto | stock
+    asset_type: str = "crypto"          # crypto | stock | etf
     symbol: str = "BTCUSDT"
     timeframe: str = "1d"
     capital: float = 10000.0

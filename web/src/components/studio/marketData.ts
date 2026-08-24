@@ -3,7 +3,7 @@
 // - Acciones: Yahoo Finance chart (/v8/finance/chart).
 // Ambos usan fetch nativo del navegador. El llamador maneja errores de red/CORS.
 
-export type AssetType = "crypto" | "stock";
+export type AssetType = "crypto" | "stock" | "etf";
 
 export interface MarketSeries {
   /** Precios de cierre en orden cronológico. */

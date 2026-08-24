@@ -94,10 +94,10 @@ def validate_strategy(config: StrategyConfig) -> dict:
             warnings.append(f"Código peligroso detectado: '{pat}' no está permitido.")
 
     asset = (config.asset_type or "").lower()
-    if asset not in ("crypto", "stock"):
+    if asset not in ("crypto", "stock", "etf"):
         valid = False
         warnings.append(
-            f"asset_type inválido: '{config.asset_type}'. Usa 'crypto' o 'stock'."
+            f"asset_type inválido: '{config.asset_type}'. Usa 'crypto', 'stock' o 'etf'."
         )
     else:
         symbol = (config.symbol or "").strip().upper()
@@ -108,7 +108,7 @@ def validate_strategy(config: StrategyConfig) -> dict:
                     f"Símbolo crypto '{config.symbol}' no termina en USDT; "
                     "el motor lo normalizará (p.ej. BTC -> BTCUSDT)."
                 )
-        elif asset == "stock":
+        elif asset in ("stock", "etf"):
             if symbol.endswith("USDT"):
                 warnings.append(
                     f"Símbolo de stock '{config.symbol}' termina en USDT; "

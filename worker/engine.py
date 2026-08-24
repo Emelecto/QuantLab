@@ -21,10 +21,10 @@ def _validate_config(config) -> None:
             f"símbolo inválido: '{config.symbol}' contiene caracteres no permitidos."
         )
 
-    # asset_type
-    if (config.asset_type or "").lower() not in ("crypto", "stock"):
+    # asset_type — ETF cotiza vía Yahoo igual que las acciones.
+    if (config.asset_type or "").lower() not in ("crypto", "stock", "etf"):
         raise ValueError(
-            f"asset_type inválido: '{config.asset_type}'. Usa 'crypto' o 'stock'."
+            f"asset_type inválido: '{config.asset_type}'. Usa 'crypto', 'stock' o 'etf'."
         )
 
     # comisión / slippage no negativos

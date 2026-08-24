@@ -394,8 +394,31 @@ def _download_live(
         out.index.name = "timestamp"
         return out.sort_index()
 
+    if asset_type == "etf":
+        # Los ETFs cotizan en Yahoo igual que las acciones (SPY, QQQ, VTI...).
+        sym = _normalize_symbol("stock", symbol)
+        raw = _fetch_yfinance(sym, timeframe, start, end)
+        wanted = ["Open", "High", "Low", "Close", "Volume"]
+        missing = [c for c in wanted if c not in raw.columns]
+        if missing:
+            raise ValueError(
+                f"yfinance: faltan columnas {missing} en la respuesta de '{sym}'."
+            )
+        out = pd.DataFrame(
+            {
+                "open": raw["Open"].astype(float),
+                "high": raw["High"].astype(float),
+                "low": raw["Low"].astype(float),
+                "close": raw["Close"].astype(float),
+                "volume": raw["Volume"].astype(float),
+            }
+        )
+        out.index = pd.to_datetime(out.index)
+        out.index.name = "timestamp"
+        return out.sort_index()
+
     raise ValueError(
-        f"asset_type no soportado: '{asset_type}' (usa 'crypto' o 'stock')."
+        f"asset_type no soportado: '{asset_type}' (usa 'crypto', 'stock' o 'etf')."
     )
 
 

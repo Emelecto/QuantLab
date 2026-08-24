@@ -154,7 +154,7 @@ function DashboardContent() {
       // Una sola consulta de benchmark por (activo, símbolo, timeframe).
       const keys = new Map<
         string,
-        { asset_type: "crypto" | "stock"; symbol: string; timeframe: string }
+        { asset_type: "crypto" | "stock" | "etf"; symbol: string; timeframe: string }
       >();
       for (const r of runs) {
         const k = `${r.config.asset_type}|${r.config.symbol}|${r.config.timeframe}`;

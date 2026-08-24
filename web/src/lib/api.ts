@@ -4,8 +4,10 @@
 //
 // CONTRATO: split es ENTERO (porcentaje de train, ej. 70), NO fracción.
 
-export type AssetType = "crypto" | "stock";
-export type Timeframe = "1d" | "4h" | "1h";
+export type AssetType = "crypto" | "stock" | "etf";
+export type Timeframe =
+  | "1m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "12h"
+  | "1d" | "3d" | "1w" | "1M" | "1wk" | "1mo";
 export type IntegrityLabel = "High" | "Low";
 
 /** Cuerpo que el worker espera en /backtest y /backtest/validate. */
