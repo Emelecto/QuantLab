@@ -245,7 +245,7 @@ export default function RankingsPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setMode(t.id)}
-                  className={`h-8 rounded-md px-3 text-[13px] font-semibold transition-colors active:scale-95 ${
+                  className={`h-8 rounded-md px-3 text-[13px] font-semibold transition-colors active:scale-[0.96] ${
                     mode === t.id
                       ? "bg-accent/15 text-accent border border-accent/30"
                       : "text-ink hover:text-accent border border-transparent"
@@ -263,7 +263,7 @@ export default function RankingsPage() {
                     key={t.id}
                     type="button"
                     onClick={() => setTab(t.id)}
-                    className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors active:scale-95 ${
+                    className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors active:scale-[0.96] ${
                       tab === t.id
                         ? "bg-accent/15 text-accent border border-accent/30"
                         : "text-muted hover:text-ink border border-transparent"

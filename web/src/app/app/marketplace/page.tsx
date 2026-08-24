@@ -141,7 +141,7 @@ export default function MarketplacePage() {
             <button
               type="button"
               onClick={() => router.push("/app/marketplace/my-subscriptions")}
-              className="ql-btn-secondary h-9 rounded-md px-3 text-[13px] active:scale-95"
+              className="ql-btn-secondary h-9 rounded-md px-3 text-[13px] active:scale-[0.96]"
             >
               Mis suscripciones
             </button>
@@ -188,7 +188,7 @@ export default function MarketplacePage() {
                   type="button"
                   onClick={() => setMinRating(minRating === n ? 0 : n)}
                   aria-label={`${n} estrellas`}
-                  className="active:scale-95"
+                  className="active:scale-[0.96]"
                 >
                   <StarIcon active={n <= minRating} />
                 </button>

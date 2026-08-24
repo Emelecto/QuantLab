@@ -307,11 +307,11 @@ body::before {
   border-color: rgba(94, 234, 212, 0.5);
 }
 
-/* Botones con active scale */
+/* Botones con active scale — 0.96 es el estándar táctil correcto */
 button:active,
 [role="button"]:active,
 a[role="button"]:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 /* Badge QP transición de color */
@@ -343,6 +343,36 @@ a, button, input, select, textarea, [role="button"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ============================================================
+   QuantLab v4 — "Terminal de datos" (impeccable + Emil + taste)
+   Fondo: dot-matrix sutil justificado por el mundo charting,
+   sin hexágonos ni líneas decorativas. Una sola pieza autoral
+   de motion por vista. Números siempre estables (tabular).
+   ============================================================ */
+
+/* Textura de fondo: puntos-dato casi imperceptibles.
+   El mundo del producto ES el charting: los puntos evocan velas/datos
+   sin dibujar nada literal. Fija, pointer-events none, GPU-friendly. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -9;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(139, 147, 167, 0.14) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(80% 60% at 50% 0%, rgba(0, 0, 0, 0.5), transparent 75%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, rgba(0, 0, 0, 0.5), transparent 75%);
+}
+
+/* Tipografía: balance en headings, pretty en párrafos */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 
 /* ===== QuantLab v3 — Glass Terminal ===== */

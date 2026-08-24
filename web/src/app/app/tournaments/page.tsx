@@ -41,7 +41,7 @@ function EmptyTournamentsState({ hasQP }: { hasQP: boolean }) {
       {hasQP && (
         <Link
           href="/app/tournaments/new"
-          className="mt-6 inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-accent to-accent-2 px-5 py-2.5 text-sm font-medium text-bg shadow-lg shadow-accent/20 hover:shadow-accent/30 transition-all active:scale-95"
+          className="mt-6 inline-flex items-center gap-2 rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-bg transition-colors hover:bg-accent/90 active:scale-[0.96]"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

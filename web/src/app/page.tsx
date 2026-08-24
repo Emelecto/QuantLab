@@ -61,26 +61,22 @@ export default function Home() {
     <div className="flex flex-col">
       {/* El header global (TopBar) lo aporta el layout. No duplicar aquí. */}
 
-      {/* HERO (A1: demo en vivo) */}
+      {/* HERO (A1: demo en vivo) — sin kicker, sin gradient text (craft-floor) */}
       <section className="relative overflow-hidden border-b border-line">
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 h-[28rem] w-[44rem] max-w-full -translate-x-1/2 rounded-full blur-3xl"
+          className="pointer-events-none absolute left-1/2 top-0 h-[24rem] w-[44rem] max-w-full -translate-x-1/2 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(closest-side, rgba(94,234,212,0.18), transparent)",
+              "radial-gradient(closest-side, rgba(94,234,212,0.10), transparent)",
           }}
         />
-        <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <span className="metric mb-6 inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-                FASE 1 · BACKTESTING OOS EN LA NUBE
-              </span>
-              <h1 className="max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-ink md:text-[56px]">
+              <h1 className="max-w-3xl text-4xl leading-[1.08] font-semibold tracking-tight text-ink md:text-[56px]">
                 Crea estrategias de trading que de verdad{" "}
-                <span className="ql-gradient-text ql-glow-text">funcionan.</span>
+                <span className="text-accent">funcionan.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
                 Prueba tus ideas en la nube y descubre si realmente ganarían o solo
@@ -142,10 +138,7 @@ export default function Home() {
       {/* A2: POR QUÉ NO SOBREAJUSTES */}
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
-          <span className="metric inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
-            SIN OVERFITTING
-          </span>
-          <h2 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+          <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
             Por qué no sobreajustes
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
@@ -222,10 +215,7 @@ export default function Home() {
       {/* A3: VALIDACIÓN Y CONFIANZA */}
       <section className="border-b border-line bg-surface/40">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
-          <span className="metric inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
-            DATOS REALES
-          </span>
-          <h2 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+          <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
             Datos reales, sin simulación
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
@@ -317,24 +307,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* GRID FEATURES */}
+      {/* GRID FEATURES — lista editorial con separadores (anti-cards-uniformes) */}
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight text-ink">
+          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
             Todo lo que necesitas para investigar en serio
           </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
             {FEATURES.map((f) => (
-              <div key={f.title} className="ql-perspective">
-                <Card className="ql-tilt h-full">
-                  <CardHeader>
-                    <CardTitle>{f.title}</CardTitle>
-                  </CardHeader>
-                  <CardBody>{f.text}</CardBody>
-                </Card>
-              </div>
+              <li key={f.title} className="border-t border-line pt-5">
+                <h3 className="text-[15px] font-semibold text-ink">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.text}</p>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 

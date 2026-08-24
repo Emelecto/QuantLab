@@ -74,7 +74,7 @@ function OnboardingChecklist() {
       {/* Barra de progreso */}
       <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-accent transition-all duration-500"
+          className="h-full rounded-full bg-accent transition-[width] duration-500"
           style={{ width: `${(completed / ITEMS.length) * 100}%` }}
         />
       </div>
@@ -310,7 +310,7 @@ function DashboardContent() {
                 <li key={r.id}>
                   <Link
                     href={`/app/strategies/${r.id}/results`}
-                    className="ql-glass ql-elev-1 flex items-center justify-between rounded-lg px-4 py-3 transition-all hover:border-accent hover:ql-elev-2"
+                    className="ql-glass ql-elev-1 flex items-center justify-between rounded-lg px-4 py-3 transition-colors hover:border-accent"
                   >
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-sm font-medium text-ink">

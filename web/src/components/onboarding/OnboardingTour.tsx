@@ -245,7 +245,7 @@ export function OnboardingTour() {
             )}
             <button
               onClick={next}
-              className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-bg transition-transform active:scale-95 hover:bg-accent/90"
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-bg transition-transform active:scale-[0.96] hover:bg-accent/90"
             >
               {isLast ? "Listo" : "Siguiente"}
             </button>
