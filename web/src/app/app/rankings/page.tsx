@@ -43,6 +43,93 @@ const countryNames: Record<string, string> = {
   IT: "Italia",
 };
 
+function RankingsSkeleton() {
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Podium skeleton */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="ql-skeleton-card rounded-xl p-6 flex flex-col items-center gap-3">
+            <div className="ql-skeleton-circle h-10 w-10" />
+            <div className="ql-skeleton-circle h-14 w-14" />
+            <div className="ql-skeleton-line w-24" />
+            <div className="ql-skeleton-line w-16" />
+          </div>
+        ))}
+      </div>
+      {/* Table skeleton */}
+      <div className="ql-skeleton-card rounded-xl p-4 space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="ql-skeleton-circle h-7 w-7" />
+            <div className="ql-skeleton-circle h-8 w-8" />
+            <div className="flex-1 ql-skeleton-line h-4" />
+            <div className="ql-skeleton-line w-16 h-4" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RankingCard({ entry, tab, highlight }: { entry: PublicLeaderboardEntry; tab: LeaderboardTab; highlight?: boolean }) {
+  const rankColors: Record<number, string> = {
+    1: "from-yellow-400 to-amber-500 text-[#04110d]",
+    2: "from-slate-300 to-slate-400 text-[#04110d]",
+    3: "from-amber-600 to-amber-700 text-[#04110d]",
+  };
+
+  return (
+    <div className={`ql-glass ql-elev-1 ql-glass-hover rounded-xl p-4 flex items-center gap-3 ${highlight ? "bg-accent/[0.06]" : ""} animate-fadeIn`}>
+      {/* Rank */}
+      <span
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${
+          rankColors[entry.rank]
+            ? `bg-gradient-to-br ${rankColors[entry.rank]}`
+            : "bg-surface-solid text-muted"
+        }`}
+      >
+        {entry.rank}
+      </span>
+
+      {/* Avatar */}
+      <div className="shrink-0">
+        {entry.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.avatar_url}
+            alt={entry.username}
+            className="h-9 w-9 rounded-full border border-line object-cover"
+          />
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-[#1a2131] metric text-[13px] text-muted">
+            {(entry.username ?? "??").slice(0, 2).toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium text-ink truncate">@{entry.username}</p>
+        {tab === "country" && entry.country && (
+          <p className="metric text-[11px] text-muted">{countryNames[entry.country] ?? entry.country}</p>
+        )}
+        {entry.tier && (
+          <span className="metric text-[10px] uppercase tracking-wider text-accent">{entry.tier}</span>
+        )}
+      </div>
+
+      {/* QP */}
+      <div className="text-right shrink-0">
+        <p className="metric text-accent ql-glow-text text-sm font-semibold">
+          {entry.qp_earned.toLocaleString()}
+        </p>
+        <p className="metric text-[10px] text-muted">{entry.tournaments_won} torneos</p>
+      </div>
+    </div>
+  );
+}
+
 export default function RankingsPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<LeaderboardTab>("qp");
@@ -79,10 +166,10 @@ export default function RankingsPage() {
     <main className="flex min-h-screen flex-col">
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-10">
-          <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl animate-fadeIn">
             Leaderboard Global
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base animate-fadeIn">
             Los mejores traders de QuantLab, rankeados por QP ganados y torneos.
           </p>
         </div>
@@ -96,7 +183,7 @@ export default function RankingsPage() {
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors ${
+              className={`h-8 rounded-md px-3 text-[13px] font-medium transition-colors active:scale-95 ${
                 tab === t.id
                   ? "bg-accent/15 text-accent border border-accent/30"
                   : "text-muted hover:text-ink border border-transparent"
@@ -111,13 +198,13 @@ export default function RankingsPage() {
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
           {loading ? (
-            <p className="metric text-sm text-muted">Cargando ranking…</p>
+            <RankingsSkeleton />
           ) : error ? (
-            <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short">
+            <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short animate-fadeIn">
               {error}
             </div>
           ) : rows.length === 0 ? (
-            <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-16 text-center">
+            <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-16 text-center animate-fadeIn">
               <p className="text-lg font-semibold text-ink">
                 Sin datos todavía
               </p>
@@ -130,7 +217,7 @@ export default function RankingsPage() {
             <>
               {/* Podio top 3 */}
               {top3.length >= 3 && (
-                <div className="mb-10 grid gap-4 sm:grid-cols-3">
+                <div className="mb-10 grid gap-4 grid-cols-1 sm:grid-cols-3 animate-fadeIn">
                   {[top3[1], top3[0], top3[2]].map((entry, i) => {
                     const isFirst = i === 1;
                     return (
@@ -138,7 +225,7 @@ export default function RankingsPage() {
                         key={entry.user_id}
                         className={`ql-glass ql-elev-${isFirst ? "2" : "1"} ${
                           isFirst ? "ql-tier-featured -mt-4" : ""
-                        } flex flex-col items-center rounded-xl p-6 text-center`}
+                        } ql-glass-hover flex flex-col items-center rounded-xl p-6 text-center`}
                       >
                         {/* Rank badge */}
                         <span
@@ -199,9 +286,23 @@ export default function RankingsPage() {
                 </div>
               )}
 
-              {/* Tabla top 4-100 */}
+              {/* Mobile: stacked cards */}
               {rest.length > 0 && (
-                <div className="ql-glass overflow-hidden rounded-xl">
+                <div className="block md:hidden space-y-3 animate-fadeIn">
+                  {rest.map((entry) => (
+                    <RankingCard
+                      key={`${tab}-${entry.user_id}`}
+                      entry={entry}
+                      tab={tab}
+                      highlight={user?.id === entry.user_id}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Desktop: table */}
+              {rest.length > 0 && (
+                <div className="hidden md:block ql-glass overflow-hidden rounded-xl animate-fadeIn">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[600px] border-collapse text-left">
                       <thead>

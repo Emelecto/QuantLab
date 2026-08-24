@@ -13,6 +13,61 @@ const PLAN_MAP: Record<number, PlanKey> = {
   1000: "legend",
 };
 
+function WalletSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 animate-fadeIn">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="ql-skeleton-card rounded-xl p-5 space-y-3">
+            <div className="ql-skeleton-line w-20" />
+            <div className="ql-skeleton-line w-32 h-8 mt-2" />
+          </div>
+        ))}
+      </div>
+      <div className="ql-skeleton-card rounded-xl p-5 space-y-4">
+        <div className="ql-skeleton-line w-32" />
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="ql-skeleton h-32 rounded-lg" />
+          ))}
+        </div>
+      </div>
+      <div className="ql-skeleton-card rounded-xl p-5 space-y-4">
+        <div className="ql-skeleton-line w-32" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="ql-skeleton-line w-full h-8" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyLedgerState() {
+  return (
+    <div className="mt-4 flex flex-col items-center gap-4 rounded-xl border border-dashed border-line bg-surface/20 px-6 py-12 text-center animate-fadeIn">
+      <svg
+        className="opacity-50"
+        width="80"
+        height="80"
+        viewBox="0 0 80 80"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <circle cx="40" cy="40" r="30" stroke="rgba(94,234,212,0.25)" strokeWidth="1.5" fill="none" />
+        <path d="M30 40 L36 46 L50 34" stroke="#5eead4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <circle cx="40" cy="40" r="30" stroke="rgba(56,189,248,0.15)" strokeWidth="1" strokeDasharray="4 4" fill="none" />
+      </svg>
+      <div>
+        <p className="text-sm font-medium text-ink">Tu primera transacción aparecerá aquí</p>
+        <p className="mt-1 text-xs text-muted">Compra QP o gana recompensas para empezar tu historial.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function WalletPage() {
   const [balance, setBalance] = useState<TokenBalance | null>(null);
   const [ledger, setLedger] = useState<TokenLedgerEntry[]>([]);
@@ -71,7 +126,19 @@ export default function WalletPage() {
     }
   }
 
-  if (loading) return <div className="p-14 text-muted">Cargando...</div>;
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col">
+        <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-14">
+          <div className="ql-skeleton-line w-48 h-8" />
+          <div className="ql-skeleton-line w-72 h-4 mt-2" />
+          <div className="mt-8">
+            <WalletSkeleton />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const tier = balance?.tier || "free";
   const tierInfo = TIER[tier as keyof typeof TIER] || TIER.free;
@@ -79,28 +146,28 @@ export default function WalletPage() {
   return (
     <main className="flex min-h-screen flex-col">
       <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-14">
-        <h1 className="text-3xl font-semibold tracking-tight text-ink">
+        <h1 className="text-3xl font-semibold tracking-tight text-ink animate-fadeIn">
           Mi Wallet
         </h1>
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-2 text-sm text-muted animate-fadeIn">
           Gestiona tus QuantPoints (QP).
         </p>
 
         {/* Balance */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <div className="ql-glass ql-elev-2 rounded-xl p-5">
+        <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-3 animate-fadeIn">
+          <div className="ql-glass ql-elev-2 ql-glass-hover rounded-xl p-5">
             <p className="text-xs uppercase tracking-wide text-muted">Balance</p>
             <p className="mt-2 text-3xl font-semibold text-accent ql-glow-text">
               {balance?.balance ?? 0} QP
             </p>
           </div>
-          <div className="ql-glass ql-elev-1 rounded-xl p-5">
+          <div className="ql-glass ql-elev-1 ql-glass-hover rounded-xl p-5">
             <p className="text-xs uppercase tracking-wide text-muted">Tier</p>
             <p className="mt-2 text-2xl font-semibold text-ink">
               {tierInfo.label}
             </p>
           </div>
-          <div className="ql-glass ql-elev-1 rounded-xl p-5">
+          <div className="ql-glass ql-elev-1 ql-glass-hover rounded-xl p-5">
             <p className="text-xs uppercase tracking-wide text-muted">Ganados total</p>
             <p className="mt-2 text-2xl font-semibold text-long">
               {balance?.lifetime_earned ?? 0}
@@ -109,7 +176,7 @@ export default function WalletPage() {
         </div>
 
         {/* Comprar QP */}
-        <div className="mt-8 ql-glass ql-elev-1 rounded-xl p-5">
+        <div className="mt-8 ql-glass ql-elev-1 ql-glass-hover rounded-xl p-5 animate-fadeIn">
           <h2 className="text-sm font-semibold text-ink">Comprar QP</h2>
 
           {/* Banner Stripe deshabilitado */}
@@ -127,7 +194,7 @@ export default function WalletPage() {
             </div>
           )}
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-3 grid-cols-1 sm:grid-cols-3">
             {QP_PRICES.map((p) => {
               const plan = PLAN_MAP[p.amount];
               const isSubscribing = subscribing === plan;
@@ -148,7 +215,7 @@ export default function WalletPage() {
                   <button
                     onClick={() => handleSubscribe(p.amount)}
                     disabled={isSubscribing || stripeDisabled}
-                    className="mt-3 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-bg hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="mt-3 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-bg hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                   >
                     {isSubscribing ? "Procesando..." : "Suscribirse"}
                   </button>
@@ -159,10 +226,10 @@ export default function WalletPage() {
         </div>
 
         {/* Historial */}
-        <div className="mt-8">
+        <div className="mt-8 animate-fadeIn">
           <h2 className="text-lg font-semibold text-ink">Historial</h2>
           {ledger.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Sin transacciones aún.</p>
+            <EmptyLedgerState />
           ) : (
             <div className="mt-3 ql-glass ql-elev-1 overflow-hidden rounded-xl">
               <table className="w-full text-sm">

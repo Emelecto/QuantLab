@@ -45,7 +45,7 @@ export function TournamentCard({ tournament }: { tournament: TournamentSummary }
       href={`/app/tournaments/${tournament.id}`}
       className="block ql-perspective"
     >
-      <Card className="ql-tilt h-full flex flex-col">
+      <Card className="ql-tilt ql-glass-hover h-full flex flex-col">
         <CardBody className="flex-1 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-[15px] font-semibold text-ink leading-tight">

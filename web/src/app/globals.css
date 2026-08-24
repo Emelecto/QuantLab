@@ -250,6 +250,74 @@ body::before {
   0%   { opacity: 0; transform: scale(0.98); }
   100% { opacity: 1; transform: scale(1); }
 }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+.animate-pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
+
+/* Spinner básico */
+.ql-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--ql-line);
+  border-top-color: var(--ql-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Skeleton con pulse-subtle */
+.ql-skeleton {
+  background: var(--ql-surface-solid);
+  border-radius: 6px;
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+.ql-skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+.ql-skeleton-circle {
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+.ql-skeleton-card {
+  background: var(--ql-surface-solid);
+  border-radius: 12px;
+  border: 1px solid var(--ql-line);
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Hover border suave en cards */
+.ql-glass-hover {
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.ql-glass-hover:hover {
+  border-color: rgba(94, 234, 212, 0.5);
+}
+
+/* Botones con active scale */
+button:active,
+[role="button"]:active,
+a[role="button"]:active {
+  transform: scale(0.95);
+}
+
+/* Badge QP transición de color */
+.ql-badge-qp {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
 
 /* Entrada suave de páginas y tarjetas principales */
 main, .ql-glass {

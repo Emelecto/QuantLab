@@ -11,6 +11,62 @@ function StarIcon({ active }: { active: boolean }) {
   );
 }
 
+function MarketplaceSkeleton() {
+  return (
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 animate-fadeIn">
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div key={i} className="ql-skeleton-card rounded-xl p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="ql-skeleton-circle h-8 w-8" />
+            <div className="flex-1 space-y-2">
+              <div className="ql-skeleton-line w-24" />
+              <div className="ql-skeleton-line w-16" />
+            </div>
+          </div>
+          <div className="ql-skeleton-line w-3/4" />
+          <div className="ql-skeleton-line w-full" />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="ql-skeleton h-14 rounded-md" />
+            <div className="ql-skeleton h-14 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyMarketplaceState() {
+  return (
+    <div className="ql-glass ql-elev-1 flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center animate-fadeIn">
+      <svg
+        className="opacity-60"
+        width="140"
+        height="100"
+        viewBox="0 0 140 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <rect x="20" y="25" width="100" height="55" rx="6" stroke="rgba(94,234,212,0.3)" strokeWidth="1.5" fill="none" />
+        <path d="M35 60 L55 45 L70 55 L90 35 L105 50" stroke="#5eead4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <circle cx="35" cy="60" r="2.5" fill="#5eead4" />
+        <circle cx="55" cy="45" r="2.5" fill="#5eead4" />
+        <circle cx="70" cy="55" r="2.5" fill="#5eead4" />
+        <circle cx="90" cy="35" r="2.5" fill="#5eead4" />
+        <circle cx="105" cy="50" r="2.5" fill="#5eead4" />
+        <path d="M25 20 L30 10 L35 20" stroke="rgba(56,189,248,0.4)" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="110" cy="15" r="1.5" fill="rgba(56,189,248,0.3)" />
+      </svg>
+      <p className="text-lg font-semibold text-ink">
+        El marketplace está vacío
+      </p>
+      <p className="max-w-md text-sm text-muted">
+        Sé el primero en publicar una estrategia y empieza a ganar QP con tus señales.
+      </p>
+    </div>
+  );
+}
+
 export default function MarketplacePage() {
   const router = useRouter();
   const [strategies, setStrategies] = useState<MarketplaceStrategy[]>([]);
@@ -74,10 +130,10 @@ export default function MarketplacePage() {
         <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-10">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-ink md:text-4xl animate-fadeIn">
                 Marketplace
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base animate-fadeIn">
                 Suscríbete a estrategias de la comunidad y recibe señales en
                 paper trading.
               </p>
@@ -85,7 +141,7 @@ export default function MarketplacePage() {
             <button
               type="button"
               onClick={() => router.push("/app/marketplace/my-subscriptions")}
-              className="ql-btn-secondary h-9 rounded-md px-3 text-[13px]"
+              className="ql-btn-secondary h-9 rounded-md px-3 text-[13px] active:scale-95"
             >
               Mis suscripciones
             </button>
@@ -132,6 +188,7 @@ export default function MarketplacePage() {
                   type="button"
                   onClick={() => setMinRating(minRating === n ? 0 : n)}
                   aria-label={`${n} estrellas`}
+                  className="active:scale-95"
                 >
                   <StarIcon active={n <= minRating} />
                 </button>
@@ -158,22 +215,26 @@ export default function MarketplacePage() {
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
           {loading ? (
-            <p className="metric text-sm text-muted">Cargando marketplace…</p>
+            <MarketplaceSkeleton />
           ) : error ? (
-            <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short">
+            <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short animate-fadeIn">
               {error}
             </div>
           ) : visible.length === 0 ? (
-            <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-16 text-center">
-              <p className="text-lg font-semibold text-ink">
-                Sin resultados
-              </p>
-              <p className="max-w-md text-sm text-muted">
-                No hay estrategias que coincidan con los filtros seleccionados.
-              </p>
-            </div>
+            strategies.length === 0 ? (
+              <EmptyMarketplaceState />
+            ) : (
+              <div className="ql-glass ql-elev-1 flex flex-col items-center gap-3 rounded-xl px-6 py-16 text-center animate-fadeIn">
+                <p className="text-lg font-semibold text-ink">
+                  Sin resultados
+                </p>
+                <p className="max-w-md text-sm text-muted">
+                  No hay estrategias que coincidan con los filtros seleccionados.
+                </p>
+              </div>
+            )
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 animate-fadeIn">
               {visible.map((s) => (
                 <MarketplaceCard key={s.id} strategy={s} />
               ))}
