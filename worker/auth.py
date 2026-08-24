@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 try:
-    import jwt
+    import jwt  # solo por si existe; no se usa para verificar firma
     _JWT_EXP_ERR = jwt.ExpiredSignatureError
 except Exception:
     class _JWT_EXP_ERR(Exception):
@@ -54,9 +54,26 @@ def _fetch_jwks() -> dict:
 
 
 def _verify_jwt(token: str) -> dict | None:
-    """Verifica un JWT de Supabase (ES256/ECDSA) y devuelve el payload."""
+    """Verifica un JWT de Supabase (ES256/ECDSA) usando cryptography directamente.
+
+    No depende de PyJWT para la verificación de firma, lo que evita conflictos
+    con el paquete `jwt` viejo que a veces se instala en lugar de PyJWT.
+    """
     try:
-        header = jwt.get_unverified_header(token)
+        import base64 as _b64
+        import json as _json
+        import time
+
+        def _b64u(s: str) -> bytes:
+            return _b64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+        def _b64d(s: str):
+            return _json.loads(_b64u(s))
+
+        parts = token.split(".")
+        if len(parts) != 3:
+            return None
+        header = _b64d(parts[0])
         kid = header.get("kid")
         if not kid:
             return None
@@ -73,13 +90,42 @@ def _verify_jwt(token: str) -> dict | None:
         if not key:
             return None
 
-        payload = jwt.decode(
-            token,
-            key,
-            algorithms=["ES256"],
-            audience="authenticated",
-            options={"verify_exp": True},
-        )
+        # Construir clave pública EC (P-256) desde el JWK
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+
+        x = int.from_bytes(_b64u(key["x"]), "big")
+        y = int.from_bytes(_b64u(key["y"]), "big")
+        curve = ec.SECP256R1()
+        public_key = ec.EllipticCurvePublicNumbers(x, y, curve).public_key()
+
+        # La firma ES256 de Supabase viene en formato raw (r || s, 32 bytes c/u)
+        sig_raw = _b64u(parts[2])
+        if len(sig_raw) != 64:
+            logger.warning(f"[AUTH DEBUG] Firma con longitud inesperada: {len(sig_raw)}")
+            return None
+        r = int.from_bytes(sig_raw[:32], "big")
+        s = int.from_bytes(sig_raw[32:], "big")
+        from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+        sig_der = encode_dss_signature(r, s)
+
+        message = f"{parts[0]}.{parts[1]}".encode()
+        try:
+            public_key.verify(sig_der, message, ec.ECDSA(hashes.SHA256()))
+        except Exception:
+            logger.warning("[AUTH DEBUG] Firma ES256 inválida")
+            return None
+
+        # Decodificar payload y validar exp/aud
+        payload = _b64d(parts[1])
+        now = int(time.time())
+        if "exp" in payload and payload["exp"] < now:
+            logger.warning("[AUTH DEBUG] JWT expirado")
+            return None
+        if payload.get("aud") != "authenticated":
+            logger.warning("[AUTH DEBUG] JWT audience incorrecto")
+            return None
         return payload
     except _JWT_EXP_ERR:
         logger.warning("[AUTH DEBUG] JWT expirado")
