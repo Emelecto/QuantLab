@@ -223,6 +223,18 @@ body::before {
   color: var(--ql-ink);
 }
 
+/* Dropdowns nativos (select) en dark: el navegador pinta la lista emergente
+   con el color-scheme del elemento; sin esto sale blanca. */
+select,
+select option,
+select optgroup {
+  background-color: #0d1017;
+  color: var(--ql-ink);
+}
+select {
+  color-scheme: dark;
+}
+
 /* Scrollbar dark */
 ::-webkit-scrollbar {
   width: 10px;
