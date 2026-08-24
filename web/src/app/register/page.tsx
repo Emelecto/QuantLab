@@ -25,19 +25,28 @@ export default function RegisterPage() {
       setError("Las contraseñas no coinciden");
       return;
     }
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
 
     setLoading(true);
 
     try {
       const supabase = createBrowserSupabaseClient();
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectTo },
+      });
 
       if (error) {
         const msg = error.message.toLowerCase();
         if (error.code === "user_already_exists" || msg.includes("already registered")) {
-          setError("El email ya está registrado");
+          setError("El email ya está registrado. Inicia sesión en su lugar.");
         } else if (error.code === "weak_password" || msg.includes("password")) {
-          setError("Contraseña muy corta (mín. 8)");
+          setError("Contraseña muy corta (mín. 8 caracteres)");
         } else {
           setError(error.message);
         }
@@ -54,13 +63,31 @@ export default function RegisterPage() {
 
       // Sin sesión => Supabase espera verificación por email.
       setInfo(
-        "Te enviamos un enlace de confirmación a tu correo. Revísalo para activar tu cuenta.",
+        "¡Cuenta creada! Te enviamos un enlace de confirmación a tu correo. " +
+          "Ábrelo para activar tu cuenta y entra automáticamente.",
       );
       setLoading(false);
     } catch {
       setError("Ocurrió un error inesperado. Inténtalo de nuevo.");
       setLoading(false);
     }
+  }
+
+  function handleResend() {
+    setInfo("Reenviando enlace…");
+    setLoading(true);
+    const supabase = createBrowserSupabaseClient();
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    supabase.auth
+      .resend({ type: "signup", email, options: { emailRedirectTo: redirectTo } })
+      .then(({ error }) => {
+        setLoading(false);
+        setInfo(
+          error
+            ? "No pudimos reenviar el enlace. Inténtalo en unos minutos."
+            : "Enlace reenviado. Revisa tu correo (también la bandeja de spam).",
+        );
+      });
   }
 
   return (
@@ -134,12 +161,20 @@ export default function RegisterPage() {
         )}
 
         {info && (
-          <p
+          <div
             role="status"
-            className="rounded-md border border-long/30 bg-long/10 px-3 py-2 text-[13px] text-long"
+            className="flex flex-col gap-2 rounded-md border border-long/30 bg-long/10 px-3 py-2 text-[13px] text-long"
           >
-            {info}
-          </p>
+            <span>{info}</span>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={loading}
+              className="self-start text-[12px] font-medium text-long underline-offset-2 hover:underline"
+            >
+              Reenviar enlace
+            </button>
+          </div>
         )}
 
         <button

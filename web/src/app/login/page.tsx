@@ -1,18 +1,28 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { buttonClasses } from "@/components/ui/Button";
 import { AuthShell, Field, inputClasses } from "@/components/ui/Form";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Errores que el callback de auth puede haber reenviado como query (?error=).
+  useEffect(() => {
+    const err = searchParams.get("error_description") || searchParams.get("error");
+    if (err) {
+      const clean = err.replace(/\+/g, " ");
+      setError(decodeURIComponent(clean));
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,19 +31,23 @@ export default function LoginPage() {
 
     try {
       const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        if (error.code === "invalid_credentials") {
-          setError("Credenciales inválidas");
-        } else if (
-          error.message.toLowerCase().includes("invalid") ||
-          error.message.toLowerCase().includes("credential")
-        ) {
-          setError("Credenciales inválidas");
+        if (error.code === "invalid_credentials" || error.message.toLowerCase().includes("invalid")) {
+          setError("Credenciales inválidas. Revisa tu correo y contraseña.");
+        } else if (error.message.toLowerCase().includes("email not confirmed")) {
+          setError("Tu correo aún no está confirmado. Revisa el enlace que te enviamos.");
         } else {
           setError(error.message);
         }
+        setLoading(false);
+        return;
+      }
+
+      // Si el email no está confirmado, Supabase puede no devolver sesión.
+      if (!data.session) {
+        setError("Tu correo aún no está confirmado. Revisa el enlace que te enviamos.");
         setLoading(false);
         return;
       }
@@ -109,5 +123,13 @@ export default function LoginPage() {
         </button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-muted">Cargando…</div>}>
+      <LoginInner />
+    </Suspense>
   );
 }
