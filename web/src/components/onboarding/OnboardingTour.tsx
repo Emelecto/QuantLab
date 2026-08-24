@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type TourStep = {
   title: string;
@@ -32,20 +32,86 @@ const STEPS: TourStep[] = [
   },
 ];
 
+type Rect = { top: number; left: number; width: number; height: number };
+
 const STORAGE_KEY = "ql_onboarded";
 export const TOUR_EVENT = "ql:start-tour";
-
-/** Rect del target relativo al viewport, con padding. */
-function getTargetRect(selector: string): { top: number; left: number; width: number; height: number } | null {
-  const el = document.querySelector(selector);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return { top: r.top - 6, left: r.left - 6, width: r.width + 12, height: r.height + 12 };
-}
 
 export function OnboardingTour() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+  const [rect, setRect] = useState<Rect | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  /** Mide el elemento objetivo en coordenadas de viewport. */
+  const measure = useCallback(() => {
+    const sel = STEPS[step]?.selector;
+    if (!open || !sel) {
+      setRect(null);
+      return;
+    }
+    const el = document.querySelector(sel);
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    // Ignora elementos fuera del viewport (se medirá de nuevo tras el scroll).
+    if (r.bottom < -40 || r.top > window.innerHeight + 40) {
+      setRect(null);
+      return;
+    }
+    setRect({
+      top: Math.max(r.top - 8, 0),
+      left: Math.max(r.left - 8, 0),
+      width: Math.min(r.width + 16, window.innerWidth),
+      height: r.height + 16,
+    });
+  }, [step, open]);
+
+  // Al cambiar de paso: scroll suave al elemento y luego medir.
+  useEffect(() => {
+    if (!open) return;
+    const sel = STEPS[step]?.selector;
+    if (!sel) {
+      setRect(null);
+      return;
+    }
+    const el = document.querySelector(sel);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      // Mide durante y después del scroll suave para seguir al elemento.
+      const t1 = setTimeout(measure, 250);
+      const t2 = setTimeout(measure, 500);
+      const t3 = setTimeout(measure, 800);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+    setRect(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, open]);
+
+  // Mientras está abierto, sigue al elemento ante scroll/resize (la "pantalla se mueve con el box").
+  useEffect(() => {
+    if (!open) return;
+    const track = () => {
+      if (rafRef.current != null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        measure();
+      });
+    };
+    window.addEventListener("scroll", track, true);
+    window.addEventListener("resize", track);
+    return () => {
+      window.removeEventListener("scroll", track, true);
+      window.removeEventListener("resize", track);
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [open, measure]);
 
   const finish = useCallback(() => {
     setOpen(false);
@@ -94,21 +160,25 @@ export function OnboardingTour() {
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
-  const rect = current.selector ? getTargetRect(current.selector) : null;
 
   const next = () => (isLast ? finish() : setStep((s) => s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
-  // Posición del tooltip: debajo/derecha del target si cabe; si no, centrado.
+  // Tooltip SIEMPRE dentro del viewport: lo posiciona respecto al rect pero clampeado.
   let tooltipStyle: React.CSSProperties;
   if (rect) {
+    const estW = 320;
     const below = rect.top + rect.height + 12;
     const spaceBelow = window.innerHeight - below;
-    if (spaceBelow > 180) {
-      tooltipStyle = { position: "fixed", top: below, left: Math.max(rect.left, 16), maxWidth: 320 };
+    let top: number;
+    if (spaceBelow > 200) {
+      top = below;
     } else {
-      tooltipStyle = { position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", maxWidth: 340 };
+      // Encima del target.
+      top = Math.max(rect.top - 190, 12);
     }
+    const left = Math.min(Math.max(rect.left, 12), window.innerWidth - estW - 12);
+    tooltipStyle = { position: "fixed", top, left, maxWidth: estW };
   } else {
     tooltipStyle = {
       position: "fixed",
@@ -116,36 +186,39 @@ export function OnboardingTour() {
       left: "50%",
       transform: "translate(-50%, -50%)",
       maxWidth: 360,
+      width: "90vw",
     };
   }
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Tour de bienvenida">
-      {/* Overlay con recorte (box-shadow gigante alrededor del rect del target). */}
-      <div
-        className="fixed inset-0 z-[90] transition-all duration-200"
-        style={{
-          background: "rgba(4,6,10,0.72)",
-          ...(rect
-            ? {
-                boxShadow: `0 0 0 9999px rgba(4,6,10,0.72)`,
-                position: "fixed",
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height,
-                borderRadius: 12,
-                background: "transparent",
-              }
-            : {}),
-        }}
-        onClick={finish}
-      />
+      {/* Spotlight: recorte alrededor del target que lo SIGUE con scroll/resize. */}
+      {rect ? (
+        <div
+          className="pointer-events-auto fixed z-[90] rounded-xl transition-[top,left,width,height] duration-100"
+          style={{
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            boxShadow: "0 0 0 9999px rgba(4,6,10,0.74)",
+            outline: "2px solid rgba(94,234,212,0.5)",
+            outlineOffset: "-2px",
+          }}
+          onClick={finish}
+        />
+      ) : (
+        <div
+          className="fixed inset-0 z-[90]"
+          style={{ background: "rgba(4,6,10,0.74)" }}
+          onClick={finish}
+        />
+      )}
 
       {/* Tooltip de vidrio */}
       <div
         style={{ ...tooltipStyle, zIndex: 100 }}
-        className={`ql-glass ql-elev-2 rounded-xl border border-accent/25 bg-[#0d1017]/95 p-5 ${rect ? "" : "w-[90vw]"}`}
+        className={`ql-glass ql-elev-2 rounded-xl border border-accent/25 bg-[#0d1017]/95 p-5 transition-all duration-150`}
       >
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-ink">{current.title}</h3>

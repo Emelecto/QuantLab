@@ -89,6 +89,12 @@ export function TopBar() {
             >
               Rankings
             </Link>
+            <Link
+              href="/app/api-keys"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              API
+            </Link>
           </nav>
         ) : (
           <nav className="hidden items-center gap-6 md:flex">

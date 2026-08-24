@@ -23,6 +23,7 @@ export default function ApiKeysPage() {
   const [keyName, setKeyName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedCmd, setCopiedCmd] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -164,12 +165,41 @@ export default function ApiKeysPage() {
                 }}
                 className={buttonClasses("secondary", "sm") + " shrink-0"}
               >
-                {copied ? "✓ Copiada" : "Copiar"}
+                {copied ? "✓ Copiada" : "Copiar clave"}
               </button>
             </div>
-            <p className="mt-2 font-mono text-[11px] text-muted">
-              Pégala en QUANTLAB_TOKEN en tu configuración de MCP.
-            </p>
+
+            {/* Comando completo listo para pegar */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-medium text-muted">
+                  O copia el comando completo para Claude Code (incluye tu clave):
+                </p>
+              </div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <code className="flex-1 overflow-x-auto rounded-md border border-line bg-black/40 px-3 py-2 font-mono text-[12px] text-muted">
+                  claude mcp add quantlab -e QUANTLAB_TOKEN={newKey} -- python mcp_server.py
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(
+                        `claude mcp add quantlab -e QUANTLAB_TOKEN=${newKey} -- python mcp_server.py`,
+                      )
+                      .then(() => {
+                        setCopiedCmd(true);
+                        setTimeout(() => setCopiedCmd(false), 2000);
+                      });
+                  }}
+                  className={buttonClasses("secondary", "sm") + " shrink-0"}
+                >
+                  {copiedCmd ? "✓ Copiado" : "Copiar comando"}
+                </button>
+              </div>
+              <p className="mt-2 font-mono text-[11px] text-muted">
+                Ejecútalo en tu terminal y reinicia Claude Code. Guía para Cursor/Codex en el README del repo (mcp-server/).
+              </p>
+            </div>
           </div>
         )}
 
