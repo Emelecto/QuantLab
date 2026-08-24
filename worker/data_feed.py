@@ -46,6 +46,13 @@ BINANCE_KLINES = "https://api.binance.com/api/v3/klines"
 _BINANCE_LIMIT = 1000  # máximo por petición según API de Binance
 _REQUEST_TIMEOUT = 30
 
+# Bybit v5 (fuente alternativa de crypto, sin geo-bloqueo de EE.UU.)
+BYBIT_KLINES = "https://api.bybit.com/v5/market/kline"
+_BYBIT_LIMIT = 1000
+
+# Orden de fuentes crypto: Bybit primero (sin 451), Binance como fallback.
+_CRYPTO_SOURCES = ("bybit", "binance")
+
 # Bucket de Supabase Storage donde se guarda el cache de mercado.
 _CACHE_BUCKET = "market-data"
 
@@ -236,6 +243,19 @@ def _binance_interval(timeframe: str) -> str:
     return _BINANCE_INTERVALS.get(timeframe, "1d")
 
 
+def _bybit_interval(timeframe: str) -> str:
+    """Mapea timeframes de QuantLab a los códigos de Bybit v5.
+
+    Bybit usa: 1 3 5 15 30 60 120 240 360 720 D W M (sin prefijo '1').
+    """
+    mapping = {
+        "1m": "1", "5m": "5", "15m": "15", "30m": "30",
+        "1h": "60", "2h": "120", "4h": "240", "6h": "360", "12h": "720",
+        "1d": "D", "3d": "D", "1w": "W", "1wk": "W", "1M": "M", "1mo": "M",
+    }
+    return mapping.get(timeframe, "D")
+
+
 def _to_ms(value: Union[str, datetime, pd.Timestamp, int, float]) -> int:
     """Convierte fecha/hora a milisegundos epoch UTC."""
     if isinstance(value, (int, float)):
@@ -303,6 +323,81 @@ def _fetch_binance(symbol: str, interval: str, start_ms: int, end_ms: int) -> li
     return rows
 
 
+def _fetch_bybit(symbol: str, interval: str, start_ms: int, end_ms: int) -> list:
+    """Descarga klines de Bybit v5 (spot) paginando de 1000 en 1000.
+
+    Respuesta: {"retCode": 0, "result": {"list": [[start, open, high, low,
+    close, volume, turnover], ...]}} — la lista viene en orden DESCENDENTE.
+    """
+    rows: list = []
+    cursor = end_ms  # Bybit pagina hacia atrás desde `end`
+    while True:
+        params = {
+            "category": "spot",
+            "symbol": symbol,
+            "interval": interval,
+            "start": start_ms,
+            "end": cursor,
+            "limit": _BYBIT_LIMIT,
+        }
+        try:
+            resp = requests.get(BYBIT_KLINES, params=params, timeout=_REQUEST_TIMEOUT)
+        except requests.RequestException as exc:
+            raise ValueError(
+                f"Bybit: fallo de red al consultar '{symbol}' ({interval}): {exc}"
+            ) from exc
+
+        if resp.status_code != 200:
+            raise ValueError(
+                f"Bybit: no se pudo obtener '{symbol}' ({interval}). "
+                f"HTTP {resp.status_code} - {resp.text[:200]}"
+            )
+        try:
+            payload = resp.json()
+        except ValueError as exc:
+            raise ValueError(
+                f"Bybit: respuesta no JSON para '{symbol}': {resp.text[:200]}"
+            ) from exc
+
+        if payload.get("retCode") != 0:
+            raise ValueError(
+                f"Bybit: error {payload.get('retCode')} para '{symbol}': "
+                f"{payload.get('retMsg', '')[:200]}"
+            )
+
+        batch = (payload.get("result") or {}).get("list") or []
+        if not batch:
+            break
+        # Bybit devuelve [startMs, open, high, low, close, volume, turnover]
+        # en orden descendente; normalizamos a ascendente como Binance.
+        rows.extend(reversed(batch))
+        oldest_open = int(batch[-1][0])
+        if len(batch) < _BYBIT_LIMIT or oldest_open <= start_ms:
+            break
+        cursor = oldest_open
+        time.sleep(0.05)
+
+    return rows
+
+
+def _rows_to_df(rows: list) -> pd.DataFrame:
+    """Convierte filas kline (Binance/Bybit) a DataFrame OHLCV estándar."""
+    df = pd.DataFrame(rows)
+    idx = pd.to_datetime(df[0].astype(float), unit="ms", utc=True)
+    out = pd.DataFrame(
+        {
+            "open": df[1].astype(float).values,
+            "high": df[2].astype(float).values,
+            "low": df[3].astype(float).values,
+            "close": df[4].astype(float).values,
+            "volume": df[5].astype(float).values,
+        },
+        index=idx,
+    )
+    out.index.name = "timestamp"
+    return out.sort_index()
+
+
 def _fetch_yfinance(symbol: str, interval: str, start, end) -> pd.DataFrame:
     if yf is None:
         raise ValueError(
@@ -352,25 +447,32 @@ def _download_live(
         interval = _binance_interval(timeframe)
         start_ms = _to_ms(start)
         end_ms = _to_ms(end)
-        rows = _fetch_binance(sym, interval, start_ms, end_ms)
-        if not rows:
+
+        errors: list[str] = []
+        last_rows: list = []
+        for source in _CRYPTO_SOURCES:
+            try:
+                if source == "bybit":
+                    rows = _fetch_bybit(sym, interval, start_ms, end_ms)
+                    if not rows:
+                        raise ValueError("sin velas en el rango pedido.")
+                else:  # binance
+                    rows = _fetch_binance(sym, interval, start_ms, end_ms)
+                    if not rows:
+                        raise ValueError("sin velas para el rango pedido.")
+                last_rows = rows
+                break  # esta fuente funcionó
+            except ValueError as exc:
+                errors.append(f"{source}: {exc}")
+                continue
+
+        if not last_rows:
             raise ValueError(
-                f"Binance: sin velas para '{sym}' ({interval}) en el rango pedido."
+                f"No se pudo obtener '{sym}' ({interval}) de ninguna fuente. "
+                + " | ".join(errors)
             )
-        df = pd.DataFrame(rows)
-        idx = pd.to_datetime(df[0].astype(float), unit="ms", utc=True)
-        out = pd.DataFrame(
-            {
-                "open": df[1].astype(float).values,
-                "high": df[2].astype(float).values,
-                "low": df[3].astype(float).values,
-                "close": df[4].astype(float).values,
-                "volume": df[5].astype(float).values,
-            },
-            index=idx,
-        )
-        out.index.name = "timestamp"
-        return out.sort_index()
+
+        return _rows_to_df(last_rows)
 
     if asset_type == "stock":
         sym = _normalize_symbol("stock", symbol)
