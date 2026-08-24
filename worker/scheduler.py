@@ -6,6 +6,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
+
+import data_feed
+
 logger = logging.getLogger(__name__)
 
 
@@ -114,7 +118,111 @@ def evaluate_tournaments(supabase_client, engine, now: datetime | None = None) -
         evaluated += 1
         distribute_qp(supabase_client, t["id"])
         supabase_client.table("tournaments").update({"status": "completed"}).eq("id", t["id"]).execute()
+
+    # Generación semanal de señales para estrategias del marketplace.
+    try:
+        generate_weekly_signals(supabase_client, now)
+    except Exception as e:  # noqa: BLE001 - las señales no deben romper la evaluación
+        logger.warning(f"generate_weekly_signals falló: {e}")
     return evaluated
+
+
+def generate_weekly_signals(supabase_client, now: datetime | None = None) -> int:
+    """Genera señales semanales (momentum 30d real) para cada estrategia publicada.
+
+    Para cada marketplace_strategies con status='published':
+      1. Descarga datos REALES del símbolo vía data_feed.get_ohlcv
+         (crypto -> Binance klines, stock -> yfinance; el mismo mecanismo
+         que usa el motor de backtests).
+      2. Calcula momentum 30d: close_last vs close de hace ~30 días.
+         direction = long/short; strength = min(|retorno| * 10, 0.99).
+      3. Inserta UNA señal por estrategia, sin duplicar señal de hoy
+         (misma strategy_id + symbol) y purgando señales > 7 días.
+
+    Un fallo de fetch/insert en una estrategia no rompe al resto.
+    Devuelve cuántas señales se insertaron.
+    """
+    now = now or datetime.now(timezone.utc)
+    strategies = (
+        supabase_client.table("marketplace_strategies")
+        .select("id,symbol,asset_type,timeframe")
+        .eq("status", "published")
+        .execute()
+    )
+
+    # Purga previa: señales con más de 7 días fuera.
+    try:
+        supabase_client.table("signals").delete().lt(
+            "created_at", (now - timedelta(days=7)).isoformat()
+        ).execute()
+    except Exception as e:  # noqa: BLE001 - la purga no bloquea la generación
+        logger.warning(f"No se pudieron purgar señales antiguas: {e}")
+
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    generated = 0
+
+    for strat in strategies.data or []:
+        try:
+            sid = strat["id"]
+            symbol = (strat.get("symbol") or "").strip().upper()
+            if not symbol:
+                continue
+            asset_type = strat.get("asset_type") or (
+                "crypto" if symbol.endswith("USDT") else "stock"
+            )
+            timeframe = strat.get("timeframe") or "1d"
+
+            # Anti-duplicado ANTES de descargar datos: ya existe señal de hoy
+            # para esta strategy+symbol -> no gastamos fetch ni insertamos.
+            dup = (
+                supabase_client.table("signals")
+                .select("id")
+                .eq("strategy_id", sid)
+                .eq("symbol", symbol)
+                .gte("created_at", day_start.isoformat())
+                .execute()
+            )
+            if dup.data:
+                continue
+
+            df = data_feed.get_ohlcv(
+                asset_type, symbol, timeframe,
+                now - timedelta(days=45), now,
+            )
+            closes = df["close"].dropna()
+            if getattr(closes.index, "tz", None) is None:
+                closes.index = closes.index.tz_localize("UTC")
+            cutoff = pd.Timestamp(now - timedelta(days=30))
+            past = closes[closes.index <= cutoff]
+            close_prev = float(past.iloc[-1]) if len(past) else float(closes.iloc[0])
+            close_last = float(closes.iloc[-1])
+            if close_prev == 0:
+                raise ValueError(f"Precio previo inválido para '{symbol}'.")
+
+            ret = (close_last - close_prev) / close_prev
+            direction = "long" if ret >= 0 else "short"
+            strength = round(min(abs(ret) * 10.0, 0.99), 2)
+
+            supabase_client.table("signals").insert({
+                "strategy_id": sid,
+                "symbol": symbol,
+                "direction": direction,
+                "strength": strength,
+                "metadata": {
+                    "basis": "momentum_30d",
+                    "close_last": close_last,
+                    "close_prev": close_prev,
+                },
+            }).execute()
+            generated += 1
+        except Exception as e:  # noqa: BLE001 - un fallo no rompe el resto
+            logger.warning(
+                f"[signals] No se pudo generar señal para "
+                f"{strat.get('symbol')}: {e}"
+            )
+
+    logger.info(f"[signals] Señales semanales generadas: {generated}")
+    return generated
 
 
 def distribute_qp(supabase_client, tournament_id: str):

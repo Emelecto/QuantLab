@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from auth import require_user, get_optional_user
 from pydantic import BaseModel
 
@@ -184,6 +184,73 @@ def tokens_transaction(body: TransactionBody, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# ENDPOINT INTERNO (scheduler / webhooks de pago)
+# ---------------------------------------------------------------------------
+
+class GrantBody(BaseModel):
+    user_id: str
+    amount: int  # negativo permitido (p.ej. reversiones)
+    memo: str | None = None
+
+
+def _require_scheduler_key(x_scheduler_key: str | None) -> None:
+    """Valida el header X-Scheduler-Key contra env SCHEDULER_KEY."""
+    import os
+    expected = os.environ.get("SCHEDULER_KEY")
+    if not expected or not x_scheduler_key or x_scheduler_key != expected:
+        raise HTTPException(
+            401, "Unauthorized. Header X-Scheduler-Key inválido o ausente."
+        )
+
+
+@router.post("/internal/tokens/grant")
+def internal_tokens_grant(body: GrantBody, x_scheduler_key: str | None = Header(None)):
+    """Otorga (o retira, si amount<0) QP a un usuario.
+
+    Interno: protegido por X-Scheduler-Key == SCHEDULER_KEY.
+    Upsert de tokens + registro en token_ledger.
+    """
+    _require_scheduler_key(x_scheduler_key)
+    sb = get_supabase()
+
+    cur = (
+        sb.table("tokens")
+        .select("balance,lifetime_earned,lifetime_spent,tier")
+        .eq("user_id", body.user_id)
+        .execute()
+    )
+    if cur.data:
+        row = cur.data[0]
+        balance = int(row["balance"]) + body.amount
+        earned = int(row.get("lifetime_earned") or 0) + (body.amount if body.amount > 0 else 0)
+        spent = int(row.get("lifetime_spent") or 0) + (-body.amount if body.amount < 0 else 0)
+        sb.table("tokens").update({
+            "balance": balance, "lifetime_earned": earned, "lifetime_spent": spent,
+        }).eq("user_id", body.user_id).execute()
+    else:
+        balance = body.amount if body.amount > 0 else 0
+        sb.table("tokens").insert({
+            "user_id": body.user_id,
+            "balance": balance,
+            "lifetime_earned": max(0, body.amount),
+            "lifetime_spent": max(0, -body.amount),
+            "tier": "free",
+        }).execute()
+
+    ledger_type = (
+        "stripe_purchase"
+        if body.memo and body.memo.startswith("Compra Stripe")
+        else "admin_grant"
+    )
+    sb.table("token_ledger").insert({
+        "user_id": body.user_id, "amount": body.amount,
+        "type": ledger_type, "memo": body.memo,
+    }).execute()
+
+    return {"user_id": body.user_id, "balance": balance}
+
+
+# ---------------------------------------------------------------------------
 # MARKETPLACE
 # ---------------------------------------------------------------------------
 
@@ -301,6 +368,30 @@ def signals_list(strategy_id: str):
         .eq("strategy_id", strategy_id)
         .order("created_at", desc=True)
         .limit(50)
+        .execute()
+    )
+    return res.data or []
+
+
+@router.get("/marketplace/{strategy_id}/signals")
+def marketplace_signals(strategy_id: str, limit: int = 20):
+    """Señales públicas de una estrategia del marketplace (sin auth)."""
+    limit = max(1, min(limit, 100))
+    sb = get_supabase()
+    exists = (
+        sb.table("marketplace_strategies")
+        .select("id")
+        .eq("id", strategy_id)
+        .execute()
+    )
+    if not exists.data:
+        raise HTTPException(404, "Estrategia no encontrada")
+    res = (
+        sb.table("signals")
+        .select("*")
+        .eq("strategy_id", strategy_id)
+        .order("created_at", desc=True)
+        .limit(limit)
         .execute()
     )
     return res.data or []

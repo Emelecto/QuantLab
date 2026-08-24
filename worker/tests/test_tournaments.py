@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 
 
 def test_create_tournament(mock_supabase, sample_tournament):
-    mock_supabase.table.return_value.select.return_value.eq_.return_value.gte.return_value.execute.return_value = MagicMock(
+    # create_weekly_tournament: select -> eq(type) -> in_(status) -> gte(created_at)
+    mock_supabase.table.return_value.select.return_value.eq.return_value.in_.return_value.gte.return_value.execute.return_value = MagicMock(
         data=[]
     )
     mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
@@ -42,7 +43,8 @@ def test_list_tournaments_empty(mock_supabase):
 
 
 def test_list_tournaments_with_filter(mock_supabase, sample_tournament):
-    mock_supabase.table.return_value.select.return_value.order.return_value.eq.return_value.execute.return_value = MagicMock(
+    # tournament_list con type filtra select -> eq -> order -> execute
+    mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
         data=[sample_tournament]
     )
     with patch("tournaments.get_supabase", return_value=mock_supabase):
@@ -80,10 +82,11 @@ def test_distribute_qp_ranking(mock_supabase):
         {"id": "sub1", "user_id": "u1", "primary_score": 1.5, "integrity_label": "High", "qp_staked": 10},
         {"id": "sub2", "user_id": "u2", "primary_score": 1.0, "integrity_label": "High", "qp_staked": 10},
     ]
-    mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
+    # distribute_qp vive en scheduler.py y encadena eq x3 + order
+    mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
         data=subs
     )
-    from tournaments import distribute_qp
+    from scheduler import distribute_qp
     distribute_qp(mock_supabase, "test-tournament")
     assert mock_supabase.table.return_value.upsert.called
 

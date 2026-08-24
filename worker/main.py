@@ -11,6 +11,7 @@ CORS habilitado para que el frontend Next.js (web/) pueda invocarlo.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 
@@ -27,6 +28,8 @@ app = FastAPI(
     description="Backtesting OOS con datos reales (Binance / yfinance) vía engine.run_backtest.",
     version="1.0.0",
 )
+
+logger = logging.getLogger("quantlab.worker")
 
 # ---------------------------------------------------------------------------
 # CORS: por defecto abierto ("*"); se puede restringir con CORS_ORIGINS.
@@ -198,7 +201,7 @@ async def scheduler_run(
     from datetime import datetime, timezone
 
     import engine
-    from scheduler import create_weekly_tournament, evaluate_tournaments
+    from scheduler import create_weekly_tournament, evaluate_tournaments, generate_weekly_signals
 
     # Crear cliente supabase
     import os as _os
@@ -222,10 +225,18 @@ async def scheduler_run(
     # Evaluar torneos cerrados
     evaluated = evaluate_tournaments(sb, engine, now)
 
+    # Señales semanales para estrategias publicadas del marketplace
+    signals_generated = 0
+    try:
+        signals_generated = generate_weekly_signals(sb, now)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"generate_weekly_signals falló: {e}")
+
     return {
         "status": "ok",
         "tournament_created": created_id,
         "tournaments_evaluated": evaluated,
+        "signals_generated": signals_generated,
         "timestamp": now.isoformat(),
     }
 
