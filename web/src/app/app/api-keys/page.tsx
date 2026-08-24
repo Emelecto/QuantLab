@@ -1,0 +1,242 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { buttonClasses } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useAuth } from "@/lib/useAuth";
+
+type ApiKeyRow = {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+};
+
+export default function ApiKeysPage() {
+  const { user } = useAuth();
+  const [keys, setKeys] = useState<ApiKeyRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKey, setNewKey] = useState<string | null>(null);
+  const [keyName, setKeyName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sin sesión");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_WORKER_URL}/account/api-keys`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error al cargar claves");
+      setKeys(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al cargar claves");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    load();
+  }, [user, load]);
+
+  async function createKey() {
+    setCreating(true);
+    setError(null);
+    try {
+      const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sin sesión");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_WORKER_URL}/account/api-keys`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: keyName.trim() || "Mi clave" }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error al crear clave");
+      setNewKey(json.key);
+      setKeyName("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al crear clave");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function revoke(id: string) {
+    try {
+      const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
+      await fetch(
+        `${process.env.NEXT_PUBLIC_WORKER_URL}/account/api-keys/${id}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      await load();
+    } catch {
+      /* noop */
+    }
+  }
+
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <Link href="/login" className={buttonClasses("primary", "md")}>
+          Inicia sesión para gestionar tus claves
+        </Link>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col">
+      <section className="mx-auto w-full max-w-4xl flex-1 px-6 py-14">
+        <h1 className="text-3xl font-semibold tracking-tight text-ink">Claves de API</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          Conecta agentes de IA y herramientas externas a QuantLab con una clave
+          dedicada que no expira. Úsala como <code className="font-mono text-accent">QUANTLAB_TOKEN</code> en el
+          servidor MCP.
+        </p>
+
+        {/* Crear nueva clave */}
+        <div className="ql-glass ql-elev-1 mt-8 rounded-xl p-5">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              value={keyName}
+              onChange={(e) => setKeyName(e.target.value)}
+              placeholder="Nombre de la clave (ej: Mi Claude Code)"
+              maxLength={50}
+              className="ql-input flex-1 rounded-md px-3 py-2 text-sm text-ink"
+            />
+            <button
+              onClick={createKey}
+              disabled={creating}
+              className={buttonClasses("primary", "md") + " shrink-0 justify-center"}
+            >
+              {creating ? "Creando…" : "Crear clave"}
+            </button>
+          </div>
+          {error && (
+            <p className="mt-2 rounded-md border border-short/30 bg-short/10 px-3 py-2 text-[12px] text-short">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Clave recién creada — se muestra UNA sola vez */}
+        {newKey && (
+          <div className="mt-4 rounded-xl border border-accent/40 bg-accent/[0.07] p-5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-accent">
+              <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+              Copia tu clave ahora — no se volverá a mostrar
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <code className="flex-1 overflow-x-auto rounded-md border border-line bg-black/40 px-3 py-2 font-mono text-sm text-ink">
+                {newKey}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(newKey).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+                className={buttonClasses("secondary", "sm") + " shrink-0"}
+              >
+                {copied ? "✓ Copiada" : "Copiar"}
+              </button>
+            </div>
+            <p className="mt-2 font-mono text-[11px] text-muted">
+              Pégala en QUANTLAB_TOKEN en tu configuración de MCP.
+            </p>
+          </div>
+        )}
+
+        {/* Listado */}
+        <h2 className="mt-10 text-lg font-semibold text-ink">Tus claves</h2>
+        {loading ? (
+          <div className="mt-4 space-y-3">
+            <Skeleton variant="line" />
+            <Skeleton variant="line" />
+          </div>
+        ) : !keys || keys.length === 0 ? (
+          <div className="ql-glass ql-elev-1 mt-4 rounded-xl px-6 py-10 text-center">
+            <p className="text-sm text-muted">
+              Aún no tienes claves. Crea una arriba para conectar tu agente de IA.
+            </p>
+          </div>
+        ) : (
+          <div className="ql-glass mt-4 overflow-hidden rounded-xl">
+            <ul className="divide-y divide-line">
+              {keys.map((k) => (
+                <li key={k.id} className="flex items-center gap-4 px-5 py-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-ink">{k.name}</p>
+                    <p className="metric text-[11px] text-muted">
+                      Creada {new Date(k.created_at).toLocaleDateString("es-CO")}
+                      {" · "}
+                      {k.revoked_at
+                        ? "Revocada"
+                        : k.last_used_at
+                          ? `Último uso ${new Date(k.last_used_at).toLocaleDateString("es-CO")}`
+                          : "Nunca usada"}
+                    </p>
+                  </div>
+                  {k.revoked_at ? (
+                    <span className="metric text-xs text-muted">revocada</span>
+                  ) : (
+                    <button
+                      onClick={() => revoke(k.id)}
+                      className="rounded-md border border-short/30 px-3 py-1 text-xs font-medium text-short transition-colors hover:bg-short/10"
+                    >
+                      Revocar
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Instrucciones MCP */}
+        <div className="ql-glass ql-elev-1 mt-10 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-ink">Conecta tu agente de IA</h3>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted">
+            Con tu clave copiada, registra el servidor MCP de QuantLab:
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-md border border-line bg-black/40 p-3 font-mono text-[12px] text-muted">
+{`claude mcp add quantlab -e QUANTLAB_TOKEN=qlk_tu_clave -- python mcp_server.py`}
+          </pre>
+          <p className="mt-2 text-[12px] text-muted">
+            Guía completa en{" "}
+            <Link href="/app/api-keys/instructions" className="text-accent hover:underline">
+              instrucciones del servidor MCP
+            </Link>{" "}
+            o en el README del repo (<code className="font-mono">mcp-server/</code>).
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}

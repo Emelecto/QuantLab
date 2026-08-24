@@ -13,14 +13,13 @@ python -m pip install -r requirements.txt
 
 Requiere Python 3.10+.
 
-## Obtén tu QUANTLAB_TOKEN
+## Obtén tu QUANTLAB_TOKEN (clave de API, no expira)
 
 1. Inicia sesión en https://quant-lab-nine.vercel.app
-2. Abre DevTools (F12) → **Application** → **Local Storage** → el sitio de QuantLab
-3. Busca la clave que empieza con `sb-` y termina en `auth-token`
-4. Copia el valor de `access_token` dentro del JSON
+2. Ve a **/app/api-keys** (Claves de API)
+3. Crea una clave con el nombre que quieras → cópiala (empieza con `qlk_`, se muestra UNA sola vez)
 
-> ⚠️ El token dura ~1 hora. Cuando expire, vuelve a generarlo (pronto habrá API keys dedicadas).
+> La clave no expira y puedes revocarla desde la misma página cuando quieras.
 
 ## Configuración
 

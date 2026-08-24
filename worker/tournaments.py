@@ -422,3 +422,75 @@ def _slugify(s: str) -> str:
     s = re.sub(r"[^\w\s-]", "", s)
     s = re.sub(r"[\s]+", "-", s)
     return s[:50]
+
+
+# ---------------------------------------------------------------------------
+# API KEYS (acceso programático / MCP — claves qlk_... sin expiración)
+# ---------------------------------------------------------------------------
+
+import hashlib
+import secrets
+from datetime import datetime, timezone
+
+
+def _hash_key(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+@router.post("/account/api-keys")
+def create_api_key(request: Request, body: dict):
+    """Crea una clave de API para el usuario autenticado (JWT requerido).
+    Body: { name: str }. Devuelve la clave en claro UNA sola vez."""
+    uid = require_user(request)
+    name = str(body.get("name") or "Mi clave").strip()[:50]
+    sb = get_supabase()
+
+    # Límite de 10 claves activas por usuario.
+    existing = (
+        sb.table("api_keys")
+        .select("id")
+        .eq("user_id", uid)
+        .is_("revoked_at", "null")
+        .execute()
+    )
+    if len(existing.data or []) >= 10:
+        raise HTTPException(400, "Límite de 10 claves activas alcanzado. Revoca alguna primero.")
+
+    key = "qlk_" + secrets.token_hex(24)  # 48 hex chars
+    sb.table("api_keys").insert(
+        {"user_id": uid, "name": name, "key_hash": _hash_key(key)}
+    ).execute()
+    return {"key": key, "name": name}
+
+
+@router.get("/account/api-keys")
+def list_api_keys(request: Request):
+    """Lista las claves del usuario autenticado (sin revelar el secreto)."""
+    uid = require_user(request)
+    sb = get_supabase()
+    res = (
+        sb.table("api_keys")
+        .select("id, name, created_at, last_used_at, revoked_at")
+        .eq("user_id", uid)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return res.data or []
+
+
+@router.delete("/account/api-keys/{key_id}")
+def revoke_api_key(key_id: str, request: Request):
+    """Revoca una clave del usuario autenticado."""
+    uid = require_user(request)
+    sb = get_supabase()
+    now = datetime.now(timezone.utc).isoformat()
+    res = (
+        sb.table("api_keys")
+        .update({"revoked_at": now})
+        .eq("id", key_id)
+        .eq("user_id", uid)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(404, "Clave no encontrada")
+    return {"ok": True}

@@ -134,15 +134,76 @@ def _verify_jwt(token: str) -> dict | None:
 
 
 def get_user_id_from_request(request: Request) -> Optional[str]:
-    """Extrae el user_id del token JWT en el header Authorization."""
+    """Extrae el user_id del header Authorization.
+
+    Acepta dos formatos:
+    - Bearer <JWT de Supabase>  → verifica firma ES256 vía JWKS.
+    - Bearer qlk_<hex>          → clave de API dedicada (hash SHA-256 en api_keys).
+    """
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         return None
-    token = auth_header[7:]
+    token = auth_header[7:].strip()
+
+    # Clave de API dedicada (qlk_...): lookup por hash, sin expiración.
+    if token.startswith("qlk_"):
+        return _user_id_from_api_key(token)
+
     payload = _verify_jwt(token)
     if not payload:
         return None
     return payload.get("sub")
+
+
+def _get_service_client():
+    """Cliente Supabase con service role (solo para lookups de claves API)."""
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return None
+    try:
+        from supabase import create_client
+
+        return create_client(url, key)
+    except Exception as e:
+        logger.warning(f"No se pudo crear cliente Supabase para api_keys: {e}")
+        return None
+
+
+def _user_id_from_api_key(key: str) -> Optional[str]:
+    """Resuelve user_id desde una clave de API (qlk_...). Hash SHA-256 lookup."""
+    import hashlib
+    from datetime import datetime, timezone
+
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    sb = _get_service_client()
+    if not sb:
+        return None
+    try:
+        res = (
+            sb.table("api_keys")
+            .select("id, user_id, revoked_at")
+            .eq("key_hash", key_hash)
+            .limit(1)
+            .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return None
+        row = rows[0]
+        if row.get("revoked_at"):
+            return None
+        # Actualizar last_used_at (best-effort, no bloquea la request).
+        try:
+            sb.table("api_keys").update(
+                {"last_used_at": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", row["id"]).execute()
+        except Exception:
+            pass
+        return row.get("user_id")
+    except Exception as e:
+        logger.warning(f"Error resolviendo api_key: {e}")
+        return None
 
 
 def require_user(request: Request) -> str:
