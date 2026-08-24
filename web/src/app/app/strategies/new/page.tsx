@@ -4,14 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StrategyEditor, DEFAULT_STRATEGY_CODE } from "@/components/Editor";
-import { StrategyBuilder } from "@/components/StrategyBuilder";
-import {
-  StrategyTemplates,
-  LiveSignals,
-  BlockBuilder,
-  RiskAdvisor,
-  StrategyExplainer,
-} from "@/components/studio";
+import { RiskAdvisor, StrategyExplainer } from "@/components/studio";
 import { buttonClasses } from "@/components/ui/Button";
 import {
   runBacktest,
@@ -39,13 +32,9 @@ const DEFAULTS: StrategyConfig = {
   split: 70,
 };
 
-type Mode = "visual" | "code";
-
 export default function NewStrategyPage() {
   const router = useRouter();
   const [config, setConfig] = useState<StrategyConfig>(DEFAULTS);
-  const [mode, setMode] = useState<Mode>("visual");
-  const [visualTab, setVisualTab] = useState<"templates" | "builder" | "blocks" | "signals">("builder");
   const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,118 +92,17 @@ export default function NewStrategyPage() {
   return (
     <main className="flex min-h-screen flex-col">
       <section className="mx-auto grid w-full max-w-6xl flex-1 gap-6 px-6 py-10 lg:grid-cols-[1fr_360px]">
-        {/* Columna principal: tabs Asistente visual <-> Código pro */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-1 rounded-lg border border-line bg-white/[0.02] p-1">
-            <button
-              onClick={() => setMode("visual")}
-              className={
-                "rounded-md px-4 py-1.5 text-sm font-medium transition-colors " +
-                (mode === "visual"
-                  ? "bg-accent/15 text-accent"
-                  : "text-muted hover:text-ink")
-              }
-            >
-              🧭 Asistente visual
-            </button>
-            <button
-              onClick={() => setMode("code")}
-              className={
-                "rounded-md px-4 py-1.5 text-sm font-medium transition-colors " +
-                (mode === "code"
-                  ? "bg-accent/15 text-accent"
-                  : "text-muted hover:text-ink")
-              }
-            >
-              💻 Código pro
-            </button>
-          </div>
-
-          {mode === "visual" ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap gap-1 rounded-lg border border-line bg-white/[0.02] p-1">
-                {(
-                  [
-                    { k: "templates", label: "Plantillas" },
-                    { k: "builder", label: "Constructor" },
-                    { k: "blocks", label: "Por bloques" },
-                    { k: "signals", label: "Señales en vivo" },
-                  ] as const
-                ).map((t) => (
-                  <button
-                    key={t.k}
-                    onClick={() => setVisualTab(t.k)}
-                    className={
-                      "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors " +
-                      (visualTab === t.k
-                        ? "bg-accent/15 text-accent"
-                        : "text-muted hover:text-ink")
-                    }
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {visualTab === "templates" && (
-                <StrategyTemplates
-                  onSelect={(code) => {
-                    update("code", code);
-                    setVisualTab("builder");
-                  }}
-                />
-              )}
-
-              {visualTab === "builder" && (
-                <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
-                  <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Constructor visual
-                  </div>
-                  <StrategyBuilder
-                    code={config.code}
-                    onChange={(c) => update("code", c)}
-                    onParams={(commission, slippage) => {
-                      update("commission", commission);
-                      update("slippage", slippage);
-                    }}
-                  />
-                </div>
-              )}
-
-              {visualTab === "blocks" && (
-                <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
-                  <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Constructor por bloques
-                  </div>
-                  <BlockBuilder onGenerate={(c) => update("code", c)} />
-                </div>
-              )}
-
-              {visualTab === "signals" && (
-                <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
-                  <div className="border-b border-line px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Señales en vivo (datos reales)
-                  </div>
-                  <LiveSignals
-                    asset_type={config.asset_type}
-                    symbol={config.symbol}
-                    timeframe={config.timeframe}
-                    code={config.code}
-                  />
-                </div>
-              )}
+        {/* Modo técnico único: editor de código + asistente IA */}
+        <div className="flex flex-col gap-3">
+          <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
+            <div className="flex items-center justify-between border-b border-line px-4 py-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                strategy.py
+              </span>
+              <span className="text-xs text-muted">Python</span>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="ql-glass ql-elev-2 overflow-hidden rounded-xl">
-                <div className="flex items-center justify-between border-b border-line px-4 py-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                    strategy.py
-                  </span>
-                  <span className="text-xs text-muted">Python</span>
-                </div>
-                <StrategyEditor value={config.code} onChange={(v) => update("code", v)} />
-              </div>
+            <StrategyEditor value={config.code} onChange={(v) => update("code", v)} />
+          </div>
               {/* Chat IA para el editor de código */}
               <div className="ql-glass ql-elev-1 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -286,8 +174,6 @@ export default function NewStrategyPage() {
                   </p>
                 )}
               </div>
-            </div>
-          )}
         </div>
 
         {/* Panel de configuración + riesgo + explicador */}

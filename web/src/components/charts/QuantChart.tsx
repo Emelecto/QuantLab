@@ -99,6 +99,7 @@ export function QuantChart({
         textColor: "#8b93a7",
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 11,
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: "rgba(255,255,255,0.04)" },
