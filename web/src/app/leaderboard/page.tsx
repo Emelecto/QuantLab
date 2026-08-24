@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getLeaderboard, type LeaderboardRow } from "@/lib/db";
+import { buttonClasses } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 function assetLabel(asset_type: string): string {
   return asset_type === "crypto" ? "Cripto" : "Acción";
@@ -50,7 +52,11 @@ export default function LeaderboardPage() {
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
           {loading ? (
-            <p className="metric text-sm text-muted">Cargando ranking…</p>
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} variant="line" className="!h-10" />
+              ))}
+            </div>
           ) : fetchError ? (
             <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short">
               {fetchError}
@@ -66,7 +72,7 @@ export default function LeaderboardPage() {
               </p>
               <Link
                 href="/app/strategies/new"
-                className="ql-btn-primary ql-btn h-9 rounded-md px-3 text-[13px]"
+                className={buttonClasses("primary", "sm")}
               >
                 Crear estrategia
               </Link>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/Button";
+import { SpotlightCard } from "@/components/SpotlightCard";
 
 const FEATURES = [
   {
@@ -48,8 +49,10 @@ export default function FeaturesPage() {
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
           <div className="grid gap-4 md:grid-cols-2">
             {FEATURES.map((f, i) => (
-              <div key={f.title} className="ql-perspective">
-              <article className="ql-glass ql-tilt flex flex-col p-6">
+              <SpotlightCard
+                key={f.title}
+                className="border-t border-line pt-5"
+              >
                 <span className="metric text-[11px] tracking-widest text-muted">
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -59,8 +62,7 @@ export default function FeaturesPage() {
                 <p className="mt-2 text-sm leading-relaxed text-muted">
                   {f.text}
                 </p>
-              </article>
-              </div>
+              </SpotlightCard>
             ))}
           </div>
         </div>

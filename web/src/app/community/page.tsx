@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { SpotlightCard } from "@/components/SpotlightCard";
 import { getPublicStrategies, type PublicStrategy } from "@/lib/db";
 
 function assetLabel(asset_type: string): string {
@@ -152,7 +154,11 @@ export default function CommunityPage() {
       <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-10">
           {loading ? (
-            <p className="metric text-sm text-muted">Cargando comunidad…</p>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} variant="card" className="!h-52" />
+              ))}
+            </div>
           ) : fetchError ? (
             <div className="rounded-lg border border-short/40 bg-short/[0.08] px-4 py-3 text-sm text-short">
               {fetchError}
@@ -176,55 +182,53 @@ export default function CommunityPage() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {visible.map((s) => (
-                <div key={s.id} className="ql-perspective">
-                  <article className="ql-glass ql-tilt flex flex-col">
-                    <div className="flex items-center gap-2.5 px-5 pt-5">
-                      <span
-                        aria-hidden
-                        className="metric flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-[#1a2131] text-[11px] text-muted"
-                      >
-                        {(s.username ?? "??").slice(0, 2).toUpperCase()}
-                      </span>
-                      <span className="metric truncate text-[12px] text-muted">
-                        @{s.username ?? "anónimo"}
-                      </span>
-                    </div>
+                <SpotlightCard key={s.id} className="ql-glass ql-elev-1 flex flex-col">
+                  <div className="flex items-center gap-2.5 px-5 pt-5">
+                    <span
+                      aria-hidden
+                      className="metric flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line bg-[#1a2131] text-[11px] text-muted"
+                    >
+                      {(s.username ?? "??").slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="metric truncate text-[12px] text-muted">
+                      @{s.username ?? "anónimo"}
+                    </span>
+                  </div>
 
-                    <div className="px-5 pt-3">
-                      <h2 className="text-[15px] font-semibold text-ink">
-                        {s.title}
-                      </h2>
-                      <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-                        {descriptionFor(s)}
-                      </p>
-                    </div>
+                  <div className="px-5 pt-3">
+                    <h2 className="text-[15px] font-semibold text-ink">
+                      {s.title}
+                    </h2>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                      {descriptionFor(s)}
+                    </p>
+                  </div>
 
-                    <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
-                      <Badge tone="neutral" mono>
-                        {assetLabel(s.asset_type)}
-                      </Badge>
-                      <Badge tone="long" mono>
-                        Sharpe {s.sharpe != null ? s.sharpe.toFixed(1) : "—"}
-                      </Badge>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
+                    <Badge tone="neutral" mono>
+                      {assetLabel(s.asset_type)}
+                    </Badge>
+                    <Badge tone={s.sharpe != null && s.sharpe >= 0 ? "long" : "short"} mono>
+                      Sharpe {s.sharpe != null ? s.sharpe.toFixed(1) : "—"}
+                    </Badge>
+                  </div>
 
-                    <div className="mt-auto flex items-center gap-2 px-5 py-4">
-                      <Link
-                        href={`/app/strategies/${s.id}/results`}
-                        className={buttonClasses("secondary", "sm")}
-                      >
-                        Ver
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => handleClone(s)}
-                        className={buttonClasses("primary", "sm")}
-                      >
-                        Clonar
-                      </button>
-                    </div>
-                  </article>
-                </div>
+                  <div className="mt-auto flex items-center gap-2 px-5 py-4">
+                    <Link
+                      href={`/app/strategies/${s.id}/results`}
+                      className={buttonClasses("secondary", "sm")}
+                    >
+                      Ver
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleClone(s)}
+                      className={buttonClasses("primary", "sm")}
+                    >
+                      Clonar
+                    </button>
+                  </div>
+                </SpotlightCard>
               ))}
             </div>
           )}
