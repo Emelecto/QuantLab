@@ -1,9 +1,9 @@
-// Barrel de componentes del "studio" (editor de estrategias).
-// Permite `import { X } from "@/components/studio"` en new/page.tsx.
+// Barrel de componentes del studio QuantLab.
+// Re-exporta los componentes para poder importarlos desde "@/components/studio".
 export { StrategyTemplates } from "./StrategyTemplates";
-export { StrategyExplainer } from "./StrategyExplainer";
-export { RiskAdvisor } from "./RiskAdvisor";
 export { LiveSignals } from "./LiveSignals";
-export { BlockBuilder } from "./BlockBuilder";
-export { BenchmarkComparator } from "./BenchmarkComparator";
 export { StrategyStudio } from "./StrategyStudio";
+export { BlockBuilder } from "./BlockBuilder";
+export { RiskAdvisor } from "./RiskAdvisor";
+export { StrategyExplainer } from "./StrategyExplainer";
+export { BenchmarkComparator } from "./BenchmarkComparator";

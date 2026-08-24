@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
 import { getPublicStrategies, type PublicStrategy } from "@/lib/db";
 
 function assetLabel(asset_type: string): string {
@@ -16,6 +18,8 @@ function descriptionFor(s: PublicStrategy): string {
 }
 
 export default function CommunityPage() {
+  const router = useRouter();
+  const toast = useToast();
   const [strategies, setStrategies] = useState<PublicStrategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -23,6 +27,16 @@ export default function CommunityPage() {
   const [assetFilter, setAssetFilter] = useState("all");
   const [sort, setSort] = useState("sharpe");
   const [query, setQuery] = useState("");
+
+  async function handleClone(s: PublicStrategy) {
+    try {
+      await navigator.clipboard.writeText(s.code);
+      toast.success("Código copiado. Pégalo en el editor para clonar.");
+    } catch {
+      toast.error("No se pudo copiar el código.");
+    }
+    router.push("/app/strategies/new");
+  }
 
   useEffect(() => {
     let active = true;
@@ -125,7 +139,7 @@ export default function CommunityPage() {
             aria-label="Buscar estrategia"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="ql-input h-9 w-full max-w-xs rounded-md px-3 text-[13px]"
+            className="ql-input h-9 min-w-[160px] flex-1 rounded-md px-3 text-[13px]"
           />
 
           <span className="metric ml-auto text-[12px] text-muted">
@@ -201,12 +215,13 @@ export default function CommunityPage() {
                       >
                         Ver
                       </Link>
-                      <Link
-                        href="/app/strategies/new"
+                      <button
+                        type="button"
+                        onClick={() => handleClone(s)}
                         className={buttonClasses("primary", "sm")}
                       >
                         Clonar
-                      </Link>
+                      </button>
                     </div>
                   </article>
                 </div>

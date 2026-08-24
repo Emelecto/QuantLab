@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { LiveSignals } from "@/components/studio";
 
 const STEPS = [
   {
@@ -47,10 +48,55 @@ const FEATURES = [
   },
 ];
 
+/** Curva que se ve increíble en muestra y luego se desploma (sobreajuste). */
+const OVERFIT_PATH =
+  "M0,104 C40,96 62,74 92,52 C122,30 152,16 186,13 C222,11 244,52 272,92 C284,108 292,110 300,112";
+/** Curva modesta y sostenida (validación walk-forward OOS). */
+const OOS_PATH =
+  "M0,104 C56,98 112,88 168,78 C222,69 266,63 300,58";
+
 export default function Home() {
   return (
-    <>
-      {/* HERO */}
+    <div className="flex min-h-screen flex-col">
+      {/* HEADER (A4) */}
+      <header className="sticky top-0 z-50 border-b border-line bg-bg/70 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-6">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"
+          >
+            <span
+              aria-hidden
+              className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent"
+            />
+            QuantLab
+          </Link>
+          <nav className="ml-6 hidden items-center gap-6 text-sm text-muted md:flex">
+            <Link href="/features" className="transition-colors hover:text-ink">
+              Funciones
+            </Link>
+            <Link href="/community" className="transition-colors hover:text-ink">
+              Comunidad
+            </Link>
+            <Link href="/leaderboard" className="transition-colors hover:text-ink">
+              Ranking
+            </Link>
+          </nav>
+          <div className="ml-auto flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden text-sm font-medium text-muted transition-colors hover:text-ink sm:inline"
+            >
+              Entrar
+            </Link>
+            <Link href="/register" className={buttonClasses("primary", "sm")}>
+              Empieza gratis
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* HERO (A1: demo en vivo) */}
       <section className="relative overflow-hidden border-b border-line">
         <div
           aria-hidden
@@ -60,27 +106,44 @@ export default function Home() {
               "radial-gradient(closest-side, rgba(94,234,212,0.18), transparent)",
           }}
         />
-        <div className="relative mx-auto w-full max-w-5xl px-6 py-24 md:py-28">
-          <span className="metric mb-6 inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-            FASE 1 · BACKTESTING OOS EN LA NUBE
-          </span>
-          <h1 className="max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-ink md:text-[56px]">
-            Crea estrategias de trading que de verdad{" "}
-            <span className="ql-gradient-text ql-glow-text">funcionan.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-            Prueba tus ideas en la nube y descubre si realmente ganarían o solo
-            tuviste suerte. Sin instalar nada, sin saber estadística, y sin que
-            el overfitting te engañe.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Link href="/register" className={buttonClasses("primary", "lg")}>
-              Crea tu estrategia
-            </Link>
-            <Link href="/community" className={buttonClasses("secondary", "lg")}>
-              Explora la comunidad
-            </Link>
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-24">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <span className="metric mb-6 inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+                FASE 1 · BACKTESTING OOS EN LA NUBE
+              </span>
+              <h1 className="max-w-3xl text-4xl leading-[1.1] font-semibold tracking-tight text-ink md:text-[56px]">
+                Crea estrategias de trading que de verdad{" "}
+                <span className="ql-gradient-text ql-glow-text">funcionan.</span>
+              </h1>
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
+                Prueba tus ideas en la nube y descubre si realmente ganarían o solo
+                tuviste suerte. Sin instalar nada, sin saber estadística, y sin que
+                el overfitting te engañe.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <Link href="/register" className={buttonClasses("primary", "lg")}>
+                  Crea tu estrategia
+                </Link>
+                <Link
+                  href="/community"
+                  className={buttonClasses("secondary", "lg")}
+                >
+                  Explora la comunidad
+                </Link>
+              </div>
+            </div>
+
+            {/* Demo en vivo: mini-gráfico real con señales de la estrategia */}
+            <div className="ql-perspective">
+              <LiveSignals
+                asset_type="crypto"
+                symbol="BTCUSDT"
+                timeframe="1d"
+                code="fast=20,slow=50"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -93,6 +156,147 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* A2: POR QUÉ NO SOBREAJUSTES */}
+      <section className="border-b border-line">
+        <div className="mx-auto w-full max-w-6xl px-6 py-16">
+          <span className="metric inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
+            SIN OVERFITTING
+          </span>
+          <h2 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+            Por qué no sobreajustes
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
+            Es fácil hacer que una estrategia se vea perfecta en el pasado: le das
+            tantas vueltas a los parámetros que &ldquo;aprende de memoria&rdquo; el
+            historial. Eso es sobreajuste (overfitting), y casi siempre falla en el
+            futuro. Nosotros validamos con{" "}
+            <span className="text-ink">walk-forward out-of-sample</span>: entrenamos
+            en una parte de los datos y medimos de verdad en la parte que la
+            estrategia nunca vio.
+          </p>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <Card className="p-5">
+              <h3 className="text-[15px] font-semibold text-short">
+                Curva sobreajustada (en muestra)
+              </h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                Sube sin parar en el histórico&hellip; y luego se desploma. Bonito en
+                el reporte, desastroso en la vida real.
+              </p>
+              <svg
+                viewBox="0 0 300 120"
+                className="mt-4 h-28 w-full"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Curva sobreajustada que cae"
+              >
+                <path
+                  d={OVERFIT_PATH}
+                  fill="none"
+                  stroke="var(--ql-short)"
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="text-[15px] font-semibold text-long">
+                Validación walk-forward (out-of-sample)
+              </h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                Más modesta, pero honesta: es lo que ocurre cuando la estrategia
+                enfrenta datos nuevos. Lo que sobrevive, cuenta.
+              </p>
+              <svg
+                viewBox="0 0 300 120"
+                className="mt-4 h-28 w-full"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Curva de validación out-of-sample sostenida"
+              >
+                <path
+                  d={OOS_PATH}
+                  fill="none"
+                  stroke="var(--ql-long)"
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Card>
+          </div>
+
+          <p className="metric mt-6 text-[12px] text-muted">
+            Por eso el ranking solo puntúa el Sharpe desinflado OOS, no el ajuste al
+            pasado.
+          </p>
+        </div>
+      </section>
+
+      {/* A3: VALIDACIÓN Y CONFIANZA */}
+      <section className="border-b border-line bg-surface/40">
+        <div className="mx-auto w-full max-w-6xl px-6 py-16">
+          <span className="metric inline-flex items-center gap-2 rounded border border-line bg-surface px-2.5 py-1 text-[11px] text-muted">
+            DATOS REALES
+          </span>
+          <h2 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
+            Datos reales, sin simulación
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
+            No inventamos precios ni rellenamos con ruido bonito. Los backtests
+            corren sobre datos reales de mercado y la integridad fuera de muestra se
+            verifica en cada corrida.
+          </p>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="ql-glass ql-elev-1 rounded-xl p-5">
+              <div className="metric text-sm font-semibold text-ink">
+                Binance
+              </div>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                Cripto (BTC, ETH&hellip;) con cierres reales vía la API pública de
+                Binance. Sin API key, sin simulación.
+              </p>
+            </div>
+            <div className="ql-glass ql-elev-1 rounded-xl p-5">
+              <div className="metric text-sm font-semibold text-ink">
+                Yahoo Finance
+              </div>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                Acciones y ETFs con series históricas reales de Yahoo Finance.
+                Comisiones realistas incluidas.
+              </p>
+            </div>
+            <div className="ql-glass ql-elev-1 rounded-xl p-5">
+              <div className="metric text-sm font-semibold text-ink">
+                Integridad OOS verificada
+              </div>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+                Cada corrida usa walk-forward: entrena y prueba en pliegues distintos
+                para que el resultado sea creíble.
+              </p>
+            </div>
+          </div>
+
+          <figure className="ql-glass ql-elev-1 mt-6 flex flex-col gap-3 rounded-xl p-5 md:flex-row md:items-center">
+            <span className="metric shrink-0 self-start rounded border border-accent/40 bg-accent/10 px-2 py-1 text-[11px] font-medium tracking-wide text-accent uppercase">
+              Quién lo usa
+            </span>
+            <blockquote className="text-sm leading-relaxed text-ink">
+              &ldquo;Por fin un lugar donde puedo clonar estrategias de otros y ver de
+              inmediato si el número aguanta fuera de muestra, no solo en el
+              gráfico bonito.&rdquo;
+              <figcaption className="metric mt-2 text-[12px] text-muted">
+                — Emilio, estudiante de data science
+              </figcaption>
+            </blockquote>
+          </figure>
+        </div>
+      </section>
 
       {/* CÓMO FUNCIONA */}
       <section className="border-b border-line">
@@ -109,9 +313,7 @@ export default function Home() {
                 <h3 className="mt-4 text-[15px] font-semibold text-ink">
                   {s.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  {s.text}
-                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{s.text}</p>
               </Card>
             ))}
           </div>
@@ -171,6 +373,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

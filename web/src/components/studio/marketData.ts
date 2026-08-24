@@ -56,6 +56,16 @@ export async function fetchMarketSeries(
   return { closes, times: times.slice(0, closes.length) };
 }
 
+/** Devuelve solo los cierres (para normalizar un benchmark buy & hold). */
+export async function fetchPrices(
+  asset_type: AssetType,
+  symbol: string,
+  timeframe: string,
+): Promise<number[]> {
+  const series = await fetchMarketSeries(asset_type, symbol, timeframe);
+  return series.closes;
+}
+
 /** Media móvil simple. Devuelve null hasta acumular `period` muestras. */
 export function sma(values: number[], period: number): (number | null)[] {
   const out: (number | null)[] = new Array(values.length).fill(null);

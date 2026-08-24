@@ -48,6 +48,8 @@ export interface BacktestResult {
   metrics: Metrics;
   integrity_label: IntegrityLabel;
   equity_curve: EquityPoint[];
+  /** Lectura honesta generada por el worker (out-of-sample). Opcional. */
+  report?: string;
 }
 
 export interface ValidationResult {

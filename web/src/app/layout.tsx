@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TopBar } from "@/components/TopBar";
 import { Footer } from "@/components/Footer";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,9 +34,11 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-ink">
-        <TopBar />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <Footer />
+        <ToastProvider>
+          <TopBar />
+          <main className="flex flex-1 flex-col">{children}</main>
+          <Footer />
+        </ToastProvider>
       </body>
     </html>
   );
