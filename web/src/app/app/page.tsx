@@ -154,6 +154,12 @@ function DashboardContent() {
               Crea una estrategia, pruébala con datos reales y mira si
               sobrevive a datos que nunca vio. Sin overfitting.
             </p>
+            <Link
+              href="/app/wallet"
+              className="mt-3 inline-block text-sm text-accent hover:underline"
+            >
+              Ver mi wallet de QP →
+            </Link>
           </div>
           <Link
             href="/app/strategies/new"

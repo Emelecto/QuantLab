@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { buttonClasses } from "@/components/ui/Button";
 import { useAuth } from "@/lib/useAuth";
+import { getBalance } from "@/lib/tokens";
 
 const PUBLIC_NAV = [
   { href: "/features", label: "Producto" },
@@ -21,6 +23,27 @@ export function TopBar() {
     router.push("/");
     router.refresh();
   }
+
+  // Badge QP: balance en vivo de la wallet (solo con sesión iniciada).
+  const [qpBalance, setQpBalance] = useState<number | null>(null);
+  const [qpError, setQpError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setQpError(false);
+    (async () => {
+      try {
+        const b = await getBalance();
+        if (active) setQpBalance(b.balance);
+      } catch {
+        if (active) setQpError(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-50 border-0 bg-[rgba(10,12,16,0.72)] backdrop-blur-[14px] relative">
@@ -80,6 +103,49 @@ export function TopBar() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          {user && (
+            <>
+              {/* Badge QP: enlace a la wallet. Completo en sm+, solo ícono en móvil. */}
+              <Link
+                href="/app/wallet"
+                aria-label="Mi wallet de QuantPoints"
+                className="ql-glass-hover hidden items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:border-accent/50 sm:flex"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M6 3h12l3 9-9 9-9-9 3-9Z" />
+                  <path d="M9 8h6" />
+                </svg>
+                {qpError ? "QP —" : qpBalance == null ? "QP …" : `QP ${qpBalance}`}
+              </Link>
+              {/* Variante móvil: ícono compacto para no romper el layout. */}
+              <Link
+                href="/app/wallet"
+                aria-label="Mi wallet de QuantPoints"
+                className="ql-glass-hover flex items-center rounded-full border border-accent/30 bg-accent/10 p-1.5 text-accent transition-colors hover:border-accent/50 sm:hidden"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M6 3h12l3 9-9 9-9-9 3-9Z" />
+                  <path d="M9 8h6" />
+                </svg>
+              </Link>
+            </>
+          )}
           {user ? (
             <button
               onClick={handleSignOut}
