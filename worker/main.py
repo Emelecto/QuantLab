@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 
 import engine
 from schemas import StrategyConfig
+from tournaments import router as tournaments_router
 
 app = FastAPI(
     title="QuantLab Worker API",
@@ -46,6 +47,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Router de torneos + marketplace + QP
+app.include_router(tournaments_router)
 
 # Timeframes soportados por la fuente de datos (Binance / yfinance).
 _ALLOWED_TIMEFRAMES = {

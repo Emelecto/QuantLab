@@ -38,8 +38,8 @@ export function TopBar() {
         </Link>
 
         {user ? (
-          // Sesión iniciada: solo lo esencial, sin duplicar.
-          <nav className="hidden items-center gap-6 md:flex">
+          // Sesión iniciada: navegación completa a las nuevas secciones.
+          <nav className="hidden items-center gap-5 md:flex">
             <Link
               href="/app"
               className="text-sm text-muted transition-colors hover:text-ink"
@@ -47,10 +47,28 @@ export function TopBar() {
               Dashboard
             </Link>
             <Link
+              href="/app/tournaments"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              Torneos
+            </Link>
+            <Link
+              href="/app/marketplace"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              Mercado
+            </Link>
+            <Link
+              href="/app/rankings"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              Rankings
+            </Link>
+            <Link
               href="/"
               className="text-sm text-muted transition-colors hover:text-ink"
             >
-              Ir a inicio
+              Inicio
             </Link>
           </nav>
         ) : (

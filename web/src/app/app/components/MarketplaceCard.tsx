@@ -1,0 +1,128 @@
+"use client";
+
+import Link from "next/link";
+import { Badge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
+import type { MarketplaceStrategy } from "@/lib/tokens";
+
+const assetLabels: Record<string, string> = {
+  crypto: "Cripto",
+  stock: "Acción",
+};
+
+function StarRating({ rating }: { rating: number }) {
+  const full = Math.floor(rating);
+  const hasHalf = rating - full >= 0.5;
+  return (
+    <span className="flex items-center gap-0.5" aria-label={`${rating} de 5 estrellas`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className={`text-[12px] ${
+            i <= full
+              ? "text-accent"
+              : i === full + 1 && hasHalf
+              ? "text-accent/60"
+              : "text-line"
+          }`}
+        >
+          ★
+        </span>
+      ))}
+      <span className="metric ml-1 text-[11px] text-muted">{rating.toFixed(1)}</span>
+    </span>
+  );
+}
+
+export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy }) {
+  const assetLabel = assetLabels[strategy.asset_type] ?? strategy.asset_type;
+
+  return (
+    <div className="ql-perspective">
+      <article className="ql-glass ql-tilt flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 px-5 pt-5">
+          <span
+            aria-hidden
+            className="metric flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line bg-[#1a2131] text-[12px] text-muted"
+          >
+            {(strategy.author ?? "??").slice(0, 2).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="metric truncate text-[12px] text-muted block">
+              @{strategy.author ?? "anónimo"}
+            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Badge tone="cyan" mono>
+                {assetLabel}
+              </Badge>
+              <Badge tone="neutral" mono>
+                {strategy.symbol}
+              </Badge>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="metric text-[10px] uppercase tracking-wider text-muted">Precio</p>
+            <p className="metric text-accent ql-glow-text text-sm font-semibold">
+              {strategy.price_qp}/sem
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 pt-4 flex-1">
+          <h2 className="text-[15px] font-semibold text-ink leading-tight">
+            {strategy.title}
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted line-clamp-2">
+            {strategy.description}
+          </p>
+
+          {/* Métricas */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-md border border-line bg-surface/50 px-3 py-2">
+              <p className="metric text-[10px] uppercase tracking-wider text-muted">Sharpe</p>
+              <p
+                className={`metric text-sm font-semibold ${
+                  (strategy.sharpe ?? 0) >= 0 ? "text-long" : "text-short"
+                }`}
+              >
+                {strategy.sharpe?.toFixed(2) ?? "—"}
+              </p>
+            </div>
+            <div className="rounded-md border border-line bg-surface/50 px-3 py-2">
+              <p className="metric text-[10px] uppercase tracking-wider text-muted">MaxDD</p>
+              <p className="metric text-sm font-semibold text-short">
+                {strategy.max_dd != null ? `${strategy.max_dd.toFixed(1)}%` : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Rating */}
+          <div className="mt-3 flex items-center justify-between">
+            <StarRating rating={strategy.rating ?? 0} />
+            <span className="metric text-[11px] text-muted">
+              {strategy.subscribers ?? 0} suscriptores
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto flex items-center gap-2 px-5 py-4 border-t border-line">
+          <Link
+            href={`/app/marketplace/${strategy.id}`}
+            className={buttonClasses("secondary", "sm")}
+          >
+            Ver detalle
+          </Link>
+          <button
+            type="button"
+            className={buttonClasses("primary", "sm")}
+          >
+            Suscribirse
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+}
