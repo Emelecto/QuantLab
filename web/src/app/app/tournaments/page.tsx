@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { listTournaments } from "@/lib/tournaments";
 import { TournamentCard } from "./components/TournamentCard";
+import { SubmitStrategyModal } from "./components/SubmitStrategyModal";
 import { useAuth } from "@/lib/useAuth";
 import { getBalance } from "@/lib/tokens";
 import { useState, useEffect } from "react";
@@ -57,6 +58,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userQP, setUserQP] = useState<number>(0);
+  const [submitTarget, setSubmitTarget] = useState<{ id: string; name: string } | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -109,6 +111,7 @@ export default function TournamentsPage() {
             {tournaments.map((t) => (
               <TournamentCard
                 key={t.id}
+                onEnviar={(tt) => setSubmitTarget({ id: tt.id, name: tt.name })}
                 tournament={{
                   id: t.id,
                   name: t.name,
@@ -128,6 +131,14 @@ export default function TournamentsPage() {
                 }}
               />
             ))}
+
+            {submitTarget && (
+              <SubmitStrategyModal
+                tournamentId={submitTarget.id}
+                tournamentName={submitTarget.name}
+                onClose={() => setSubmitTarget(null)}
+              />
+            )}
           </div>
         )}
 

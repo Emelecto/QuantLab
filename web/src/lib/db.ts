@@ -180,6 +180,45 @@ export async function getPublicStrategies(): Promise<PublicStrategy[]> {
   });
 }
 
+/** Estrategias del usuario logueado (tabla `strategies`, filtrado por user_id). */
+export type MyStrategy = {
+  id: string;
+  title: string;
+  symbol: string;
+  asset_type: string;
+  timeframe: string;
+  code: string;
+  capital: number;
+  commission: number;
+  folds: number;
+  split: number;
+  created_at: string;
+};
+
+/**
+ * Carga las estrategias que el usuario ya creó (propias, por RLS user_id).
+ * Devuelve [] si no hay sesión. Usado por el modal de envío a torneo para
+ * precargar símbolo/timeframe/asset_type/código/config.
+ */
+export async function getMyStrategies(): Promise<MyStrategy[]> {
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("strategies")
+    .select(
+      "id, title, symbol, asset_type, timeframe, code, capital, commission, folds, split, created_at",
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as MyStrategy[];
+}
+
 /** Ranking OOS: runs de estrategias públicas, ordenado por Deflated Sharpe OOS. */
 export async function getLeaderboard(): Promise<LeaderboardRow[]> {
   const supabase = getSupabase();

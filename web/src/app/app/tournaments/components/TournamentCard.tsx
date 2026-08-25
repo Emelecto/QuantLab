@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardBody, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { buttonClasses } from "@/components/ui/Button";
 import { CountdownTimer } from "./CountdownTimer";
 
 export interface TournamentSummary {
@@ -39,13 +40,19 @@ const statusLabels: Record<TournamentSummary["status"], string> = {
   finished: "Finalizado",
 };
 
-export function TournamentCard({ tournament }: { tournament: TournamentSummary }) {
+export function TournamentCard({
+  tournament,
+  onEnviar,
+}: {
+  tournament: TournamentSummary;
+  onEnviar?: (t: TournamentSummary) => void;
+}) {
   return (
-    <Link
-      href={`/app/tournaments/${tournament.id}`}
-      className="block ql-perspective"
-    >
-      <Card className="ql-tilt ql-glass-hover h-full flex flex-col">
+    <Card className="ql-tilt ql-glass-hover h-full flex flex-col overflow-hidden">
+      <Link
+        href={`/app/tournaments/${tournament.id}`}
+        className="block ql-perspective flex flex-1 flex-col"
+      >
         <CardBody className="flex-1 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-[15px] font-semibold text-ink leading-tight">
@@ -107,7 +114,19 @@ export function TournamentCard({ tournament }: { tournament: TournamentSummary }
           </div>
           <CountdownTimer deadline={tournament.deadline} />
         </CardFooter>
-      </Card>
-    </Link>
+      </Link>
+
+      {onEnviar && tournament.status === "active" && (
+        <div className="border-t border-line px-5 py-3">
+          <button
+            type="button"
+            onClick={() => onEnviar(tournament)}
+            className={buttonClasses("primary", "sm", "w-full")}
+          >
+            Enviar estrategia
+          </button>
+        </div>
+      )}
+    </Card>
   );
 }
