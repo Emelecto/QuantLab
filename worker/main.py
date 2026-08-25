@@ -23,6 +23,7 @@ import engine
 from schemas import StrategyConfig
 from tournaments import router as tournaments_router
 from comments import router as comments_router
+from social import router as social_router
 
 app = FastAPI(
     title="QuantLab Worker API",
@@ -52,9 +53,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Router de torneos + marketplace + QP
+# Router de torneos + marketplace + QP + social (follows / actividad)
 app.include_router(tournaments_router)
 app.include_router(comments_router)
+app.include_router(social_router)
 
 # Timeframes soportados por la fuente de datos (Binance / yfinance).
 _ALLOWED_TIMEFRAMES = {

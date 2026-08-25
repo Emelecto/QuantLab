@@ -104,6 +104,19 @@ def tournament_submit(body: SubmitBody, request: Request):
         }).execute()
         _update_balance(uid, -body.qp_stake)
 
+    # 5. Actividad: inscripción al torneo (best-effort, jamás rompe el flujo).
+    try:
+        from social import log_activity
+
+        log_activity(
+            uid,
+            "tournament_submission",
+            target_type="tournament",
+            target_id=body.tournament_id,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     return {"id": sid, "status": "pending"}
 
 
@@ -337,6 +350,21 @@ def marketplace_publish(body: PublishBody, request: Request):
         "status": "published",
         "published_at": datetime.now(timezone.utc).isoformat(),
     }).execute()
+
+    # Actividad: estrategia publicada (best-effort, jamás rompe el flujo).
+    try:
+        from social import log_activity
+
+        log_activity(
+            uid,
+            "published_strategy",
+            target_type="marketplace_strategy",
+            target_id=res.data[0]["id"],
+            meta={"title": body.title},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     return {"id": res.data[0]["id"]}
 
 

@@ -5,6 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getPublicProfile } from "@/lib/tokens";
 import { getProfileTournamentHistory } from "@/lib/tournaments";
+import {
+  followUser,
+  isFollowing,
+  unfollowUser,
+} from "@/lib/social";
+import { getViewerId } from "@/lib/modelsHistory";
 import { ModelsByStrategy } from "../components/ModelsByStrategy";
 import { QPBadge } from "../components/QPBadge";
 import { TierBadge } from "@/components/ui/TierBadge";
@@ -46,6 +52,44 @@ export default function ProfilePage() {
   const [tournaments, setTournaments] = useState<Awaited<ReturnType<typeof getProfileTournamentHistory>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Social: botón Seguir / Dejar de seguir (oculto en el perfil propio).
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const vid = await getViewerId();
+      if (!active) return;
+      setViewerId(vid);
+      if (!vid || vid === params.id) return;
+      setFollowing(await isFollowing(vid, params.id));
+    })();
+    return () => {
+      active = false;
+    };
+  }, [params.id]);
+
+  const isOwnProfile = viewerId != null && viewerId === params.id;
+
+  async function handleToggleFollow() {
+    setFollowBusy(true);
+    try {
+      if (following) {
+        await unfollowUser(params.id);
+        setFollowing(false);
+      } else {
+        await followUser(params.id);
+        setFollowing(true);
+      }
+    } catch {
+      // Si falla, conservamos el estado previo sin romper la página.
+    } finally {
+      setFollowBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -200,9 +244,18 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* QP Badge + compartir */}
+            {/* QP Badge + seguir + compartir */}
             <div className="flex flex-col items-end gap-3">
               <QPBadge amount={profile.qp_balance} size="lg" />
+              {viewerId != null && !isOwnProfile && (
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followBusy}
+                  className={buttonClasses(following ? "secondary" : "primary", "sm")}
+                >
+                  {following ? "Dejar de seguir" : "Seguir"}
+                </button>
+              )}
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(window.location.href).catch(() => {});

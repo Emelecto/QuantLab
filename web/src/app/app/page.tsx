@@ -7,6 +7,7 @@ import { AuthGuard } from "@/lib/AuthGuard";
 import { buttonClasses } from "@/components/ui/Button";
 import { getRuns } from "@/lib/runs";
 import { fetchMarketSeries } from "@/components/studio/marketData";
+import { ActivityFeed } from "@/components/social/ActivityFeed";
 import { useEffect, useMemo, useState } from "react";
 import type { BacktestResult } from "@/lib/api";
 
@@ -261,6 +262,11 @@ function DashboardContent() {
             label="% que superó al benchmark"
             value={beatPct == null ? (beatLoading ? "…" : "—") : `${beatPct}%`}
           />
+        </div>
+
+        {/* Actividad social: follows + eventos recientes */}
+        <div className="mt-10">
+          <ActivityFeed />
         </div>
 
         <div className="mt-12">
