@@ -118,7 +118,44 @@ def tournament_leaderboard(tournament_id: str):
         .limit(100)
         .execute()
     )
-    return res.data or []
+    entries = res.data or []
+    if not entries:
+        return []
+    # Reputation score acumulado por usuario (clave ADITIVA: conserva todas
+    # las claves existentes de cada fila).
+    rep = _reputation_scores(sb, [e.get("user_id") for e in entries])
+    for e in entries:
+        e["reputation_score"] = rep.get(e.get("user_id"))
+    return entries
+
+
+@router.get("/tournament/{tournament_id}/round")
+def tournament_round(tournament_id: str, request: Request):
+    """Ronda actual del torneo con su deadline (lectura pública).
+
+    Devuelve {tournament_id, round_number, closes_at, status} donde status
+    es 'open' si closes_at es null o futura, y 'closed' si ya pasó.
+    """
+    # Auth opcional: el endpoint es público de lectura.
+    get_optional_user(request)
+    sb = get_supabase()
+    res = sb.table("tournaments").select("*").eq("id", tournament_id).execute()
+    if not res.data:
+        raise HTTPException(404, "Torneo no encontrado")
+    t = res.data[0]
+    closes_at = t.get("closes_at")
+    close_dt = _parse_ts(closes_at)
+    status = (
+        "closed"
+        if close_dt is not None and close_dt <= datetime.now(timezone.utc)
+        else "open"
+    )
+    return {
+        "tournament_id": tournament_id,
+        "round_number": t.get("round_number") or 1,
+        "closes_at": closes_at,
+        "status": status,
+    }
 
 
 @router.get("/tournament/{tournament_id}/my-submission")
@@ -402,6 +439,68 @@ def marketplace_signals(strategy_id: str, limit: int = 20):
 # ---------------------------------------------------------------------------
 
 
+
+
+def _parse_ts(value) -> datetime | None:
+    """Parsea un timestamp (str ISO de Supabase o datetime) a datetime aware UTC.
+
+    Devuelve None si es null/vacío/no parseable.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        if s.endswith(("Z", "z")):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        logger.warning(f"Timestamp no parseable para ronda de torneo: {value!r}")
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _reputation_scores(sb, user_ids) -> dict[str, float | None]:
+    """Reputation score por usuario: promedio del primary_score de sus últimas
+    5 submissions (submitted_at DESC).
+
+    Nombres reales verificados en supabase/migrations/0002_tournaments_marketplace.sql:
+    la tabla es `submissions` (no tournament_submissions); no existen columnas
+    deflated_sharpe_oos ni sharpe_oos — el evaluador guarda en `primary_score`
+    la métrica primaria del torneo (deflated_sharpe_oos por defecto) y el
+    orden temporal vive en `submitted_at` (no hay created_at).
+    Sin submissions (o sin puntajes evaluados) -> None.
+    """
+    out: dict[str, float | None] = {}
+    seen: set[str] = set()
+    for uid in user_ids:
+        if not uid or uid in seen:
+            continue
+        seen.add(uid)
+        try:
+            res = (
+                sb.table("submissions")
+                .select("user_id,primary_score")
+                .eq("user_id", uid)
+                .order("submitted_at", desc=True)
+                .limit(5)
+                .execute()
+            )
+            scores = [
+                r["primary_score"]
+                for r in (res.data or [])
+                if r.get("primary_score") is not None
+            ]
+            out[uid] = round(sum(scores) / len(scores), 6) if scores else None
+        except Exception as e:
+            logger.warning(f"No se pudo calcular reputación de {uid}: {e}")
+            out[uid] = None
+    return out
 
 
 def _get_balance(uid: str) -> int:
