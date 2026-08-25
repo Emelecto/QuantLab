@@ -94,6 +94,40 @@ export function OnboardingTour() {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const rafRef = useRef<number | null>(null);
+  // Glide: transición de posición SOLO al cambiar de paso. Durante el
+  // seguimiento por scroll queda en false → movimiento instantáneo, sin lag.
+  const [glide, setGlide] = useState(false);
+  const glideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Altura REAL del tooltip (medida tras render): el texto varía por paso y
+  // usar una estimación fija lo cortaba en los bordes del viewport.
+  const tipRef = useRef<HTMLDivElement | null>(null);
+  const [tipH, setTipH] = useState(212);
+
+  const goToStep = useCallback((n: number) => {
+    setStep(n);
+    setGlide(true);
+    if (glideTimer.current) clearTimeout(glideTimer.current);
+    glideTimer.current = setTimeout(() => setGlide(false), 340);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (glideTimer.current) clearTimeout(glideTimer.current);
+    },
+    [],
+  );
+
+  // Mide la altura real del tooltip para posicionarlo sin cortes.
+  useEffect(() => {
+    if (!open) return;
+    const el = tipRef.current;
+    if (!el) return;
+    const update = () => setTipH(el.offsetHeight || 212);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, step]);
 
   const measure = useCallback(() => {
     const sel = STEPS[step]?.selector;
@@ -235,17 +269,17 @@ export function OnboardingTour() {
   const isLast = step === STEPS.length - 1;
   const cta = current.cta;
 
-  const next = () => (isLast ? finish() : setStep((s) => s + 1));
-  const prev = () => setStep((s) => Math.max(0, s - 1));
+  const next = () => (isLast ? finish() : goToStep(step + 1));
+  const prev = () => goToStep(Math.max(0, step - 1));
 
   // Posicionamiento del tooltip: al lado con más espacio. Nunca tapa al target.
   let tooltipStyle: React.CSSProperties;
   let arrow: "top" | "bottom" | "left" | "right" | null = null;
   if (rect) {
-    const TW = 320;
-    const TH = 200;
+    const TW = 340;
+    const TH = tipH; // altura real medida
     const GAP = 14;
-    const M = 16;
+    const M = 12;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
@@ -277,13 +311,14 @@ export function OnboardingTour() {
 
     tooltipStyle = { position: "fixed", top, left, maxWidth: TW, width: TW };
   } else {
+    // Centrado real en viewport (el tour vive en <body> vía portal).
     tooltipStyle = {
       position: "fixed",
       top: "50%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      maxWidth: 360,
-      width: "90vw",
+      maxWidth: 380,
+      width: "min(90vw, 380px)",
     };
   }
 
@@ -293,22 +328,23 @@ export function OnboardingTour() {
   // "muy abajo" y spotlights que no apuntan al elemento real.
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Tour de bienvenida">
-      {/* Única animación permitida: opacidad al aparecer cada paso. La posición
-          del spotlight NO se interpola, así sigue al elemento sin lag. */}
-      <style>{`@keyframes ql-tour-fade { from { opacity: 0 } to { opacity: 1 } }`}</style>
+      <style>{`
+        @keyframes ql-tour-fade { from { opacity: 0 } to { opacity: 1 } }
+        .ql-tour-glide { transition: top 300ms cubic-bezier(.22,.9,.3,1), left 300ms cubic-bezier(.22,.9,.3,1); }
+        @media (prefers-reduced-motion: reduce) { .ql-tour-glide { transition: none; } }
+      `}</style>
       {/* Spotlight sobre el elemento objetivo (recorte + halo). */}
       {rect ? (
         <div
-          key={step}
-          className="pointer-events-auto fixed z-[90] rounded-xl"
+          className={`pointer-events-auto fixed z-[90] rounded-xl ${glide ? "ql-tour-glide" : ""}`}
           style={{
-            animation: "ql-tour-fade 160ms ease-out",
             top: rect.top - 6,
             left: rect.left - 6,
             width: rect.width + 12,
             height: rect.height + 12,
-            boxShadow: "0 0 0 9999px rgba(4,6,10,0.78)",
-            outline: "2px solid rgba(248,250,252,0.6)",
+            boxShadow:
+              "0 0 0 9999px rgba(4,6,10,0.88), 0 0 24px 4px rgba(248,250,252,0.18)",
+            outline: "2px solid rgba(248,250,252,0.75)",
             outlineOffset: "-1px",
           }}
           onClick={finish}
@@ -316,27 +352,31 @@ export function OnboardingTour() {
       ) : (
         <div
           className="fixed inset-0 z-[90]"
-          style={{ background: "rgba(4,6,10,0.78)" }}
+          style={{ background: "rgba(4,6,10,0.88)" }}
           onClick={finish}
         />
       )}
 
-      {/* Tooltip de vidrio con flecha apuntando al target. */}
+      {/* Tooltip: tarjeta sólida y legible sobre el backdrop oscuro.
+          overflow-y-auto por si un viewport muy bajo no cabe la tarjeta. */}
       <div
+        ref={tipRef}
         style={{ ...tooltipStyle, zIndex: 100 }}
-        className="ql-glass ql-elev-2 rounded-xl border border-accent/25 bg-[#0d1017]/95 p-5"
+        className={`ql-elev-2 max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-accent/30 bg-[#10141d] p-5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] ${glide ? "ql-tour-glide" : ""}`}
       >
+        {/* Flechas FUERA del contenedor (sin overflow que las corte) y con
+            margen de seguridad para el radio del borde. */}
         {arrow === "left" && (
-          <span className="absolute -left-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 rounded-sm border-l border-b border-accent/25 bg-[#0d1017]" />
+          <span className="pointer-events-none absolute -left-[9px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 rounded-[3px] border-l border-b border-accent/30 bg-[#10141d]" />
         )}
         {arrow === "right" && (
-          <span className="absolute -right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 rounded-sm border-r border-t border-accent/25 bg-[#0d1017]" />
+          <span className="pointer-events-none absolute -right-[9px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 rounded-[3px] border-r border-t border-accent/30 bg-[#10141d]" />
         )}
         {arrow === "top" && (
-          <span className="absolute -top-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 rounded-sm border-l border-t border-accent/25 bg-[#0d1017]" />
+          <span className="pointer-events-none absolute -top-[9px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 rounded-[3px] border-l border-t border-accent/30 bg-[#10141d]" />
         )}
         {arrow === "bottom" && (
-          <span className="absolute -bottom-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 rounded-sm border-r border-b border-accent/25 bg-[#0d1017]" />
+          <span className="pointer-events-none absolute -bottom-[9px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rotate-45 rounded-[3px] border-r border-b border-accent/30 bg-[#10141d]" />
         )}
 
         <div className="flex items-center justify-between gap-3">
