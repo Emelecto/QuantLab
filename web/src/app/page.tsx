@@ -75,8 +75,8 @@ export default function Home() {
           <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
               <h1 className="max-w-3xl text-4xl leading-[1.08] font-semibold tracking-tight text-ink md:text-[56px]">
-                Crea estrategias de trading que de verdad{" "}
-                <span className="text-accent">funcionan.</span>
+                Comunidad de trading{" "}
+                <span className="text-accent">cuantitativo.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
                 Prueba tus ideas en la nube y descubre si realmente ganarían o solo
@@ -109,13 +109,9 @@ export default function Home() {
             Por qué no overfitting
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
-            Es fácil hacer que una estrategia se vea perfecta en el pasado: le das
-            tantas vueltas a los parámetros que &ldquo;aprende de memoria&rdquo; el
-            historial. Eso es sobreajuste (overfitting), y casi siempre falla en el
-            futuro. Nosotros validamos con{" "}
-            <span className="text-ink">walk-forward out-of-sample</span>: entrenamos
-            en una parte de los datos y medimos de verdad en la parte que la
-            estrategia nunca vio.
+            Sobreajustar es aprender de memoria el pasado. Si tu estrategia solo gana
+            con los datos con los que calibraste, no es edge: es recuerdo. El
+            walk-forward OOS mide sobre datos nuevos y esa curva no se puede maquillar.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
