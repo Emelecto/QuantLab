@@ -16,6 +16,12 @@ import {
 } from "@/lib/api";
 import { saveRun } from "@/lib/runs";
 import { saveStrategy, saveBacktestRun } from "@/lib/db";
+import {
+  publishStrategy,
+  submitToTournament,
+  listTournaments,
+  type Tournament,
+} from "@/lib/tournaments";
 
 export default function NewStrategyPage() {
   const router = useRouter();
@@ -40,6 +46,68 @@ export default function NewStrategyPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  // Compartir / torneo
+  const [publishing, setPublishing] = useState(false);
+  const [publishedId, setPublishedId] = useState<string | null>(null);
+  const [publishPrice, setPublishPrice] = useState(0);
+  const [publishDesc, setPublishDesc] = useState("");
+  const [tournaments, setTournaments] = useState<Tournament[] | null>(null);
+  const [tournamentId, setTournamentId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  async function loadTournaments() {
+    if (tournaments) return;
+    try {
+      const list = await listTournaments();
+      setTournaments(list.filter((t) => t.status === "open"));
+    } catch {
+      setTournaments([]);
+    }
+  }
+
+  /** Publica la estrategia actual en el marketplace. */
+  async function handlePublish() {
+    setPublishing(true);
+    setShareMsg(null);
+    try {
+      const res = await publishStrategy({
+        title:
+          config.code.split("\n")[0]?.replace(/^#|def\s+|strategy|:/gi, "").trim().slice(0, 60) ||
+          `Estrategia ${config.symbol}`,
+        description: publishDesc.trim() || undefined,
+        asset_type: config.asset_type,
+        symbol: config.symbol,
+        timeframe: config.timeframe,
+        code: config.code,
+        is_public_code: true,
+        config: { ...config },
+        price_qp_week: Math.max(0, Math.round(publishPrice)),
+      });
+      setPublishedId(res.id);
+      setShareMsg("✅ Estrategia publicada en el marketplace.");
+    } catch (e) {
+      setShareMsg(`❌ ${e instanceof Error ? e.message : "No se pudo publicar."}`);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  /** Envía la estrategia actual a un torneo. */
+  async function handleSubmitToTournament() {
+    if (!tournamentId) return;
+    setSubmitting(true);
+    setShareMsg(null);
+    try {
+      const res = await submitToTournament(tournamentId, config.code, { ...config }, 0);
+      setShareMsg(`✅ Enviada al torneo (submission ${res.id.slice(0, 8)}…, estado ${res.status}).`);
+    } catch (e) {
+      setShareMsg(`❌ ${e instanceof Error ? e.message : "No se pudo enviar al torneo."}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function update<K extends keyof StrategyConfig>(key: K, value: StrategyConfig[K]) {
     setConfig((c) => ({ ...c, [key]: value }));
@@ -462,6 +530,102 @@ export default function NewStrategyPage() {
             <p className="mt-2 text-center text-[11px] text-muted">
               Walk-forward · {config.folds} folds · split {config.split}/{100 - config.split}
             </p>
+
+            {/* Compartir: marketplace o torneo */}
+            <div className="mt-6 border-t border-line pt-5">
+              <h3 className="text-sm font-semibold text-ink">Comparte tu estrategia</h3>
+              {shareMsg && (
+                <p
+                  className={`mt-2 rounded-md border px-3 py-2 text-[12px] ${
+                    shareMsg.startsWith("✅")
+                      ? "border-long/30 bg-long/10 text-long"
+                      : "border-short/30 bg-short/10 text-short"
+                  }`}
+                >
+                  {shareMsg}
+                </p>
+              )}
+
+              {/* Publicar al marketplace */}
+              {!publishedId ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-muted">
+                      Precio (QP/semana, 0 = gratis)
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={publishPrice}
+                      onChange={(e) => setPublishPrice(Number(e.target.value))}
+                      className="ql-input h-9 w-full rounded-md px-3 text-sm text-ink"
+                    />
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={publishDesc}
+                    onChange={(e) => setPublishDesc(e.target.value)}
+                    placeholder="Descripción corta para el marketplace…"
+                    className="ql-input resize-y rounded-md px-3 py-2 text-[13px] text-ink"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePublish}
+                    disabled={publishing}
+                    className={buttonClasses("secondary", "sm") + " w-full justify-center"}
+                  >
+                    {publishing ? "Publicando…" : "Publicar en el marketplace"}
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/app/marketplace"
+                  className="mt-3 block rounded-md border border-long/30 bg-long/10 px-3 py-2 text-center text-[13px] text-long transition-colors hover:bg-long/15"
+                >
+                  Verla en el marketplace →
+                </Link>
+              )}
+
+              {/* Enviar a torneo */}
+              <div className="mt-4 border-t border-line pt-4" onFocus={loadTournaments}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadTournaments();
+                  }}
+                  onMouseEnter={loadTournaments}
+                  className="mb-2 w-full text-left text-[11px] font-medium text-muted hover:text-accent"
+                >
+                  ▤ Enviar a un torneo semanal →
+                </button>
+                {tournaments == null ? null : tournaments.length === 0 ? (
+                  <p className="text-[11px] text-muted">No hay torneos abiertos.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <select
+                      value={tournamentId}
+                      onChange={(e) => setTournamentId(e.target.value)}
+                      className="ql-input h-9 w-full rounded-md px-3 text-[13px] text-ink"
+                    >
+                      <option value="">Elige un torneo abierto…</option>
+                      {tournaments.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.symbols?.join(", ")})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleSubmitToTournament}
+                      disabled={!tournamentId || submitting}
+                      className={buttonClasses("secondary", "sm") + " w-full justify-center"}
+                    >
+                      {submitting ? "Enviando…" : "Enviar al torneo"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <RiskAdvisor
