@@ -5,6 +5,24 @@ export function Footer() {
     <footer className="mt-auto border-t border-line">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-8 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 text-[13px] text-muted">
+          <Link href="/docs" className="transition-colors hover:text-ink">
+            Docs
+          </Link>
+          <span aria-hidden className="text-line">
+            ·
+          </span>
+          <Link href="/changelog" className="transition-colors hover:text-ink">
+            Changelog
+          </Link>
+          <span aria-hidden className="text-line">
+            ·
+          </span>
+          <Link href="/status" className="transition-colors hover:text-ink">
+            Estado
+          </Link>
+          <span aria-hidden className="text-line">
+            ·
+          </span>
           <Link href="/legal" className="transition-colors hover:text-ink">
             Legales
           </Link>

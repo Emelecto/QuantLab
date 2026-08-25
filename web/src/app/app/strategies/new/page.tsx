@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { StrategyEditor, DEFAULT_STRATEGY_CODE } from "@/components/Editor";
 import { RiskAdvisor, StrategyExplainer } from "@/components/studio";
@@ -24,6 +24,14 @@ import {
 } from "@/lib/tournaments";
 
 export default function NewStrategyPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewStrategyPageInner />
+    </Suspense>
+  );
+}
+
+function NewStrategyPageInner() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [config, setConfig] = useState<StrategyConfig>({
@@ -41,6 +49,8 @@ export default function NewStrategyPage() {
   });
   const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
+  // Modo demo (landing → ?demo=1): config precargada lista para correr.
+  const [demoMode, setDemoMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -66,6 +76,40 @@ export default function NewStrategyPage() {
       setTournaments([]);
     }
   }
+
+  // Demo guiada (?demo=1): SMA crossover con config completa lista para correr.
+  // También soporta ?clone=<código> para precargar solo el código.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const demo = searchParams.get("demo");
+    const clone = searchParams.get("clone");
+    if (!demo && !clone) return;
+
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const today = new Date();
+    const yearAgo = new Date(today.getTime() - 365 * 86400 * 1000);
+
+    setConfig((c) => ({
+      ...c,
+      ...(clone ? { code: clone } : {}),
+      ...(demo
+        ? {
+            asset_type: "crypto" as const,
+            symbol: "BTCUSDT",
+            timeframe: "1d" as const,
+            start: iso(yearAgo),
+            end: iso(today),
+          }
+        : {}),
+    }));
+    if (demo) {
+      setDemoMode(true);
+      setImportMsg(
+        "Modo demo: estrategia SMA clásica con datos reales de BTC. Solo pulsa Ejecutar.",
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Publica la estrategia actual en el marketplace. */
   async function handlePublish() {
@@ -187,6 +231,7 @@ export default function NewStrategyPage() {
   async function handleBacktest() {
     setRunning(true);
     setError(null);
+    setDemoMode(false); // el banner demo desaparece al ejecutar
     try {
       const validation = await validateStrategy(config);
       if (!validation.valid) {
@@ -269,7 +314,24 @@ export default function NewStrategyPage() {
             </div>
           </div>
 
-          {importMsg && (
+          {demoMode && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-accent/25 bg-accent/[0.06] px-3 py-2">
+              <p className="text-[12px] text-ink">
+                <strong className="font-semibold">Modo demo:</strong>{" "}
+                configuración lista con datos reales de BTC. Solo pulsa{" "}
+                <em>Ejecutar backtest OOS</em>.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDemoMode(false)}
+                aria-label="Salir del modo demo"
+                className="text-muted transition-colors hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          {importMsg && !demoMode && (
             <p className="rounded-md border border-long/30 bg-long/[0.08] px-3 py-2 text-[12px] text-long">
               {importMsg}
             </p>

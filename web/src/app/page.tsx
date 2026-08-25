@@ -308,7 +308,7 @@ export default function Home() {
             Crea tu cuenta, corre tu primer backtest out-of-sample y compara tu
             resultado con el de la comunidad.
           </p>
-          <div className="mt-7">
+          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2">
             <AuthAwareCTA
               loggedOutLabel="Empieza gratis"
               loggedOutHref="/register"
@@ -316,6 +316,12 @@ export default function Home() {
               loggedInHref="/app"
               size="lg"
             />
+            <Link
+              href={`/app/strategies/new?demo=1`}
+              className="text-sm text-muted underline-offset-4 transition-colors hover:text-accent hover:underline"
+            >
+              Pruébala en 60 segundos — sin escribir código →
+            </Link>
           </div>
         </div>
       </section>
