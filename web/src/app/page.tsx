@@ -102,39 +102,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* BARRA DE CONFIANZA */}
-      <div className="border-b border-line bg-surface/60">
-        <div className="mx-auto w-full max-w-6xl overflow-x-auto px-6 py-3">
-          <div className="flex min-w-max items-center gap-6 font-mono text-[11px] tracking-wide text-muted">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
-              Datos reales Binance
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
-              Yahoo Finance
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
-              Split OOS anti-overfitting
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1 w-1 rounded-full bg-accent" />
-              Sin simulación
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* FRANJA DISCLAIMER */}
-      <div className="border-b border-line bg-surface/60">
-        <div className="mx-auto w-full max-w-6xl px-6 py-3">
-          <p className="metric text-[11px] tracking-wide text-muted uppercase">
-            Herramienta de investigación · No es asesoría financiera.
-          </p>
-        </div>
-      </div>
-
       {/* A2: POR QUÉ NO SOBREAJUSTES */}
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
@@ -325,6 +292,13 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Nota legal mínima al pie */}
+      <div className="border-t border-line">
+        <div className="mx-auto w-full max-w-6xl px-6 py-4">
+          <p className="text-[12px] text-muted">No es asesoría financiera.</p>
+        </div>
+      </div>
     </div>
   );
 }
