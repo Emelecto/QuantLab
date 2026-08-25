@@ -8,6 +8,7 @@ import { BenchmarkComparator } from "@/components/studio/BenchmarkComparator";
 import { buttonClasses } from "@/components/ui/Button";
 import { getRun } from "@/lib/runs";
 import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
+import { publishStrategy } from "@/lib/tournaments";
 import type { BacktestResult } from "@/lib/api";
 
 function Metric({
@@ -81,6 +82,32 @@ export default function ResultsPage() {
   const m = run.metrics;
   const integrityHigh = run.integrity_label === "High";
 
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
+
+  async function handleAddToMarket() {
+    setPublishing(true);
+    setPublishMsg(null);
+    try {
+      const res = await publishStrategy({
+        title: `${run!.config.symbol} · ${run!.config.timeframe}`,
+        description: `Estrategia ${run!.config.asset_type} en ${run!.config.symbol} (${run!.config.timeframe}). Sharpe OOS ${m.sharpe_oos.toFixed(2)}.`,
+        asset_type: run!.config.asset_type,
+        symbol: run!.config.symbol,
+        timeframe: run!.config.timeframe,
+        code: run!.config.code,
+        is_public_code: true,
+        config: { ...run!.config },
+        price_qp_week: 0,
+      });
+      setPublishMsg(`✅ Publicada en el marketplace (id ${res.id.slice(0, 8)}…).`);
+    } catch (e) {
+      setPublishMsg(`❌ ${e instanceof Error ? e.message : "No se pudo publicar."}`);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   function shareLink() {
     const url = `${window.location.origin}/app/strategies/${run!.id}/results`;
     navigator.clipboard.writeText(url).then(() => {
@@ -139,11 +166,26 @@ export default function ResultsPage() {
             <button onClick={shareLink} className={buttonClasses("secondary", "sm")}>
               {copied ? "¡Copiado!" : "Compartir"}
             </button>
+            <button onClick={handleAddToMarket} disabled={publishing} className={buttonClasses("secondary", "sm")}>
+              {publishing ? "Publicando…" : "Agregar al mercado"}
+            </button>
             <button onClick={downloadReport} className={buttonClasses("ghost", "sm")}>
               Descargar reporte
             </button>
           </div>
         </div>
+
+        {publishMsg && (
+          <p
+            className={`mt-3 rounded-md border px-3 py-2 text-[13px] ${
+              publishMsg.startsWith("✅")
+                ? "border-long/30 bg-long/10 text-long"
+                : "border-short/30 bg-short/10 text-short"
+            }`}
+          >
+            {publishMsg}
+          </p>
+        )}
 
         {/* D14: reporte honesto destacado */}
         {run.report && (

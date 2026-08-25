@@ -5,7 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type TourStep = {
   title: string;
   text: string;
-  /** CSS selector del elemento a destacar. null = tooltip centrado sin target. */
+  /**
+   * Selector(es) del elemento a destacar, separados por coma = alternativas.
+   * null = tooltip centrado sin target (bienvenida).
+   */
   selector: string | null;
 };
 
@@ -28,7 +31,7 @@ const STEPS: TourStep[] = [
   {
     title: "Tu wallet de QuantPoints",
     text: "Aquí ves tu balance QP en vivo: gana en torneos, gástalos en el marketplace.",
-    // El badge completo está display:none en móvil; el fallback cubre ambos.
+    // El badge completo está display:none en móvil; el link compacto lo cubre.
     selector: '[data-tour="qp-badge"], a[href="/app/wallet"]',
   },
 ];
@@ -38,11 +41,7 @@ type Rect = { top: number; left: number; width: number; height: number };
 const STORAGE_KEY = "ql_onboarded";
 export const TOUR_EVENT = "ql:start-tour";
 
-/**
- * Busca el primer selector cuyo elemento sea visible (rect válido).
- * Los steps pueden declarar alternativos separados por coma: esto resuelve
- * el badge QP que está display:none en móvil (rect 0×0).
- */
+/** Devuelve el primer elemento visible para los selectores dados. */
 function findVisibleTarget(selector: string): HTMLElement | null {
   for (const sel of selector.split(",")) {
     const el = document.querySelector(sel.trim());
@@ -53,20 +52,19 @@ function findVisibleTarget(selector: string): HTMLElement | null {
   return null;
 }
 
-/** Espera (en rAF) a que el rect del elemento se estabilice tras un scroll suave. */
-function waitStableRect(el: HTMLElement, timeoutMs = 800): Promise<void> {
+/** Espera a que el rect se estabilice tras un scroll suave (máx 1s). */
+function waitStableRect(el: HTMLElement, timeoutMs = 1000): Promise<void> {
   return new Promise((resolve) => {
     let last = JSON.stringify(el.getBoundingClientRect());
     const start = performance.now();
     const tick = () => {
-      const now = performance.now();
       const cur = JSON.stringify(el.getBoundingClientRect());
       if (cur === last) {
         resolve();
         return;
       }
       last = cur;
-      if (now - start > timeoutMs) {
+      if (performance.now() - start > timeoutMs) {
         resolve();
         return;
       }
@@ -82,7 +80,6 @@ export function OnboardingTour() {
   const [rect, setRect] = useState<Rect | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  /** Mide el elemento objetivo en coordenadas de viewport. */
   const measure = useCallback(() => {
     const sel = STEPS[step]?.selector;
     if (!open || !sel) {
@@ -95,20 +92,15 @@ export function OnboardingTour() {
       return;
     }
     const r = el.getBoundingClientRect();
-    // Ignora elementos fuera del viewport (se medirá de nuevo tras el scroll).
-    if (r.bottom < -40 || r.top > window.innerHeight + 40) {
-      setRect(null);
-      return;
-    }
     setRect({
-      top: Math.max(r.top - 8, 0),
-      left: Math.max(r.left - 8, 0),
-      width: Math.min(r.width + 16, window.innerWidth),
-      height: r.height + 16,
+      top: Math.round(r.top),
+      left: Math.round(r.left),
+      width: Math.round(r.width),
+      height: Math.round(r.height),
     });
   }, [step, open]);
 
-  // Al cambiar de paso: scroll suave al elemento, espera a que estabilice y mide.
+  // Al cambiar de paso: scroll al elemento (forzado), espera y mide.
   useEffect(() => {
     if (!open) return;
     const sel = STEPS[step]?.selector;
@@ -133,7 +125,7 @@ export function OnboardingTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, open]);
 
-  // Mientras está abierto, sigue al elemento ante scroll/resize (la "pantalla se mueve con el box").
+  // Sigue al elemento en scroll/resize.
   useEffect(() => {
     if (!open) return;
     const track = () => {
@@ -175,7 +167,6 @@ export function OnboardingTour() {
     return () => clearTimeout(t);
   }, []);
 
-  // Escucha manual start desde el checklist del dashboard.
   useEffect(() => {
     const onStart = () => {
       setStep(0);
@@ -185,7 +176,6 @@ export function OnboardingTour() {
     return () => window.removeEventListener(TOUR_EVENT, onStart);
   }, []);
 
-  // Escape cierra.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -203,13 +193,14 @@ export function OnboardingTour() {
   const next = () => (isLast ? finish() : setStep((s) => s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
 
-  // Tooltip SIEMPRE dentro del viewport, anclado al LADO del target con más
-  // espacio (derecha → izquierda → abajo → arriba). Nunca tapa al target.
+  // Posicionamiento del tooltip: al lado con más espacio. Nunca tapa al target.
   let tooltipStyle: React.CSSProperties;
+  let arrow: "top" | "bottom" | "left" | "right" | null = null;
   if (rect) {
-    const estW = 320;
-    const estH = 190;
-    const gap = 12;
+    const TW = 320;
+    const TH = 200;
+    const GAP = 14;
+    const M = 16;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
@@ -218,28 +209,28 @@ export function OnboardingTour() {
     const spaceBelow = vh - (rect.top + rect.height);
     const spaceAbove = rect.top;
 
-    let top: number;
-    let left: number;
+    let top = 0;
+    let left = 0;
 
-    if (spaceRight >= estW + gap * 2 && spaceRight >= spaceLeft) {
-      // A la derecha del target.
-      left = Math.min(rect.left + rect.width + gap, vw - estW - 16);
-      top = Math.min(Math.max(rect.top, 16), Math.max(vh - estH - 16, 16));
-    } else if (spaceLeft >= estW + gap * 2) {
-      // A la izquierda del target.
-      left = Math.max(rect.left - estW - gap, 16);
-      top = Math.min(Math.max(rect.top, 16), Math.max(vh - estH - 16, 16));
-    } else if (spaceBelow > estH + gap * 2 || spaceBelow >= spaceAbove) {
-      // Debajo del target.
-      left = Math.min(Math.max(rect.left, 16), vw - estW - 16);
-      top = Math.min(rect.top + rect.height + gap, Math.max(vh - estH - 16, 16));
+    if (spaceRight >= TW + GAP * 2 && spaceRight >= spaceLeft) {
+      left = Math.min(rect.left + rect.width + GAP, vw - TW - M);
+      top = Math.min(Math.max(rect.top, M), Math.max(vh - TH - M, M));
+      arrow = "left";
+    } else if (spaceLeft >= TW + GAP * 2) {
+      left = Math.max(rect.left - TW - GAP, M);
+      top = Math.min(Math.max(rect.top, M), Math.max(vh - TH - M, M));
+      arrow = "right";
+    } else if (spaceBelow >= TH + GAP * 2 || spaceBelow >= spaceAbove) {
+      left = Math.min(Math.max(rect.left + rect.width / 2 - TW / 2, M), vw - TW - M);
+      top = Math.min(rect.top + rect.height + GAP, Math.max(vh - TH - M, M));
+      arrow = "top";
     } else {
-      // Encima del target.
-      left = Math.min(Math.max(rect.left, 16), vw - estW - 16);
-      top = Math.max(rect.top - estH - gap, 16);
+      left = Math.min(Math.max(rect.left + rect.width / 2 - TW / 2, M), vw - TW - M);
+      top = Math.max(rect.top - TH - GAP, M);
+      arrow = "bottom";
     }
 
-    tooltipStyle = { position: "fixed", top, left, maxWidth: estW };
+    tooltipStyle = { position: "fixed", top, left, maxWidth: TW, width: TW };
   } else {
     tooltipStyle = {
       position: "fixed",
@@ -253,34 +244,47 @@ export function OnboardingTour() {
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Tour de bienvenida">
-      {/* Spotlight: recorte alrededor del target que lo SIGUE con scroll/resize. */}
+      {/* Spotlight sobre el elemento objetivo (recorte + halo). */}
       {rect ? (
         <div
-          className="pointer-events-auto fixed z-[90] rounded-xl transition-[top,left,width,height] duration-100"
+          className="pointer-events-auto fixed z-[90] rounded-xl transition-[top,left,width,height] duration-150"
           style={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-            boxShadow: "0 0 0 9999px rgba(4,6,10,0.74)",
-            outline: "2px solid rgba(248,250,252,0.45)",
-            outlineOffset: "-2px",
+            top: rect.top - 6,
+            left: rect.left - 6,
+            width: rect.width + 12,
+            height: rect.height + 12,
+            boxShadow: "0 0 0 9999px rgba(4,6,10,0.78)",
+            outline: "2px solid rgba(248,250,252,0.6)",
+            outlineOffset: "-1px",
           }}
           onClick={finish}
         />
       ) : (
         <div
           className="fixed inset-0 z-[90]"
-          style={{ background: "rgba(4,6,10,0.74)" }}
+          style={{ background: "rgba(4,6,10,0.78)" }}
           onClick={finish}
         />
       )}
 
-      {/* Tooltip de vidrio */}
+      {/* Tooltip de vidrio con flecha apuntando al target. */}
       <div
         style={{ ...tooltipStyle, zIndex: 100 }}
-        className={`ql-glass ql-elev-2 rounded-xl border border-accent/25 bg-[#0d1017]/95 p-5 transition-all duration-150`}
+        className="ql-glass ql-elev-2 rounded-xl border border-accent/25 bg-[#0d1017]/95 p-5"
       >
+        {arrow === "left" && (
+          <span className="absolute -left-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 rounded-sm border-l border-b border-accent/25 bg-[#0d1017]" />
+        )}
+        {arrow === "right" && (
+          <span className="absolute -right-2 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 rounded-sm border-r border-t border-accent/25 bg-[#0d1017]" />
+        )}
+        {arrow === "top" && (
+          <span className="absolute -top-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 rounded-sm border-l border-t border-accent/25 bg-[#0d1017]" />
+        )}
+        {arrow === "bottom" && (
+          <span className="absolute -bottom-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 rounded-sm border-r border-b border-accent/25 bg-[#0d1017]" />
+        )}
+
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-ink">{current.title}</h3>
           <span className="font-mono text-xs text-muted">
@@ -312,7 +316,6 @@ export function OnboardingTour() {
             </button>
           </div>
         </div>
-        {/* Puntos de progreso */}
         <div className="mt-3 flex justify-center gap-1.5">
           {STEPS.map((_, i) => (
             <span
