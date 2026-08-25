@@ -36,35 +36,40 @@ function MetricCard({
   );
 }
 
-function OnboardingChecklist({ hasActivity = false }: { hasActivity?: boolean }) {
-  const ITEMS = [
-    { key: "ql_did_backtest", label: "Completa tu primer backtest" },
-    { key: "ql_joined_tournament", label: "Únete a un torneo" },
-    { key: "ql_published", label: "Publica una estrategia" },
-  ] as const;
-
+function OnboardingChecklist({
+  didBacktest,
+  joinedTournament,
+  published,
+  loaded,
+}: {
+  didBacktest: boolean;
+  joinedTournament: boolean;
+  published: boolean;
+  loaded: boolean;
+}) {
   // Persistencia del descarte manual del usuario (sobrevive recargas).
   const DISMISSED_KEY = "ql:dismissed-steps";
-
-  const [done, setDone] = useState<boolean[]>([false, false, false]);
   const [dismissed, setDismissed] = useState(false);
 
+  // Hasta que sepamos el estado real (tras cargar runs/submissions) no
+  // decidimos mostrar u ocultar → evita el "salto" de layout.
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     try {
-      setDone(ITEMS.map((it) => localStorage.getItem(it.key) === "1"));
       setDismissed(localStorage.getItem(DISMISSED_KEY) === "1");
     } catch {
       /* noop */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setHydrated(true);
   }, []);
 
+  const done = [didBacktest, joinedTournament, published];
   const completed = done.filter(Boolean).length;
-  const allDone = completed === ITEMS.length;
+  const allDone = completed === done.length;
 
-  // Ocultar la tarjeta cuando el usuario ya completó el onboarding, la
-  // descartó manualmente, o ya es recurrente (tiene runs/estrategias previas).
-  if (allDone || dismissed || hasActivity) return null;
+  // Solo ocultamos si el usuario lo descartó manualmente. Permanece visible
+  // el tiempo que el usuario quiera, marcando pasos reales según avanza.
+  if (!hydrated || dismissed) return null;
 
   const dismiss = () => {
     setDismissed(true);
@@ -74,6 +79,12 @@ function OnboardingChecklist({ hasActivity = false }: { hasActivity?: boolean })
       /* noop */
     }
   };
+
+  const ITEMS = [
+    { key: "backtest", label: "Completa tu primer backtest", done: didBacktest },
+    { key: "tournament", label: "Únete a un torneo", done: joinedTournament },
+    { key: "publish", label: "Publica una estrategia", done: published },
+  ];
 
   return (
     <div className="ql-glass ql-elev-1 mt-6 rounded-xl p-5">
@@ -100,12 +111,12 @@ function OnboardingChecklist({ hasActivity = false }: { hasActivity?: boolean })
         />
       </div>
       <ul className="mt-4 flex flex-col gap-2.5">
-        {ITEMS.map((item, i) => (
+        {ITEMS.map((item) => (
           <li key={item.key} className="flex items-center gap-2.5 text-sm">
             <span
               aria-hidden
               className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border ${
-                done[i]
+                item.done
                   ? "border-accent bg-accent/15 text-accent"
                   : "border-line text-transparent"
               }`}
@@ -115,7 +126,9 @@ function OnboardingChecklist({ hasActivity = false }: { hasActivity?: boolean })
                 <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <span className={done[i] ? "text-muted line-through" : "text-ink"}>{item.label}</span>
+            <span className={item.done ? "text-muted line-through" : "text-ink"}>
+              {item.label}
+            </span>
           </li>
         ))}
       </ul>
@@ -134,6 +147,9 @@ function DashboardContent() {
   const email = user?.email ?? "";
   const [displayName, setDisplayName] = useState<string>("");
   const [runs, setRuns] = useState<BacktestResult[]>([]);
+  const [statusLoaded, setStatusLoaded] = useState(false);
+  const [joinedTournament, setJoinedTournament] = useState(false);
+  const [published, setPublished] = useState(false);
 
   // Carga el nombre a mostrar desde profiles (username > display_name > email).
   useEffect(() => {
@@ -163,6 +179,41 @@ function DashboardContent() {
   useEffect(() => {
     setRuns(getRuns());
   }, []);
+
+  // Estado real de torneo / publicación para la checklist de Primeros pasos.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { createBrowserSupabaseClient } = await import(
+          "@/lib/supabase/client"
+        );
+        const supabase = createBrowserSupabaseClient();
+        const uid = (await supabase.auth.getUser()).data.user?.id;
+        if (!uid) return;
+        const [{ count: subCount }, { count: pubCount }] = await Promise.all([
+          supabase
+            .from("submissions")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", uid),
+          supabase
+            .from("marketplace_strategies")
+            .select("*", { count: "exact", head: true })
+            .eq("author_id", uid),
+        ]);
+        if (!active) return;
+        setJoinedTournament((subCount ?? 0) > 0);
+        setPublished((pubCount ?? 0) > 0);
+      } catch {
+        /* noop: la checklist simplemente queda en 0 */
+      } finally {
+        if (active) setStatusLoaded(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (runs.length === 0) {
@@ -265,7 +316,12 @@ function DashboardContent() {
           </Link>
         </div>
 
-        <OnboardingChecklist hasActivity={runs.length > 0} />
+        <OnboardingChecklist
+          didBacktest={runs.length > 0}
+          joinedTournament={joinedTournament}
+          published={published}
+          loaded={statusLoaded}
+        />
 
         {/* B7: tarjetas resumen */}
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
