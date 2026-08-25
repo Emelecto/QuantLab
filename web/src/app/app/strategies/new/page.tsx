@@ -23,9 +23,12 @@ import {
   type Tournament,
 } from "@/lib/tournaments";
 
+// Esta página usa useSearchParams (demo/clone) → debe ser dinámica, no prerender.
+export const dynamic = "force-dynamic";
+
 export default function NewStrategyPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="p-6 text-muted">Cargando editor…</div>}>
       <NewStrategyPageInner />
     </Suspense>
   );

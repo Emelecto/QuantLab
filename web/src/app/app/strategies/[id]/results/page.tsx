@@ -39,6 +39,8 @@ export default function ResultsPage() {
   const [run, setRun] = useState<BacktestResult | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const local = getRun(params.id);
@@ -81,9 +83,6 @@ export default function ResultsPage() {
 
   const m = run.metrics;
   const integrityHigh = run.integrity_label === "High";
-
-  const [publishing, setPublishing] = useState(false);
-  const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   async function handleAddToMarket() {
     setPublishing(true);
