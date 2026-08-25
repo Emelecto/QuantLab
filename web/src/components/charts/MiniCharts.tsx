@@ -69,8 +69,9 @@ function useMiniChart(
         vertLines: { color: "rgba(255,255,255,0.03)" },
         horzLines: { color: "rgba(255,255,255,0.03)" },
       },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
+      rightPriceScale: { borderVisible: false, visible: false },
+      // Sin eje temporal: la sección ya lo explica con texto; el gráfico es pura forma.
+      timeScale: { borderVisible: false, visible: false },
       handleScroll: false,
       handleScale: false,
       crosshair: { mode: 0 },

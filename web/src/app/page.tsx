@@ -106,7 +106,7 @@ export default function Home() {
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
-            Por qué no sobreajustes
+            Por qué no overfitting
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
             Es fácil hacer que una estrategia se vea perfecta en el pasado: le das
@@ -121,7 +121,7 @@ export default function Home() {
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <Card className="p-5">
               <h3 className="text-[15px] font-semibold text-short">
-                Curva sobreajustada (en muestra)
+                Curva overfitted (en muestra)
               </h3>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
                 Sube sin parar en el histórico&hellip; y luego se desploma. Bonito en
