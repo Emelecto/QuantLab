@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TourStep = {
   title: string;
@@ -29,7 +30,8 @@ const STEPS: TourStep[] = [
   {
     title: "Compite en torneos",
     text: "Envía tu estrategia a torneos semanales, súbete en el ranking y gana QP.",
-    selector: 'a[href="/app/tournaments"]',
+    // data-tour explícito; fallback al href si el atributo no existe.
+    selector: '[data-tour="tournaments-link"], a[href="/app/tournaments"]',
   },
   {
     title: "Tu wallet de QuantPoints",
@@ -50,13 +52,16 @@ type Rect = { top: number; left: number; width: number; height: number };
 const STORAGE_KEY = "ql_onboarded";
 export const TOUR_EVENT = "ql:start-tour";
 
-/** Devuelve el primer elemento visible para los selectores dados. */
+/** Devuelve el primer elemento VISIBLE para los selectores dados.
+ *  Usa querySelectorAll: si el primer match está oculto (variante
+ *  móvil/desktop del mismo link), prueba los siguientes en lugar de rendirse. */
 function findVisibleTarget(selector: string): HTMLElement | null {
   for (const sel of selector.split(",")) {
-    const el = document.querySelector(sel.trim());
-    if (!el) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) return el as HTMLElement;
+    const candidates = document.querySelectorAll(sel.trim());
+    for (const el of candidates) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return el as HTMLElement;
+    }
   }
   return null;
 }
@@ -282,7 +287,11 @@ export function OnboardingTour() {
     };
   }
 
-  return (
+  // Portal a <body>: si el tour viviera dentro de <main>, el transform
+  // residual de ql-fade-in (fill-mode both en el CSS global) volvería a main
+  // el containing block de los position:fixed y TODO se desplazaría — tooltip
+  // "muy abajo" y spotlights que no apuntan al elemento real.
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Tour de bienvenida">
       {/* Única animación permitida: opacidad al aparecer cada paso. La posición
           del spotlight NO se interpola, así sigue al elemento sin lag. */}
@@ -382,6 +391,7 @@ export function OnboardingTour() {
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

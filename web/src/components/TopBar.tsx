@@ -73,6 +73,7 @@ export function TopBar() {
             </Link>
             <Link
               href="/app/tournaments"
+              data-tour="tournaments-link"
               className="text-sm text-muted transition-colors hover:text-ink"
             >
               Torneos
