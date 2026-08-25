@@ -31,6 +31,12 @@ export type LeaderboardRow = {
   maxDd: number;
   /** Win rate en %. */
   winRate: number;
+  /**
+   * Reputación del autor: media de sus últimos 5 envíos evaluados
+   * (la calcula el worker sobre las submissions). Ausente o null si
+   * aún no hay envíos con puntaje.
+   */
+  reputation_score?: number | null;
 };
 
 export type SupabaseRun = {
@@ -199,6 +205,37 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
     };
   }>;
 
+  // Reputación por autor (estilo Numerai): media de las últimas 5 submissions
+  // evaluadas del usuario (primary_score, más reciente primero). Null si no hay
+  // envíos con puntaje — jamás se inventa valor.
+  const repByUsername = new Map<string, number>();
+  {
+    const supabaseSubs = getSupabase();
+    const { data: subs } = await supabaseSubs
+      .from("submissions")
+      .select("primary_score, submitted_at, profiles(username)")
+      .not("primary_score", "is", null)
+      .order("submitted_at", { ascending: false })
+      .limit(500);
+    type SubRow = {
+      primary_score: number | null;
+      profiles: { username: string | null } | null;
+    };
+    const acc = new Map<string, number[]>();
+    for (const s of ((subs ?? []) as unknown as SubRow[])) {
+      const u = s.profiles?.username;
+      if (!u || s.primary_score == null) continue;
+      const list = acc.get(u) ?? [];
+      if (list.length < 5) list.push(s.primary_score);
+      acc.set(u, list);
+    }
+    for (const [u, v] of acc.entries()) {
+      if (v.length > 0) {
+        repByUsername.set(u, v.reduce((a, b) => a + b, 0) / v.length);
+      }
+    }
+  }
+
   // Un run por estrategia (el más reciente) para no duplicar en el ranking.
   const byStrategy = new Map<string, (typeof rows)[number]>();
   for (const r of rows) {
@@ -222,6 +259,10 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
       deflatedSharpeOos: m.deflated_sharpe_oos ?? 0,
       maxDd: (m.maxdd ?? 0) * 100,
       winRate: (m.winrate ?? 0) * 100,
+      reputation_score:
+        (r.strategies.profiles?.username &&
+          repByUsername.get(r.strategies.profiles.username)) ||
+        null,
     };
   });
 

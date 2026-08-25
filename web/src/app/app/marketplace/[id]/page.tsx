@@ -10,6 +10,7 @@ import { getMarketplaceStrategy, type MarketplaceStrategy } from "@/lib/tokens";
 import { getStrategySignals, type Signal } from "@/lib/tournaments";
 import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
 import type { BacktestResult } from "@/lib/api";
+import CommentsThread from "@/components/marketplace/CommentsThread";
 
 function Metric({
   label,
@@ -388,6 +389,11 @@ export default function StrategyDetailPage() {
           <p className="mt-2 text-[10px] text-muted">
             Las señales son informativas. No es asesoría financiera.
           </p>
+        </div>
+
+        {/* Comentarios */}
+        <div className="mt-8">
+          <CommentsThread strategyId={strategy.id} />
         </div>
       </section>
     </main>

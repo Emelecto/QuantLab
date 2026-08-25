@@ -79,7 +79,7 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <div className="ql-glass overflow-x-auto">
-              <table className="w-full min-w-[820px] border-collapse text-left">
+              <table className="w-full min-w-[900px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-line">
                     <th className="metric px-4 py-3 text-[11px] font-medium tracking-wider text-muted uppercase">
@@ -96,6 +96,12 @@ export default function LeaderboardPage() {
                     </th>
                     <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
                       Deflated Sharpe OOS
+                    </th>
+                    <th
+                      className="hidden px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase md:table-cell"
+                      title="Media de los últimos 5 envíos evaluados del autor"
+                    >
+                      Reputación
                     </th>
                     <th className="px-4 py-3 text-right text-[11px] font-medium tracking-wider text-muted uppercase">
                       MaxDD
@@ -130,6 +136,13 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="metric px-4 py-3 text-right text-[13px] font-medium text-long">
                         {row.deflatedSharpeOos.toFixed(2)}
+                      </td>
+                      <td className="metric hidden px-4 py-3 text-right text-[13px] text-ink md:table-cell">
+                        {row.reputation_score != null ? (
+                          row.reputation_score.toFixed(2)
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
                       </td>
                       <td className="metric px-4 py-3 text-right text-[13px] text-short">
                         {row.maxDd.toFixed(1)}%
