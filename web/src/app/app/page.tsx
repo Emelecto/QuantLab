@@ -36,12 +36,15 @@ function MetricCard({
   );
 }
 
-function OnboardingChecklist() {
+function OnboardingChecklist({ hasActivity = false }: { hasActivity?: boolean }) {
   const ITEMS = [
     { key: "ql_did_backtest", label: "Completa tu primer backtest" },
     { key: "ql_joined_tournament", label: "Únete a un torneo" },
     { key: "ql_published", label: "Publica una estrategia" },
   ] as const;
+
+  // Persistencia del descarte manual del usuario (sobrevive recargas).
+  const DISMISSED_KEY = "ql:dismissed-steps";
 
   const [done, setDone] = useState<boolean[]>([false, false, false]);
   const [dismissed, setDismissed] = useState(false);
@@ -49,12 +52,7 @@ function OnboardingChecklist() {
   useEffect(() => {
     try {
       setDone(ITEMS.map((it) => localStorage.getItem(it.key) === "1"));
-      const allDone = ITEMS.every((it) => localStorage.getItem(it.key) === "1");
-      if (allDone) {
-        // Se completa solo: colapsar tras unos segundos no es necesario; lo ocultamos.
-        const t = setTimeout(() => setDismissed(true), 4000);
-        return () => clearTimeout(t);
-      }
+      setDismissed(localStorage.getItem(DISMISSED_KEY) === "1");
     } catch {
       /* noop */
     }
@@ -62,14 +60,36 @@ function OnboardingChecklist() {
   }, []);
 
   const completed = done.filter(Boolean).length;
-  if (dismissed && completed === ITEMS.length) return null;
+  const allDone = completed === ITEMS.length;
+
+  // Ocultar la tarjeta cuando el usuario ya completó el onboarding, la
+  // descartó manualmente, o ya es recurrente (tiene runs/estrategias previas).
+  if (allDone || dismissed || hasActivity) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(DISMISSED_KEY, "1");
+    } catch {
+      /* noop */
+    }
+  };
 
   return (
     <div className="ql-glass ql-elev-1 mt-6 rounded-xl p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-ink">Primeros pasos</h2>
-        <span className="font-mono text-xs text-muted">
-          {completed}/{ITEMS.length}
+        <span className="flex items-center gap-3">
+          <span className="font-mono text-xs text-muted">
+            {completed}/{ITEMS.length}
+          </span>
+          <button
+            onClick={dismiss}
+            className="text-xs text-muted transition-colors hover:text-ink"
+            aria-label="No volver a mostrar Primeros pasos"
+          >
+            No mostrar
+          </button>
         </span>
       </div>
       {/* Barra de progreso */}
@@ -245,7 +265,7 @@ function DashboardContent() {
           </Link>
         </div>
 
-        <OnboardingChecklist />
+        <OnboardingChecklist hasActivity={runs.length > 0} />
 
         {/* B7: tarjetas resumen */}
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
