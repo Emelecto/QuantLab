@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { getPublicProfile } from "@/lib/tokens";
-import { getProfileTournamentHistory, type TournamentSummary } from "@/lib/tournaments";
+import { getProfileTournamentHistory } from "@/lib/tournaments";
+import { ModelsByStrategy } from "../components/ModelsByStrategy";
 import { QPBadge } from "../components/QPBadge";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { buttonClasses } from "@/components/ui/Button";
@@ -190,7 +191,7 @@ export default function ProfilePage() {
               {/* Badges */}
               {profile.badges.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {profile.badges.map((b: any) => (
+                  {profile.badges.map((b: string) => (
                     <Badge key={b} tone="cyan" mono>
                       {b}
                     </Badge>
@@ -237,7 +238,11 @@ export default function ProfilePage() {
 
       {/* Contenido del perfil */}
       <section>
-        <div className="mx-auto w-full max-w-6xl px-6 py-10 grid gap-8 lg:grid-cols-2">
+        <div className="mx-auto w-full max-w-6xl px-6 pt-10">
+          {/* Mis modelos: una fila por estrategia enviada a torneos, con historial de rounds */}
+          <ModelsByStrategy userId={params.id} />
+        </div>
+        <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 lg:grid-cols-2">
           {/* Estrategias publicadas */}
           <div>
             <h2 className="text-lg font-semibold text-ink mb-4">
