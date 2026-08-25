@@ -7,6 +7,7 @@ import {
   createStrategyComment,
   deleteStrategyComment,
   listStrategyComments,
+  reportContent,
   type StrategyComment,
 } from "@/lib/comments";
 
@@ -40,12 +41,38 @@ function CommentRow({
   isOwn,
   deleting,
   onDelete,
+  onReport,
 }: {
   comment: StrategyComment;
   isOwn: boolean;
   deleting: boolean;
   onDelete: (id: string) => void;
+  onReport: (id: string, reason: string) => Promise<void>;
 }) {
+  // Estado local del flujo de reporte de ESTE comentario.
+  const [reporting, setReporting] = useState(false);
+  const [reason, setReason] = useState("");
+  const [reported, setReported] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  async function submitReport() {
+    const r = reason.trim();
+    if (!r || reporting || reported) return;
+    setReporting(true);
+    setReportError(null);
+    try {
+      await onReport(comment.id, r);
+      setReported(true);
+      setReason("");
+    } catch (e) {
+      setReportError(
+        e instanceof Error ? e.message : "No se pudo enviar el reporte.",
+      );
+    } finally {
+      setReporting(false);
+    }
+  }
+
   return (
     <li className="ql-row flex items-start gap-3 px-5 py-4">
       {/* Avatar con inicial */}
@@ -76,8 +103,8 @@ function CommentRow({
         </p>
       </div>
 
-      {/* Borrar solo tus propios comentarios */}
-      {isOwn && (
+      {/* Borrar solo tus propios comentarios; reportar los ajenos */}
+      {isOwn ? (
         <button
           type="button"
           onClick={() => onDelete(comment.id)}
@@ -92,6 +119,54 @@ function CommentRow({
         >
           {deleting ? "…" : "✕"}
         </button>
+      ) : reported ? (
+        <span className="metric shrink-0 text-[11px] text-long">Reportado</span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setReporting((v) => !v)}
+          title="Reportar comentario"
+          aria-label="Reportar comentario"
+          className={`metric shrink-0 rounded-md px-1.5 py-1 text-[11px] transition-colors ${
+            reporting
+              ? "bg-surface text-accent"
+              : "text-muted hover:bg-surface hover:text-accent"
+          }`}
+        >
+          ⚑
+        </button>
+      )}
+      {reporting && !reported && (
+        <div className="mt-2 w-full">
+          <textarea
+            rows={2}
+            maxLength={500}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="¿Por qué lo reportas? (máx. 500 caracteres)"
+            className="ql-input w-full resize-y rounded-md px-3 py-2 text-[12px] text-ink"
+          />
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void submitReport()}
+              disabled={!reason.trim() || reporting}
+              className="rounded-md border border-line px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:border-accent/40 hover:text-ink disabled:opacity-50"
+            >
+              {reporting ? "Enviando…" : "Enviar reporte"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setReporting(false)}
+              className="text-[11px] text-muted transition-colors hover:text-ink"
+            >
+              Cancelar
+            </button>
+            {reportError && (
+              <span className="text-[11px] text-short">{reportError}</span>
+            )}
+          </div>
+        </div>
       )}
     </li>
   );
@@ -212,6 +287,9 @@ export default function CommentsThread({ strategyId }: { strategyId: string }) {
                 isOwn={viewerId != null && c.author_id === viewerId}
                 deleting={deletingId === c.id}
                 onDelete={handleDelete}
+                onReport={async (id, reason) => {
+                  await reportContent("comment", id, reason);
+                }}
               />
             ))}
           </ul>

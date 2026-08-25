@@ -77,3 +77,15 @@ export async function createStrategyComment(
 export async function deleteStrategyComment(commentId: string): Promise<void> {
   await call<void>(`/comments/${commentId}`, { method: "DELETE" });
 }
+
+/** Reporta contenido (comentario o estrategia) a moderación. */
+export async function reportContent(
+  targetType: "comment" | "marketplace_strategy",
+  targetId: string,
+  reason: string,
+): Promise<{ id?: string; status?: string }> {
+  return call<{ id?: string; status?: string }>(`/moderation/report`, {
+    method: "POST",
+    body: JSON.stringify({ target_type: targetType, target_id: targetId, reason }),
+  });
+}

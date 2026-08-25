@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import logging
+import time
+from collections import defaultdict, deque
 
 from fastapi import APIRouter, HTTPException, Request
 from auth import require_user
@@ -16,6 +18,24 @@ router = APIRouter(prefix="", tags=["comments"])
 # Límite de comentarios por página (coincide con el default del endpoint).
 _DEFAULT_LIMIT = 50
 _MAX_LIMIT = 100
+
+# Rate limit in-memory: máx 5 comentarios por usuario por minuto.
+_RATE_LIMIT = 5
+_RATE_WINDOW = 60.0
+_comment_times: dict[str, deque] = defaultdict(deque)
+
+
+def _check_rate_limit(uid: str) -> None:
+    """Lanza 429 si el usuario supera el límite. Reinicio limpio en tests."""
+    now = time.monotonic()
+    window = _comment_times[uid]
+    while window and now - window[0] > _RATE_WINDOW:
+        window.popleft()
+    if len(window) >= _RATE_LIMIT:
+        raise HTTPException(
+            429, "Demasiados comentarios seguidos. Espera un minuto."
+        )
+    window.append(now)
 
 
 def get_supabase():
@@ -33,6 +53,7 @@ class CommentBody(BaseModel):
 def create_comment(strategy_id: str, payload: CommentBody, request: Request):
     """Crea un comentario en una estrategia del marketplace (requiere auth)."""
     uid = require_user(request)
+    _check_rate_limit(uid)
     sb = get_supabase()
 
     # Validar cuerpo: entre 1 y 2000 caracteres (igual que el CHECK de la DB).
