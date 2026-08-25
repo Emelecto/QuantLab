@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { EquityChart } from "@/components/EquityChart";
 import { BenchmarkComparator } from "@/components/studio/BenchmarkComparator";
@@ -36,6 +36,7 @@ function Metric({
 
 export default function ResultsPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [run, setRun] = useState<BacktestResult | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -100,6 +101,9 @@ export default function ResultsPage() {
         price_qp_week: 0,
       });
       setPublishMsg(`✅ Publicada en el marketplace (id ${res.id.slice(0, 8)}…).`);
+      // Reflejo inmediato: llevar al usuario al marketplace, donde su
+      // estrategia ya aparece (la página carga la lista al montar).
+      router.push("/app/marketplace");
     } catch (e) {
       setPublishMsg(`❌ ${e instanceof Error ? e.message : "No se pudo publicar."}`);
     } finally {

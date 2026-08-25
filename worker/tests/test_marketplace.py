@@ -5,25 +5,66 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 
-def test_publish_strategy(mock_supabase):
-    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(
-        data=[{"id": "strat-1"}]
-    )
+def test_publish_strategy_inserts_and_returns_id(mock_supabase):
+    """POST /marketplace/publish debe insertar TODOS los campos requeridos por
+    supabase/migrations/0002_tournaments_marketplace.sql y devolver {'id': ...}."""
+    inserted: dict = {}
+
+    def capture_insert(payload):
+        inserted.update(payload)
+        return MagicMock(
+            execute=MagicMock(return_value=MagicMock(data=[{"id": "gen-strat-id"}]))
+        )
+
+    mock_supabase.table.return_value.insert.side_effect = capture_insert
+
     with patch("tournaments.get_supabase", return_value=mock_supabase):
-        from tournaments import marketplace_publish
-        body = MagicMock(
-            title="Test Strategy",
-            description="Desc",
-            tags=["btc"],
+        from tournaments import PublishBody, marketplace_publish
+
+        body = PublishBody(
+            title="BTC · 1d",
+            description="Estrategia crypto en BTCUSDT (1d).",
+            tags=["btc", "trend"],
             asset_type="crypto",
             symbol="BTCUSDT",
             timeframe="1d",
+            code="fast=20,slow=50",
+            is_public_code=True,
             config={"fast": 20, "slow": 50},
-            is_public_code=False,
             price_qp_week=10,
         )
         result = marketplace_publish(body, MagicMock())
-        assert result["id"] == "strat-1"
+        # Devuelve el id generado.
+        assert result == {"id": "gen-strat-id"}
+
+        # Campos requeridos por el esquema (NOT NULL / obligatorios del flujo).
+        for field in (
+            "author_id",
+            "title",
+            "slug",
+            "description",
+            "tags",
+            "asset_type",
+            "symbol",
+            "timeframe",
+            "config",
+            "price_qp_week",
+            "status",
+            "published_at",
+        ):
+            assert field in inserted, f"Falta el campo requerido '{field}' en el insert"
+
+        # Valores correctos.
+        assert inserted["status"] == "published"
+        assert inserted["author_id"] == "00000000-0000-0000-0000-000000000001"  # uid fijo TESTING
+        assert inserted["title"] == "BTC · 1d"
+        assert inserted["symbol"] == "BTCUSDT"
+        assert inserted["asset_type"] == "crypto"
+        assert inserted["timeframe"] == "1d"
+        assert inserted["config"] == {"fast": 20, "slow": 50}
+        assert inserted["price_qp_week"] == 10
+        assert inserted["is_public_code"] is True
+        assert isinstance(inserted["slug"], str) and inserted["slug"]
 
 
 def test_marketplace_list(mock_supabase):
