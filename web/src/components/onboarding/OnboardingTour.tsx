@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type TourStep = {
@@ -10,6 +11,8 @@ type TourStep = {
    * null = tooltip centrado sin target (bienvenida).
    */
   selector: string | null;
+  /** Botón extra opcional dentro del tooltip que navega a href. */
+  cta?: { label: string; href: string };
 };
 
 const STEPS: TourStep[] = [
@@ -33,6 +36,12 @@ const STEPS: TourStep[] = [
     text: "Aquí ves tu balance QP en vivo: gana en torneos, gástalos en el marketplace.",
     // El badge completo está display:none en móvil; el link compacto lo cubre.
     selector: '[data-tour="qp-badge"], a[href="/app/wallet"]',
+  },
+  {
+    title: "Envía tu primer modelo",
+    text: "Cuando tu estrategia esté lista, envíala al round activo del torneo para recibir tu primer score oficial.",
+    selector: null,
+    cta: { label: "Crear mi primer modelo →", href: "/app/strategies/new" },
   },
 ];
 
@@ -75,6 +84,7 @@ function waitStableRect(el: HTMLElement, timeoutMs = 1000): Promise<void> {
 }
 
 export function OnboardingTour() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
@@ -125,7 +135,7 @@ export function OnboardingTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, open]);
 
-  // Sigue al elemento en scroll/resize.
+  // Sigue al elemento en scroll/resize y re-mide ante cualquier cambio de layout.
   useEffect(() => {
     if (!open) return;
     const track = () => {
@@ -137,9 +147,14 @@ export function OnboardingTour() {
     };
     window.addEventListener("scroll", track, true);
     window.addEventListener("resize", track);
+    // El dashboard carga datos asíncronos que mueven el layout después de la
+    // medición inicial: ResizeObserver re-mide en vivo mientras el tour esté abierto.
+    const ro = new ResizeObserver(track);
+    ro.observe(document.body);
     return () => {
       window.removeEventListener("scroll", track, true);
       window.removeEventListener("resize", track);
+      ro.disconnect();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
   }, [open, measure]);
@@ -154,7 +169,8 @@ export function OnboardingTour() {
     }
   }, []);
 
-  // Auto-inicio en la primera visita.
+  // Auto-inicio en la primera visita, solo cuando el layout haya asentado:
+  // window "load" + document.fonts.ready + 600 ms extra.
   useEffect(() => {
     let onboarded = false;
     try {
@@ -163,8 +179,31 @@ export function OnboardingTour() {
       /* noop */
     }
     if (onboarded) return;
-    const t = setTimeout(() => setOpen(true), 800);
-    return () => clearTimeout(t);
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const startCountdown = () => {
+      document.fonts.ready
+        .catch(() => undefined)
+        .then(() => {
+          timer = setTimeout(() => {
+            if (!cancelled) setOpen(true);
+          }, 600);
+        });
+    };
+
+    if (document.readyState === "complete") {
+      startCountdown();
+    } else {
+      window.addEventListener("load", startCountdown, { once: true });
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer != null) clearTimeout(timer);
+      window.removeEventListener("load", startCountdown);
+    };
   }, []);
 
   useEffect(() => {
@@ -189,6 +228,7 @@ export function OnboardingTour() {
 
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
+  const cta = current.cta;
 
   const next = () => (isLast ? finish() : setStep((s) => s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
@@ -244,11 +284,16 @@ export function OnboardingTour() {
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Tour de bienvenida">
+      {/* Única animación permitida: opacidad al aparecer cada paso. La posición
+          del spotlight NO se interpola, así sigue al elemento sin lag. */}
+      <style>{`@keyframes ql-tour-fade { from { opacity: 0 } to { opacity: 1 } }`}</style>
       {/* Spotlight sobre el elemento objetivo (recorte + halo). */}
       {rect ? (
         <div
-          className="pointer-events-auto fixed z-[90] rounded-xl transition-[top,left,width,height] duration-150"
+          key={step}
+          className="pointer-events-auto fixed z-[90] rounded-xl"
           style={{
+            animation: "ql-tour-fade 160ms ease-out",
             top: rect.top - 6,
             left: rect.left - 6,
             width: rect.width + 12,
@@ -292,6 +337,18 @@ export function OnboardingTour() {
           </span>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-muted">{current.text}</p>
+        {cta && (
+          <button
+            onClick={() => {
+              // Navegar abandona el dashboard: marcar el tour como visto.
+              finish();
+              router.push(cta.href);
+            }}
+            className="mt-3 w-full rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+          >
+            {cta.label}
+          </button>
+        )}
         <div className="mt-4 flex items-center justify-between gap-2">
           <button
             onClick={finish}
