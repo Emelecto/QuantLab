@@ -54,12 +54,13 @@ async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
 
   if (error || !data) return [];
 
-  // Normalización defensiva: filas del schema viejo pueden venir sin
-  // metrics/equity/integrity. Nunca dejar pasar un null que crashee la UI.
+  // Filas del schema viejo (estrategias sin resultado) NO son runs válidos:
+  // carecen de métricas numéricas y crashearían cualquier .toFixed(). Se omiten.
   const out: BacktestResult[] = [];
   for (const row of data) {
     if (!row?.id) continue;
-    const metrics = (row.metrics ?? {}) as BacktestResult["metrics"];
+    const metrics = row.metrics as BacktestResult["metrics"] | null | undefined;
+    if (!metrics || typeof metrics.sharpe_oos !== "number") continue;
     out.push({
       id: row.id,
       config: (row.config ?? {}) as BacktestResult["config"],
