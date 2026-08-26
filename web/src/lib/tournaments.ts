@@ -238,10 +238,17 @@ export async function submitToTournament(
   code: string,
   config: Record<string, unknown>,
   qpStake: number,
+  replace = false,
 ): Promise<Submission> {
   return call<Submission>(`/tournament/submit`, {
     method: "POST",
-    body: JSON.stringify({ tournament_id: id, code, config, qp_stake: qpStake }),
+    body: JSON.stringify({
+      tournament_id: id,
+      code,
+      config,
+      qp_stake: qpStake,
+      replace,
+    }),
   });
 }
 

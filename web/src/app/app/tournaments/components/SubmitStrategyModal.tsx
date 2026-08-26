@@ -71,6 +71,9 @@ export function SubmitStrategyModal({
 
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
+  // Si ya hay una submission en este torneo, el worker responde 400 y aquí
+  // ofrecemos reemplazarla en vez de dejar al usuario bloqueado.
+  const [needsReplace, setNeedsReplace] = useState(false);
 
   // Cargar estrategias del usuario al abrir en modo "existente".
   useEffect(() => {
@@ -119,7 +122,7 @@ export function SubmitStrategyModal({
     if (s) applyStrategy(s);
   }
 
-  async function handleEnviar() {
+  async function handleEnviar(replace = false) {
     if (!code.trim()) {
       setFeedback({ type: "err", msg: "Pega o selecciona el código de la estrategia." });
       return;
@@ -140,11 +143,20 @@ export function SubmitStrategyModal({
         folds,
         split,
       });
-      await submitToTournament(tournamentId, code, cfg, qpStake);
-      setFeedback({ type: "ok", msg: "¡Estrategia enviada al torneo!" });
+      await submitToTournament(tournamentId, code, cfg, qpStake, replace);
+      setNeedsReplace(false);
+      setFeedback({
+        type: "ok",
+        msg: replace
+          ? "¡Estrategia reemplazada en el torneo!"
+          : "¡Estrategia enviada al torneo!",
+      });
       window.setTimeout(() => onClose(), 1400);
     } catch (e: any) {
-      setFeedback({ type: "err", msg: e?.message || "Error al enviar la estrategia." });
+      const msg = e?.message || "Error al enviar la estrategia.";
+      // El worker avisa que ya existe una submission: ofrecer reemplazo.
+      if (/ya enviaste/i.test(msg)) setNeedsReplace(true);
+      setFeedback({ type: "err", msg });
     } finally {
       setLoading(false);
     }
@@ -418,14 +430,25 @@ export function SubmitStrategyModal({
           >
             Cancelar
           </button>
-          <button
-            type="button"
-            onClick={handleEnviar}
-            disabled={loading || !user}
-            className={buttonClasses("primary", "sm")}
-          >
-            {loading ? "Enviando..." : "Enviar estrategia"}
-          </button>
+          {needsReplace ? (
+            <button
+              type="button"
+              onClick={() => handleEnviar(true)}
+              disabled={loading || !user}
+              className={buttonClasses("primary", "sm")}
+            >
+              {loading ? "Reemplazando..." : "Reemplazar mi envío"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleEnviar(false)}
+              disabled={loading || !user}
+              className={buttonClasses("primary", "sm")}
+            >
+              {loading ? "Enviando..." : "Enviar estrategia"}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -64,13 +64,14 @@ class SubmitBody(BaseModel):
     code: str
     config: dict
     qp_stake: int = 0
+    replace: bool = False
 
 
 @router.post("/tournament/submit")
 def tournament_submit(body: SubmitBody, request: Request):
     sb = get_supabase()
     uid = require_user(request)
-    
+
     # 1. Validar torneo existe y está abierto
     t = sb.table("tournaments").select("*").eq("id", body.tournament_id).execute()
     if not t.data:
@@ -78,10 +79,20 @@ def tournament_submit(body: SubmitBody, request: Request):
     if t.data[0]["status"] != "open":
         raise HTTPException(400, "El torneo no está abierto a submissions")
 
-    # 2. Verificar si ya existe submission (constraint UNIQUE tournament_id+user_id)
-    existing = sb.table("submissions").select("id").eq("tournament_id", body.tournament_id).eq("user_id", uid).execute()
-    if existing.data:
-        raise HTTPException(400, "Ya tienes una submission en este torneo")
+    # 2. Submission previa: la tabla tiene UNIQUE(tournament_id, user_id).
+    #    Sin `replace` el usuario quedaba bloqueado para siempre en ese torneo.
+    existing = (
+        sb.table("submissions")
+        .select("id,qp_staked")
+        .eq("tournament_id", body.tournament_id)
+        .eq("user_id", uid)
+        .execute()
+    )
+    if existing.data and not body.replace:
+        raise HTTPException(
+            400,
+            "Ya enviaste una estrategia a este torneo. Puedes reemplazarla por esta nueva.",
+        )
 
     # 3. Validar QP si hay stake
     if body.qp_stake > 0:
@@ -90,19 +101,45 @@ def tournament_submit(body: SubmitBody, request: Request):
         if balance < body.qp_stake:
             raise HTTPException(402, "QP insuficientes para el stake")
 
-    # 4. Crear submission
+    row = {
+        "tournament_id": body.tournament_id,
+        "user_id": uid,
+        "code": body.code,
+        "config": body.config,
+        "qp_staked": body.qp_stake,
+        "status": "pending",
+    }
+
+    # 4. Crear o reemplazar la submission
     try:
-        sub = sb.table("submissions").insert({
-            "tournament_id": body.tournament_id,
-            "user_id": uid,
-            "code": body.code,
-            "config": body.config,
-            "qp_staked": body.qp_stake,
-            "status": "pending",
-        }).execute()
-    except Exception as e:
-        raise HTTPException(500, f"Error al crear la submission: {str(e)}")
-    
+        if existing.data:
+            prev = existing.data[0]
+            # Devolver el stake anterior antes de sobrescribirlo.
+            prev_stake = int(prev.get("qp_staked") or 0)
+            if prev_stake > 0:
+                sb.table("token_ledger").insert({
+                    "user_id": uid, "amount": prev_stake,
+                    "type": "tournament_refund", "ref_id": prev["id"],
+                    "memo": f"Devolución de stake al reemplazar submission {prev['id']}",
+                }).execute()
+                _update_balance(uid, prev_stake)
+            sub = (
+                sb.table("submissions")
+                .update({**row, "metrics": None, "primary_score": None, "rank": None})
+                .eq("id", prev["id"])
+                .execute()
+            )
+        else:
+            sub = sb.table("submissions").insert(row).execute()
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Error al guardar submission de torneo")
+        raise HTTPException(500, f"Error al guardar la submission: {e}")
+
+    if not sub.data:
+        raise HTTPException(500, "La submission no se guardó (respuesta vacía).")
+
     sid = sub.data[0]["id"]
 
     # 4. Descontar QP del stake
