@@ -173,7 +173,28 @@ export type LeaderboardTab = "qp" | "tournaments" | "country";
 
 const WORKER = process.env.NEXT_PUBLIC_WORKER_URL || "http://localhost:8001";
 
+// Diagnóstico: en producción, sin NEXT_PUBLIC_WORKER_URL el fetch SIEMPRE falla
+// porque cae al fallback localhost:8001, que el navegador no puede alcanzar.
+// Esto da un error descriptivo en vez de "Failed to fetch" genérico.
+function preflight(): string {
+  if (
+    (WORKER.startsWith("http://localhost") || WORKER.startsWith("http://127.0.0.1")) &&
+    process.env.NODE_ENV === "production"
+  ) {
+    throw new Error(
+      "NEXT_PUBLIC_WORKER_URL no está configurada en Vercel. Ve a Settings → Environment Variables y añade la URL de tu worker en Render (ej: https://tu-worker.onrender.com).",
+    );
+  }
+  return WORKER;
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  let workerUrl: string;
+  try {
+    workerUrl = preflight();
+  } catch (e) {
+    throw e;
+  }
   const supabase = getSupabase();
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -182,7 +203,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${WORKER}${path}`, { ...init, headers });
+  const res = await fetch(`${workerUrl}${path}`, { ...init, headers });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json as T;

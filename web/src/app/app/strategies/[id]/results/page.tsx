@@ -42,6 +42,7 @@ export default function ResultsPage() {
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
+  const [priceQpWeek, setPriceQpWeek] = useState(0);
 
   useEffect(() => {
     const local = getRun(params.id);
@@ -98,7 +99,7 @@ export default function ResultsPage() {
         code: run!.config.code,
         is_public_code: true,
         config: { ...run!.config },
-        price_qp_week: 0,
+        price_qp_week: priceQpWeek,
       });
       setPublishMsg(`✅ Publicada en el marketplace (id ${res.id.slice(0, 8)}…).`);
       // Reflejo inmediato: llevar al usuario al marketplace, donde su
@@ -169,6 +170,18 @@ export default function ResultsPage() {
             <button onClick={shareLink} className={buttonClasses("secondary", "sm")}>
               {copied ? "¡Copiado!" : "Compartir"}
             </button>
+            <div className="flex items-center gap-1.5 rounded-md border border-line bg-surface/50 px-2 py-1">
+              <span className="text-[11px] text-muted">Precio/sem</span>
+              <input
+                type="number"
+                min={0}
+                step={5}
+                value={priceQpWeek}
+                onChange={(e) => setPriceQpWeek(Math.max(0, Number(e.target.value) || 0))}
+                className="w-14 bg-transparent text-right text-[13px] font-medium text-ink outline-none"
+              />
+              <span className="text-[11px] text-muted">QP</span>
+            </div>
             <button onClick={handleAddToMarket} disabled={publishing} className={buttonClasses("secondary", "sm")}>
               {publishing ? "Publicando…" : "Agregar al mercado"}
             </button>

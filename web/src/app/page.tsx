@@ -79,9 +79,9 @@ export default function Home() {
                 <span className="text-accent">cuantitativo.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-                Prueba tus ideas en la nube y descubre si realmente ganarían o solo
-                tuviste suerte. Sin instalar nada, sin saber estadística, y sin que
-                el overfitting te engañe.
+                Pon a prueba tus ideas de trading contra las de toda la comunidad.
+                Backtests con datos reales, torneos semanales y un ranking donde gana
+                quien mejor estrategias construye.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <Link href="/register" className={buttonClasses("primary", "lg")}>
