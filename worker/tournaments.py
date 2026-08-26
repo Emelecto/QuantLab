@@ -69,6 +69,8 @@ class SubmitBody(BaseModel):
 @router.post("/tournament/submit")
 def tournament_submit(body: SubmitBody, request: Request):
     sb = get_supabase()
+    uid = require_user(request)
+    
     # 1. Validar torneo existe y está abierto
     t = sb.table("tournaments").select("*").eq("id", body.tournament_id).execute()
     if not t.data:
@@ -76,23 +78,31 @@ def tournament_submit(body: SubmitBody, request: Request):
     if t.data[0]["status"] != "open":
         raise HTTPException(400, "El torneo no está abierto a submissions")
 
-    # 2. Validar QP si hay stake
-    uid = require_user(request)
+    # 2. Verificar si ya existe submission (constraint UNIQUE tournament_id+user_id)
+    existing = sb.table("submissions").select("id").eq("tournament_id", body.tournament_id).eq("user_id", uid).execute()
+    if existing.data:
+        raise HTTPException(400, "Ya tienes una submission en este torneo")
+
+    # 3. Validar QP si hay stake
     if body.qp_stake > 0:
         bal = sb.table("tokens").select("balance").eq("user_id", uid).execute()
         balance = bal.data[0]["balance"] if bal.data else 0
         if balance < body.qp_stake:
             raise HTTPException(402, "QP insuficientes para el stake")
 
-    # 3. Crear submission
-    sub = sb.table("submissions").insert({
-        "tournament_id": body.tournament_id,
-        "user_id": uid,
-        "code": body.code,
-        "config": body.config,
-        "qp_staked": body.qp_stake,
-        "status": "pending",
-    }).execute()
+    # 4. Crear submission
+    try:
+        sub = sb.table("submissions").insert({
+            "tournament_id": body.tournament_id,
+            "user_id": uid,
+            "code": body.code,
+            "config": body.config,
+            "qp_staked": body.qp_stake,
+            "status": "pending",
+        }).execute()
+    except Exception as e:
+        raise HTTPException(500, f"Error al crear la submission: {str(e)}")
+    
     sid = sub.data[0]["id"]
 
     # 4. Descontar QP del stake
