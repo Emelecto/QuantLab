@@ -333,7 +333,7 @@ class PublishBody(BaseModel):
 def marketplace_publish(body: PublishBody, request: Request):
     sb = get_supabase()
     uid = require_user(request)
-    slug = _slugify(body.title)
+    slug = _unique_slug(sb, body.title, uid)
     res = sb.table("marketplace_strategies").insert({
         "author_id": uid,
         "title": body.title,
@@ -549,6 +549,25 @@ def _slugify(s: str) -> str:
     s = re.sub(r"[^\w\s-]", "", s)
     s = re.sub(r"[\s]+", "-", s)
     return s[:50]
+
+
+def _unique_slug(sb, title: str, author_id: str) -> str:
+    """Slug único: base + sufijo corto si ya existe.
+
+    marketplace_strategies.slug tiene constraint UNIQUE; sin esto, publicar dos
+    veces una estrategia con el mismo título (ej: 'BTCUSDT · 1d') revienta 500.
+    """
+    import secrets
+
+    base = _slugify(title) or "estrategia"
+    slug = f"{base}-{author_id[:8]}"
+    if not sb.table("marketplace_strategies").select("id").eq("slug", slug).limit(1).execute().data:
+        return slug
+    # Colisión improbable: sufijo aleatorio.
+    while True:
+        candidate = f"{base}-{secrets.token_hex(2)}"
+        if not sb.table("marketplace_strategies").select("id").eq("slug", candidate).limit(1).execute().data:
+            return candidate
 
 
 # ---------------------------------------------------------------------------
