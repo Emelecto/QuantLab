@@ -254,6 +254,61 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/debug/env")
+def debug_env() -> dict:
+    """Diagnóstico: verifica que las variables de entorno críticas estén configuradas.
+    NO expone secretos: solo confirma presencia y longitud."""
+    import os
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    jwks = os.environ.get("SUPABASE_JWKS_URL", "")
+    return {
+        "SUPABASE_URL_set": bool(url),
+        "SUPABASE_URL_prefix": url[:8] if url else "",
+        "SUPABASE_SERVICE_ROLE_KEY_set": bool(key),
+        "SUPABASE_SERVICE_ROLE_KEY_len": len(key),
+        "SUPABASE_JWKS_URL_set": bool(jwks),
+        "JWKS_url": _get_jwks_url_safe(),
+    }
+
+
+def _get_jwks_url_safe() -> str:
+    """Obtiene la URL del JWKS sin lanzar, para diagnóstico."""
+    import os
+    jwks = os.environ.get("SUPABASE_JWKS_URL")
+    if jwks:
+        return jwks
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    if url:
+        return f"{url}/auth/v1/.well-known/jwks.json"
+    return "(no configurada)"
+
+
+@app.get("/debug/jwks")
+def debug_jwks() -> dict:
+    """Diagnóstico: verifica conectividad con el JWKS de Supabase."""
+    import os
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    jwks_url = os.environ.get("SUPABASE_JWKS_URL", "") or (f"{url}/auth/v1/.well-known/jwks.json" if url else "")
+    
+    if not jwks_url:
+        return {"ok": False, "error": "SUPABASE_URL no configurada"}
+    
+    try:
+        from auth import _get_jwks_url, _fetch_jwks
+        jwks_fetched = _fetch_jwks()
+        keys = jwks_fetched.get("keys", [])
+        return {
+            "ok": True,
+            "url": jwks_url,
+            "keys_count": len(keys),
+            "kids": [k.get("kid") for k in keys[:5]],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+
 @app.post("/backtest")
 def backtest(config: StrategyConfig) -> dict:
     """Ejecuta un backtest OOS real y devuelve el dict del motor.

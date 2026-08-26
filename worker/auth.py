@@ -27,8 +27,14 @@ def _get_jwks_url() -> str:
     if _JWKS_URL is None:
         _JWKS_URL = os.environ.get("SUPABASE_JWKS_URL")
         if not _JWKS_URL:
-            base = os.environ.get("SUPABASE_URL", "")
+            base = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+            if not base:
+                raise RuntimeError(
+                    "SUPABASE_URL no configurada. "
+                    "El worker necesita SUPABASE_URL o SUPABASE_JWKS_URL."
+                )
             _JWKS_URL = f"{base}/auth/v1/.well-known/jwks.json"
+        logger.info(f"JWKS URL configurada: {_JWKS_URL}")
     return _JWKS_URL
 
 
@@ -36,18 +42,21 @@ def _fetch_jwks() -> dict:
     global _JWKS
     if _JWKS is None:
         try:
-            # Supabase requiere el header `apikey` para leer el JWKS público.
-            # Usamos la service_role key (ya disponible en el worker) como apikey.
             api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
                 "SUPABASE_ANON_KEY"
             )
             headers = {"apikey": api_key} if api_key else {}
-            resp = requests.get(_get_jwks_url(), headers=headers, timeout=10)
+            jwks_url = _get_jwks_url()
+            resp = requests.get(jwks_url, headers=headers, timeout=10)
             resp.raise_for_status()
             _JWKS = resp.json()
+            keys = _JWKS.get("keys", [])
+            logger.info(f"JWKS obtenido: {len(keys)} key(s) desde {jwks_url}")
         except Exception as e:
             logger.error(f"No se pudo obtener JWKS de Supabase: {e}")
-            _JWKS = {}
+            # NO cachear el fallo: permitir reintento en la siguiente request
+            # si el error fue transitorio (red, timeout, etc.)
+            return {}
     return _JWKS
 
 
