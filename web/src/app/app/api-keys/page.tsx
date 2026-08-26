@@ -102,10 +102,50 @@ export default function ApiKeysPage() {
 
   if (!user) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <Link href="/login" className={buttonClasses("primary", "md")}>
-          Inicia sesión para gestionar tus claves
-        </Link>
+      <main className="flex min-h-screen flex-col">
+        <section className="border-b border-line">
+          <div className="mx-auto w-full max-w-4xl px-6 py-16">
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">
+              Claves de API
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+              Conecta agentes de IA y herramientas externas a QuantLab con una clave
+              dedicada que no expira. Úsala como{" "}
+              <code className="font-mono text-accent">QUANTLAB_TOKEN</code> en el
+              servidor MCP.
+            </p>
+          </div>
+        </section>
+
+        <section className="flex flex-1 items-center justify-center px-6 py-16">
+          <div className="ql-glass ql-elev-1 flex max-w-md flex-col items-center gap-5 rounded-xl p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-accent/30 bg-accent/10">
+              <span className="text-2xl">🔑</span>
+            </div>
+            <h2 className="text-xl font-semibold text-ink">
+              Necesitas una cuenta para acceder
+            </h2>
+            <p className="text-sm leading-relaxed text-muted">
+              Las claves API son personales y te permiten conectar tu agente de IA
+              directamente con el motor de backtest. Crea una cuenta gratuita o
+              inicia sesión para empezar.
+            </p>
+            <div className="flex w-full flex-col gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className={buttonClasses("primary", "md") + " flex-1 justify-center"}
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/register"
+                className={buttonClasses("secondary", "md") + " flex-1 justify-center"}
+              >
+                Crear cuenta
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
     );
   }

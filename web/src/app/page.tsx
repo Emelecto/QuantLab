@@ -9,45 +9,64 @@ import { OverfitMiniChart, OosMiniChart } from "@/components/charts/MiniCharts";
 const STEPS = [
   {
     n: "1",
-    title: "Escribe tu idea",
-    text: "En pocas líneas de código (o plantilla lista), sin instalar nada.",
+    title: "Desarrolla tu idea",
+    text: "Define tu hipótesis en el editor web. Sin instalar nada, sin configurar entornos.",
+    detail: "Empieza desde una plantilla SMA/RSI o pega tu propio código. El editor Monaco te da autocompletado y resaltado de sintaxis.",
+    icon: "💡",
   },
   {
     n: "2",
-    title: "Pruébala de verdad",
-    text: "La app la prueba en datos que nunca vio antes, para que sepas si funciona o fue suerte.",
+    title: "Pruébala a fondo",
+    text: "Walk-forward OOS: entrena en el pasado, mide en datos que nunca vio.",
+    detail: "Split automático en pliegues, métricas deflatidas y curva de equity. Si tu estrategia sobrevive al out-of-sample, tiene edge real.",
+    icon: "🔬",
   },
   {
     n: "3",
-    title: "Comparte y aprende",
-    text: "Clona estrategias de otros y mira qué funciona mejor en el ranking.",
+    title: "Comparte en la comunidad",
+    text: "Publica en el marketplace, recibe comentarios y sigue a otros traders.",
+    detail: "Tu estrategia entra al marketplace con pricing configurable en QP/semana. Los usuarios pueden suscribirse, comentar y clonar.",
+    icon: "🌐",
+  },
+  {
+    n: "4",
+    title: "Compite por premios",
+    text: "Entra a torneos semanales con QP como premio y sube en el ranking global.",
+    detail: "Rounds con deadline fijo, evaluación automática y leaderboard público. Tu reputación se construye con cada envío válido.",
+    icon: "🏆",
   },
 ];
 
 const FEATURES = [
   {
-    title: "Crea en el navegador",
-    text: "Editor listo para usar, sin entorno local ni dependencias que romper.",
+    title: "Motor walk-forward",
+    text: "Split entrenamiento/prueba automático en múltiples pliegues.",
+    visual: "walkforward",
   },
   {
-    title: "Pruebas honestas (sin overfitting)",
-    text: "Validación out-of-sample y Sharpe desinflado: los números que sobreviven.",
+    title: "Datos reales multi-fuente",
+    text: "Binance + Bybit + Yahoo Finance. Sin API key, sin simulación.",
+    visual: "datasources",
   },
   {
-    title: "Métricas claras",
-    text: "Retorno, drawdown, win rate y costos explicados en lenguaje humano.",
+    title: "Métricas deflatidas",
+    text: "Sharpe OOS desinflado, retorno ajustado por riesgo, drawdown real.",
+    visual: "metrics",
   },
   {
-    title: "Comunidad y clonado",
-    text: "Publica tu estrategia o clona la de otro y modifícala en un clic.",
+    title: "Marketplace de estrategias",
+    text: "Publica, suscríbete, comenta. Copy-trading en paper.",
+    visual: "marketplace",
   },
   {
-    title: "Ranking justo",
-    text: "Solo puntúa el desempeño fuera de muestra, no el ajuste al pasado.",
+    title: "Torneos con QP",
+    text: "Rounds semanales con premios, ranking global y reputación.",
+    visual: "tournaments",
   },
   {
-    title: "Cripto y acciones",
-    text: "BTC, ETH y equities con datos históricos y comisiones realistas.",
+    title: "API + MCP para IA",
+    text: "Claves `qlk_`, server MCP. Integra LLMs a tu flujo de investigación.",
+    visual: "api",
   },
 ];
 
@@ -155,109 +174,90 @@ export default function Home() {
           <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
             Datos reales, sin simulación
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted md:text-base">
-            No inventamos precios ni rellenamos con ruido bonito. Los backtests
-            corren sobre datos reales de mercado y la integridad fuera de muestra se
-            verifica en cada corrida.
-          </p>
-
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="ql-glass ql-elev-1 rounded-xl p-5">
               <div className="metric text-sm font-semibold text-ink">
                 Binance
               </div>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-                Cripto (BTC, ETH&hellip;) con cierres reales vía la API pública de
-                Binance. Sin API key, sin simulación.
-              </p>
             </div>
             <div className="ql-glass ql-elev-1 rounded-xl p-5">
               <div className="metric text-sm font-semibold text-ink">
                 Yahoo Finance
               </div>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-                Acciones y ETFs con series históricas reales de Yahoo Finance.
-                Comisiones realistas incluidas.
-              </p>
             </div>
             <div className="ql-glass ql-elev-1 rounded-xl p-5">
               <div className="metric text-sm font-semibold text-ink">
                 Integridad OOS verificada
               </div>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
-                Cada corrida usa walk-forward: entrena y prueba en pliegues distintos
-                para que el resultado sea creíble.
-              </p>
             </div>
           </div>
-
-          <figure className="ql-glass ql-elev-1 mt-6 flex flex-col gap-3 rounded-xl p-5 md:flex-row md:items-center">
-            <span className="metric shrink-0 self-start rounded border border-accent/40 bg-accent/10 px-2 py-1 text-[11px] font-medium tracking-wide text-accent uppercase">
-              Quién lo usa
-            </span>
-            <blockquote className="text-sm leading-relaxed text-ink">
-              &ldquo;Por fin un lugar donde puedo clonar estrategias de otros y ver de
-              inmediato si el número aguanta fuera de muestra, no solo en el
-              gráfico bonito.&rdquo;
-              <figcaption className="metric mt-2 text-[12px] text-muted">
-                — Emilio, estudiante de data science
-              </figcaption>
-            </blockquote>
-          </figure>
         </div>
       </section>
 
-      {/* CÓMO FUNCIONA */}
+      {/* CÓMO FUNCIONA — 4 pasos interactivos con línea conectora */}
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <h2 className="text-2xl font-semibold tracking-tight text-ink">
             Cómo funciona
           </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <Card key={s.n} className="p-5">
-                <span className="metric flex h-7 w-7 items-center justify-center rounded border border-accent/30 bg-accent/10 text-[13px] font-medium text-accent">
-                  {s.n}
-                </span>
-                <h3 className="mt-4 text-[15px] font-semibold text-ink">
+          <p className="mt-2 text-sm text-muted">Del paper trading a los torneos</p>
+          <div className="mt-10 grid gap-4 md:grid-cols-4">
+            {STEPS.map((s, i) => (
+              <div
+                key={s.n}
+                className="group relative flex flex-col items-start gap-3 rounded-xl border border-line bg-surface p-5 transition-all duration-200 hover:border-accent/40 hover:bg-accent/[0.04]"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="metric flex h-7 w-7 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-[13px] font-bold text-accent group-hover:bg-accent/20 transition-colors">
+                    {s.n}
+                  </span>
+                  <span className="text-2xl">{s.icon}</span>
+                </div>
+                <h3 className="text-[15px] font-semibold text-ink">
                   {s.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{s.text}</p>
-              </Card>
+                <p className="text-sm leading-relaxed text-muted">{s.text}</p>
+                <p className="text-[12px] leading-relaxed text-muted/80 pt-2 border-t border-line/50">
+                  {s.detail}
+                </p>
+                {i < STEPS.length - 1 && (
+                  <div className="hidden md:block absolute -right-2 top-1/2 h-px w-4 bg-accent/20" />
+                )}
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* BANDA DEEPFIN */}
-      <section className="border-b border-line bg-surface/40">
-        <div className="mx-auto w-full max-w-6xl px-6 py-10">
-          <div className="flex flex-col gap-4 rounded-lg border border-long/25 bg-long/[0.06] p-5 md:flex-row md:items-center">
-            <span className="metric shrink-0 self-start rounded border border-long/40 bg-long/15 px-2 py-1 text-[11px] font-medium tracking-wide text-long uppercase">
-              Validado · DeepFin
-            </span>
-            <p className="text-sm leading-relaxed text-ink md:text-[15px]">
-              Ya validamos una estrategia real en datos desconocidos: superó al
-              mercado (BTC) con riesgo controlado y bajas comisiones.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* GRID FEATURES — lista editorial con separadores (anti-cards-uniformes) */}
+      {/* FEATURES — showcase visual con mini-charts */}
       <section className="border-b border-line">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
             Todo lo que necesitas para investigar en serio
           </h2>
-          <ul className="mt-10 grid gap-x-12 gap-y-8 md:grid-cols-2">
+          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
-              <SpotlightCard key={f.title} className="border-t border-line pt-5">
-                <h3 className="text-[15px] font-semibold text-ink">{f.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.text}</p>
-              </SpotlightCard>
+              <div
+                key={f.title}
+                className="group ql-glass ql-elev-1 rounded-xl p-5 hover:border-accent/30 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-[15px] font-semibold text-ink">{f.title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.text}</p>
+                  </div>
+                  <span className="text-xs rounded bg-accent/10 border border-accent/20 px-2 py-0.5 text-accent font-medium uppercase tracking-wide">
+                    {f.visual === "walkforward" && "WF"}
+                    {f.visual === "datasources" && "DATA"}
+                    {f.visual === "metrics" && "OOS"}
+                    {f.visual === "marketplace" && "MKT"}
+                    {f.visual === "tournaments" && "🏆"}
+                    {f.visual === "api" && "API"}
+                  </span>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </section>
 
