@@ -112,10 +112,15 @@ export async function saveBacktestRun(
   result: BacktestResult,
 ): Promise<string> {
   const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("AUTH_REQUIRED");
   const { data, error } = await supabase
     .from("backtest_runs")
     .insert({
       strategy_id,
+      user_id: user.id,
       status: "done",
       metrics_json: result.metrics,
       equity_curve: result.equity_curve,
