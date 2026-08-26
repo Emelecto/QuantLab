@@ -46,21 +46,30 @@ async function supabaseUpsert(run: BacktestResult, userId: string): Promise<void
 async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
   const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
   const sb = createBrowserSupabaseClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("strategies")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (!data) return [];
-  return data.map((row) => ({
-    id: row.id,
-    config: row.config as unknown as BacktestResult["config"],
-    created_at: row.created_at,
-    metrics: row.metrics as unknown as BacktestResult["metrics"],
-    integrity_label: row.integrity as BacktestResult["integrity_label"],
-    equity_curve: (row.equity ?? []) as BacktestResult["equity_curve"],
-  }));
+  if (error || !data) return [];
+
+  // Normalización defensiva: filas del schema viejo pueden venir sin
+  // metrics/equity/integrity. Nunca dejar pasar un null que crashee la UI.
+  const out: BacktestResult[] = [];
+  for (const row of data) {
+    if (!row?.id) continue;
+    const metrics = (row.metrics ?? {}) as BacktestResult["metrics"];
+    out.push({
+      id: row.id,
+      config: (row.config ?? {}) as BacktestResult["config"],
+      created_at: row.created_at ?? new Date().toISOString(),
+      metrics,
+      integrity_label: row.integrity ?? "High",
+      equity_curve: (row.equity ?? []) as BacktestResult["equity_curve"],
+    });
+  }
+  return out;
 }
 
 // --- API pública ---
