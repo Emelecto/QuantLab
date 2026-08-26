@@ -146,12 +146,23 @@ async def http_exception_with_cors(request: Request, exc: StarletteHTTPException
 
 @app.exception_handler(Exception)
 async def unhandled_exception_with_cors(request: Request, exc: Exception):
-    # Log completo en Render; al cliente solo un 500 genérico (con CORS).
+    # Log completo en Render; al cliente devolvemos el mensaje REAL para poder
+    # diagnosticar (antes se envolvía en ExceptionGroup de anyio y era opaco).
     logger.exception("Unhandled error en %s %s", request.method, request.url.path)
+
+    # Desenvolver ExceptionGroup (anyio/TaskGroup) para exponer la sub-excepción.
+    def _unwrap(e):
+        if hasattr(e, "exceptions") and e.exceptions:
+            return _unwrap(e.exceptions[0])
+        return e
+
+    real = _unwrap(exc)
+    detail = f"{type(real).__name__}: {real}"[:300]
+
     from starlette.responses import JSONResponse
 
     return JSONResponse(
-        {"detail": "Error interno del servidor"},
+        {"detail": detail},
         status_code=500,
         headers=_cors_headers_for(request),
     )
