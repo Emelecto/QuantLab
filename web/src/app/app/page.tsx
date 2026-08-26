@@ -176,12 +176,23 @@ function DashboardContent() {
   const [beatPct, setBeatPct] = useState<number | null>(null);
   const [beatLoading, setBeatLoading] = useState(false);
 
+  // Saneo central: TODO run que entra al estado pasa por aquí. Un solo punto
+  // de defensa — ni localStorage corrupto ni datos remotos parciales tumban la UI.
+  const sanitize = (list: BacktestResult[]): BacktestResult[] =>
+    list.filter(
+      (r) =>
+        r?.id &&
+        r?.metrics &&
+        typeof r.metrics.sharpe_oos === "number" &&
+        typeof r.metrics.deflated_sharpe_oos === "number",
+    );
+
   useEffect(() => {
-    setRuns(getRuns());
+    setRuns(sanitize(getRuns()));
     // Sincronizar con Supabase para recuperar estrategias perdidas.
     if (user?.id) {
-      syncRunsFromSupabase(user.id).then((remote) => {
-        if (remote.length > 0) setRuns(getRuns());
+      syncRunsFromSupabase(user.id).then(() => {
+        setRuns(sanitize(getRuns()));
       });
     }
   }, [user]);
@@ -286,9 +297,10 @@ function DashboardContent() {
   }, [runs]);
 
   // B7: mejor Deflated Sharpe OOS del usuario.
+  // Optional chaining: un run corrupto (metrics undefined) no debe tumbar la página.
   const bestDeflated = useMemo(() => {
     const vals = runs
-      .map((r) => r.metrics.deflated_sharpe_oos)
+      .map((r) => r.metrics?.deflated_sharpe_oos)
       .filter((v): v is number => typeof v === "number");
     if (!vals.length) return null;
     return Math.max(...vals);
@@ -411,10 +423,10 @@ function DashboardContent() {
                     </div>
                     <span
                       className={`metric text-sm font-medium ${
-                        r.metrics.sharpe_oos >= 0 ? "text-long" : "text-short"
+                        (r.metrics?.sharpe_oos ?? 0) >= 0 ? "text-long" : "text-short"
                       }`}
                     >
-                      Sharpe OOS {r.metrics.sharpe_oos.toFixed(2)}
+                      Sharpe OOS {(r.metrics?.sharpe_oos ?? 0).toFixed(2)}
                     </span>
                   </Link>
                 </li>
