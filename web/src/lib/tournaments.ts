@@ -203,7 +203,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${workerUrl}${path}`, { ...init, headers });
+  // Anti-cache: timestamp para evitar que el navegador sirva respuestas cacheadas viejas.
+  const cacheBust = `${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
+  const res = await fetch(`${workerUrl}${path}${cacheBust}`, { ...init, headers });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json as T;
