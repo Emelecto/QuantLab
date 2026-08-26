@@ -105,6 +105,57 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(DynamicCORSMiddleware)
 
+
+# ---------------------------------------------------------------------------
+# CORS en excepciones NO manejadas: los 500 generados por Starlette saltan el
+# middleware y salen SIN headers CORS → el navegador los muestra como
+# "Failed to fetch" opaco. Este handler añade los headers a esas respuestas.
+# ---------------------------------------------------------------------------
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+def _cors_headers_for(request: Request) -> dict:
+    origin = request.headers.get("origin")
+    h = {
+        "Access-Control-Allow-Methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Max-Age": "600",
+    }
+    if _cors_env:
+        if origin and origin in _cors_allow_origins:
+            h["Access-Control-Allow-Origin"] = origin
+            h["Access-Control-Allow-Credentials"] = "true"
+    elif origin:
+        h["Access-Control-Allow-Origin"] = origin
+        h["Access-Control-Allow-Credentials"] = "true"
+    else:
+        h["Access-Control-Allow-Origin"] = "*"
+    return h
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_with_cors(request: Request, exc: StarletteHTTPException):
+    from starlette.responses import JSONResponse
+
+    return JSONResponse(
+        {"detail": exc.detail},
+        status_code=exc.status_code,
+        headers=_cors_headers_for(request),
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_with_cors(request: Request, exc: Exception):
+    # Log completo en Render; al cliente solo un 500 genérico (con CORS).
+    logger.exception("Unhandled error en %s %s", request.method, request.url.path)
+    from starlette.responses import JSONResponse
+
+    return JSONResponse(
+        {"detail": "Error interno del servidor"},
+        status_code=500,
+        headers=_cors_headers_for(request),
+    )
+
 # Router de torneos + marketplace + QP + social (follows / actividad)
 app.include_router(tournaments_router)
 app.include_router(comments_router)
