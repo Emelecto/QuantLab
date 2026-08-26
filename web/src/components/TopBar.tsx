@@ -13,6 +13,7 @@ const PUBLIC_NAV = [
   { href: "/community", label: "Comunidad" },
   { href: "/leaderboard", label: "Ranking" },
   { href: "/pricing", label: "Precios" },
+  { href: "/app/api-keys", label: "API" },
 ] as const;
 
 export function TopBar() {
@@ -89,12 +90,6 @@ export function TopBar() {
               className="text-sm text-muted transition-colors hover:text-ink"
             >
               Rankings
-            </Link>
-            <Link
-              href="/app/api-keys"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              API
             </Link>
           </nav>
         ) : (
