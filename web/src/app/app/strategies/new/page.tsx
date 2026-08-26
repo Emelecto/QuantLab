@@ -257,7 +257,7 @@ function NewStrategyPageInner() {
         equity_curve: result.equity_curve,
         report: result.report,
       };
-      saveRun(run);
+      await saveRun(run);
 
       try {
         await saveStrategy(config, config.code, isPublic);

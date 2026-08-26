@@ -1,9 +1,11 @@
-// Puente de persistencia: localStorage. Reemplaza a Supabase en el front.
-// Clave única 'ql_runs' -> array de BacktestResult (más reciente primero).
+// Persistencia dual: Supabase (fuente de verdad) + localStorage (cache rápido).
+// Supabase sobrevive a cierre de sesión y cambio de dispositivo.
+// localStorage permite lectura instantánea sin esperar la red.
 import type { BacktestResult } from "@/lib/api";
 
 const KEY = "ql_runs";
 
+// --- Helpers localStorage ---
 function readAll(): BacktestResult[] {
   if (typeof window === "undefined") return [];
   const raw = window.localStorage.getItem(KEY);
@@ -16,20 +18,106 @@ function readAll(): BacktestResult[] {
   }
 }
 
-/** Guarda un run (lo inserta al inicio del array). */
-export function saveRun(run: BacktestResult): void {
+function writeAll(runs: BacktestResult[]): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(KEY, JSON.stringify(runs));
+}
+
+// --- API Supabase ---
+async function supabaseUpsert(run: BacktestResult, userId: string): Promise<void> {
+  const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+  const sb = createBrowserSupabaseClient();
+  await sb.from("strategies").upsert({
+    id: run.id,
+    user_id: userId,
+    title: `${run.config.symbol} · ${run.config.timeframe}`,
+    asset_type: run.config.asset_type,
+    symbol: run.config.symbol,
+    timeframe: run.config.timeframe,
+    config: run.config as unknown as Record<string, unknown>,
+    metrics: run.metrics as unknown as Record<string, unknown>,
+    equity: run.equity_curve ?? [],
+    integrity: run.integrity_label,
+    created_at: run.created_at,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
+  const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+  const sb = createBrowserSupabaseClient();
+  const { data } = await sb
+    .from("strategies")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (!data) return [];
+  return data.map((row) => ({
+    id: row.id,
+    config: row.config as unknown as BacktestResult["config"],
+    created_at: row.created_at,
+    metrics: row.metrics as unknown as BacktestResult["metrics"],
+    integrity_label: row.integrity as BacktestResult["integrity_label"],
+    equity_curve: (row.equity ?? []) as BacktestResult["equity_curve"],
+  }));
+}
+
+// --- API pública ---
+/** Guarda un run: localStorage (inmediato) + Supabase (async con user_id). */
+export async function saveRun(run: BacktestResult): Promise<void> {
   if (typeof window === "undefined") return;
   const all = readAll();
   all.unshift(run);
-  window.localStorage.setItem(KEY, JSON.stringify(all));
+  writeAll(all);
+
+  // Obtener user_id de la sesión actual.
+  try {
+    const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+    const sb = createBrowserSupabaseClient();
+    const { data } = await sb.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (userId) {
+      await supabaseUpsert(run, userId);
+    }
+  } catch {
+    // Best-effort: el próximo sync lo recupera.
+  }
 }
 
-/** Busca un run por id. */
+/** Guarda un run con user_id explícito (preferido). */
+export function saveRunForUser(run: BacktestResult, userId: string): void {
+  if (typeof window === "undefined") return;
+  const all = readAll();
+  all.unshift(run);
+  writeAll(all);
+  supabaseUpsert(run, userId).catch(() => {});
+}
+
+/** Busca un run por id en localStorage. */
 export function getRun(id: string): BacktestResult | null {
   return readAll().find((r) => r.id === id) ?? null;
 }
 
-/** Lista todos los runs (más recientes primero). */
+/** Lista todos los runs de localStorage (más recientes primero). */
 export function getRuns(): BacktestResult[] {
   return readAll();
+}
+
+/** Carga runs desde Supabase y los sincroniza a localStorage.
+ *  Usar al montar el dashboard para recuperar estrategias perdidas. */
+export async function syncRunsFromSupabase(userId: string): Promise<BacktestResult[]> {
+  try {
+    const remote = await supabaseFetch(userId);
+    if (remote.length > 0) {
+      // Merge: priorizar remotos, añadir locales que no estén en remotos.
+      const local = readAll();
+      const ids = new Set(remote.map((r) => r.id));
+      const merged = [...remote, ...local.filter((r) => !ids.has(r.id))];
+      writeAll(merged);
+    }
+    return remote;
+  } catch {
+    return [];
+  }
 }

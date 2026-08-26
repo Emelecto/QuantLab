@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/useAuth";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { AuthGuard } from "@/lib/AuthGuard";
 import { buttonClasses } from "@/components/ui/Button";
-import { getRuns } from "@/lib/runs";
+import { getRuns, syncRunsFromSupabase } from "@/lib/runs";
 import { fetchMarketSeries } from "@/components/studio/marketData";
 import { ActivityFeed } from "@/components/social/ActivityFeed";
 import { useEffect, useMemo, useState } from "react";
@@ -178,7 +178,13 @@ function DashboardContent() {
 
   useEffect(() => {
     setRuns(getRuns());
-  }, []);
+    // Sincronizar con Supabase para recuperar estrategias perdidas.
+    if (user?.id) {
+      syncRunsFromSupabase(user.id).then((remote) => {
+        if (remote.length > 0) setRuns(getRuns());
+      });
+    }
+  }, [user]);
 
   // Estado real de torneo / publicación para la checklist de Primeros pasos.
   useEffect(() => {
