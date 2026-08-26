@@ -90,21 +90,28 @@ export default function ResultsPage() {
     setPublishing(true);
     setPublishMsg(null);
     try {
+      const c = run!.config;
+      if (!c?.symbol || !c?.timeframe) {
+        throw new Error(
+          "Esta estrategia no tiene símbolo/timeframe guardados. Vuelve a correr el backtest.",
+        );
+      }
       const res = await publishStrategy({
-        title: `${run!.config.symbol} · ${run!.config.timeframe}`,
-        description: `Estrategia ${run!.config.asset_type} en ${run!.config.symbol} (${run!.config.timeframe}). Sharpe OOS ${m.sharpe_oos.toFixed(2)}.`,
-        asset_type: run!.config.asset_type,
-        symbol: run!.config.symbol,
-        timeframe: run!.config.timeframe,
-        code: run!.config.code,
+        title: `${c.symbol} · ${c.timeframe}`,
+        description: `Estrategia ${c.asset_type} en ${c.symbol} (${c.timeframe}). Sharpe OOS ${m.sharpe_oos.toFixed(2)}.`,
+        asset_type: c.asset_type,
+        symbol: c.symbol,
+        timeframe: c.timeframe,
+        code: c.code || undefined,
         is_public_code: true,
-        config: { ...run!.config },
+        config: { ...c },
         price_qp_week: priceQpWeek,
       });
-      setPublishMsg(`✅ Publicada en el marketplace (id ${res.id.slice(0, 8)}…).`);
-      // Reflejo inmediato: llevar al usuario al marketplace, donde su
-      // estrategia ya aparece (la página carga la lista al montar).
-      router.push("/app/marketplace");
+      setPublishMsg(
+        `✅ Publicada en el marketplace (id ${res.id.slice(0, 8)}…). Redirigiendo…`,
+      );
+      // Dar tiempo a que el usuario vea la confirmación antes de navegar.
+      setTimeout(() => router.push("/app/marketplace"), 1200);
     } catch (e) {
       setPublishMsg(`❌ ${e instanceof Error ? e.message : "No se pudo publicar."}`);
     } finally {

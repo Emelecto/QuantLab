@@ -103,9 +103,12 @@ export default function MarketplacePage() {
       rows = rows.filter((s) => s.asset_type === assetFilter);
     }
 
-    rows = rows.filter(
-      (s) => s.price_qp >= priceRange[0] && s.price_qp <= priceRange[1],
-    );
+    // Defensivo: una fila sin price_qp numérico NO debe desaparecer del
+    // listado (antes undefined >= 0 era false y escondía la estrategia).
+    rows = rows.filter((s) => {
+      const p = typeof s.price_qp === "number" ? s.price_qp : 0;
+      return p >= priceRange[0] && p <= priceRange[1];
+    });
 
     if (minRating > 0) {
       rows = rows.filter((s) => (s.rating ?? 0) >= minRating);
@@ -115,8 +118,8 @@ export default function MarketplacePage() {
     if (q) {
       rows = rows.filter(
         (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.symbol.toLowerCase().includes(q) ||
+          (s.title ?? "").toLowerCase().includes(q) ||
+          (s.symbol ?? "").toLowerCase().includes(q) ||
           (s.author ?? "").toLowerCase().includes(q),
       );
     }

@@ -51,14 +51,11 @@ export async function earnQP(
   });
 }
 
-export async function getMarketplaceStrategies(
-  filters?: { asset_type?: string; symbol?: string; min_price?: number },
-): Promise<MarketplaceStrategy[]> {
-  const q = new URLSearchParams();
-  if (filters?.asset_type) q.set("asset_type", filters.asset_type);
-  if (filters?.symbol) q.set("symbol", filters.symbol);
-  return call<MarketplaceStrategy[]>(`/marketplace?${q.toString()}`);
-}
+// Reexporta la versión normalizada de tournaments.ts. Antes había una copia
+// duplicada aquí que devolvía las filas crudas del worker (price_qp_week,
+// profiles) y la UI leía price_qp/author -> undefined -> el filtro de precio
+// escondía TODAS las estrategias publicadas.
+export { getMarketplaceStrategies } from "./tournaments";
 
 export async function getMarketplaceStrategy(id: string): Promise<MarketplaceStrategy> {
   return call<MarketplaceStrategy>(`/marketplace/${id}`);

@@ -106,6 +106,26 @@ export async function saveStrategy(
   return data.id as string;
 }
 
+/** Marca una estrategia como pública/privada (por id, del usuario en sesión). */
+export async function setStrategyPublic(
+  strategyId: string,
+  isPublic: boolean,
+): Promise<void> {
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("AUTH_REQUIRED");
+
+  const { error } = await supabase
+    .from("strategies")
+    .update({ is_public: isPublic })
+    .eq("id", strategyId)
+    .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
+}
+
 /** Guarda el resultado de un backtest ligado a una estrategia. */
 export async function saveBacktestRun(
   strategy_id: string,

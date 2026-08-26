@@ -374,13 +374,53 @@ export async function getGlobalLeaderboard(
 /* Marketplace                                                         */
 /* ------------------------------------------------------------------ */
 
+/** Normaliza una fila del worker al shape que consume la UI.
+ *
+ * El worker devuelve las columnas crudas de `marketplace_strategies`
+ * (`price_qp_week`, `avg_rating`, `profiles{username}`) mientras que las
+ * tarjetas leen `price_qp`, `rating` y `author`. Sin este puente los valores
+ * llegaban `undefined` y el filtro de precio del marketplace descartaba
+ * TODAS las estrategias (undefined >= 0 es false), así que lo recién
+ * publicado nunca se veía.
+ */
+function normalizeMarketplaceRow(raw: any): MarketplaceStrategy {
+  const profile = raw?.profiles ?? {};
+  const metrics = raw?.backtest_metrics ?? {};
+  const priceWeek = Number(raw?.price_qp_week ?? raw?.price_qp ?? 0);
+  const sharpe =
+    typeof metrics.sharpe_oos === "number"
+      ? metrics.sharpe_oos
+      : typeof metrics.sharpe === "number"
+        ? metrics.sharpe
+        : undefined;
+  const maxdd =
+    typeof metrics.maxdd === "number" ? metrics.maxdd * 100 : undefined;
+
+  return {
+    ...raw,
+    price_qp: Number.isFinite(priceWeek) ? priceWeek : 0,
+    price_qp_week: Number.isFinite(priceWeek) ? priceWeek : 0,
+    rating: raw?.avg_rating ?? raw?.rating ?? 0,
+    avg_rating: raw?.avg_rating ?? null,
+    author: profile.username ?? profile.display_name ?? raw?.author ?? "anónimo",
+    author_name: profile.display_name ?? profile.username ?? undefined,
+    author_avatar: profile.avatar_url ?? undefined,
+    subscribers: Number(raw?.subscribers ?? 0),
+    total_copies: Number(raw?.total_copies ?? 0),
+    tags: Array.isArray(raw?.tags) ? raw.tags : [],
+    sharpe,
+    max_dd: maxdd,
+  } as MarketplaceStrategy;
+}
+
 export async function getMarketplaceStrategies(
   filters?: { asset_type?: string; symbol?: string; min_price?: number },
 ): Promise<MarketplaceStrategy[]> {
   const q = new URLSearchParams();
   if (filters?.asset_type) q.set("asset_type", filters.asset_type);
   if (filters?.symbol) q.set("symbol", filters.symbol);
-  return call<MarketplaceStrategy[]>(`/marketplace?${q.toString()}`);
+  const rows = await call<any[]>(`/marketplace?${q.toString()}`);
+  return (Array.isArray(rows) ? rows : []).map(normalizeMarketplaceRow);
 }
 
 export async function publishStrategy(data: {

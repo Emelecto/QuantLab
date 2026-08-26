@@ -27,20 +27,32 @@ function writeAll(runs: BacktestResult[]): void {
 async function supabaseUpsert(run: BacktestResult, userId: string): Promise<void> {
   const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
   const sb = createBrowserSupabaseClient();
-  await sb.from("strategies").upsert({
+  const c = run.config ?? ({} as BacktestResult["config"]);
+  // IMPORTANTE: las columnas de aquí deben existir en public.strategies.
+  // NO hay columna `config`: los parámetros viven en columnas planas
+  // (code, capital, commission, folds, split, slippage). Escribir `config`
+  // devuelve 400 PGRST204 y el run se perdía en silencio.
+  const { error } = await sb.from("strategies").upsert({
     id: run.id,
     user_id: userId,
-    title: `${run.config.symbol} · ${run.config.timeframe}`,
-    asset_type: run.config.asset_type,
-    symbol: run.config.symbol,
-    timeframe: run.config.timeframe,
-    config: run.config as unknown as Record<string, unknown>,
+    title: `${c.symbol} · ${c.timeframe}`,
+    code: c.code ?? "",
+    asset_type: c.asset_type,
+    symbol: c.symbol,
+    timeframe: c.timeframe,
+    capital: c.capital,
+    commission: c.commission,
+    slippage: c.slippage,
+    folds: c.folds,
+    split: c.split,
     metrics: run.metrics as unknown as Record<string, unknown>,
     equity: run.equity_curve ?? [],
     integrity: run.integrity_label,
+    status: "tested",
     created_at: run.created_at,
     updated_at: new Date().toISOString(),
   });
+  if (error) throw new Error(`No se pudo guardar la estrategia: ${error.message}`);
 }
 
 async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
@@ -61,9 +73,22 @@ async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
     if (!row?.id) continue;
     const metrics = row.metrics as BacktestResult["metrics"] | null | undefined;
     if (!metrics || typeof metrics.sharpe_oos !== "number") continue;
+    // `strategies` no tiene columna `config`: se reconstruye desde las
+    // columnas planas para que results/publish tengan symbol/code/etc.
+    const config = {
+      asset_type: row.asset_type ?? "crypto",
+      symbol: row.symbol ?? "",
+      timeframe: row.timeframe ?? "1d",
+      code: row.code ?? "",
+      capital: row.capital ?? 1000,
+      commission: row.commission ?? 0.001,
+      slippage: row.slippage ?? 0.0005,
+      folds: row.folds ?? 3,
+      split: row.split ?? 70,
+    } as unknown as BacktestResult["config"];
     out.push({
       id: row.id,
-      config: (row.config ?? {}) as BacktestResult["config"],
+      config,
       created_at: row.created_at ?? new Date().toISOString(),
       metrics,
       integrity_label: row.integrity ?? "High",
@@ -74,25 +99,21 @@ async function supabaseFetch(userId: string): Promise<BacktestResult[]> {
 }
 
 // --- API pública ---
-/** Guarda un run: localStorage (inmediato) + Supabase (async con user_id). */
+/** Guarda un run: localStorage (inmediato) + Supabase (async con user_id).
+ *  Si la nube falla, lanza — el llamador decide si avisar al usuario.
+ *  El run YA quedó en localStorage, así que nunca se pierde el trabajo. */
 export async function saveRun(run: BacktestResult): Promise<void> {
   if (typeof window === "undefined") return;
   const all = readAll();
   all.unshift(run);
   writeAll(all);
 
-  // Obtener user_id de la sesión actual.
-  try {
-    const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
-    const sb = createBrowserSupabaseClient();
-    const { data } = await sb.auth.getSession();
-    const userId = data.session?.user?.id;
-    if (userId) {
-      await supabaseUpsert(run, userId);
-    }
-  } catch {
-    // Best-effort: el próximo sync lo recupera.
-  }
+  const { createBrowserSupabaseClient } = await import("@/lib/supabase/client");
+  const sb = createBrowserSupabaseClient();
+  const { data } = await sb.auth.getSession();
+  const userId = data.session?.user?.id;
+  if (!userId) return; // sin sesión: solo cache local, sin error
+  await supabaseUpsert(run, userId);
 }
 
 /** Guarda un run con user_id explícito (preferido). */

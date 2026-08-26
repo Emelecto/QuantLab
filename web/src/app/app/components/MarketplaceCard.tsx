@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
+import { subscribeToStrategy } from "@/lib/tournaments";
 import type { MarketplaceStrategy } from "@/lib/tokens";
 
 const assetLabels: Record<string, string> = {
@@ -36,6 +39,23 @@ function StarRating({ rating }: { rating: number }) {
 
 export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy }) {
   const assetLabel = assetLabels[strategy.asset_type] ?? strategy.asset_type;
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function handleSubscribe() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await subscribeToStrategy(strategy.id);
+      setMsg("✅ Suscrito");
+      router.push("/app/marketplace/my-subscriptions");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "No se pudo suscribir.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="ql-perspective">
@@ -108,19 +128,32 @@ export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy })
         </div>
 
         {/* Footer */}
-        <div className="mt-auto flex items-center gap-2 px-5 py-4 border-t border-line">
-          <Link
-            href={`/app/marketplace/${strategy.id}`}
-            className={buttonClasses("secondary", "sm")}
-          >
-            Ver detalle
-          </Link>
-          <button
-            type="button"
-            className={buttonClasses("primary", "sm")}
-          >
-            Suscribirse
-          </button>
+        <div className="mt-auto border-t border-line px-5 py-4">
+          {msg && (
+            <p
+              className={`mb-2 text-[12px] ${
+                msg.startsWith("✅") ? "text-long" : "text-short"
+              }`}
+            >
+              {msg}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/app/marketplace/${strategy.id}`}
+              className={buttonClasses("secondary", "sm")}
+            >
+              Ver detalle
+            </Link>
+            <button
+              type="button"
+              onClick={handleSubscribe}
+              disabled={busy}
+              className={buttonClasses("primary", "sm")}
+            >
+              {busy ? "Suscribiendo…" : "Suscribirse"}
+            </button>
+          </div>
         </div>
       </article>
     </div>

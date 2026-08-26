@@ -15,7 +15,7 @@ import {
   type BacktestResult,
 } from "@/lib/api";
 import { saveRun } from "@/lib/runs";
-import { saveStrategy, saveBacktestRun } from "@/lib/db";
+import { setStrategyPublic, saveBacktestRun } from "@/lib/db";
 import {
   publishStrategy,
   submitToTournament,
@@ -260,11 +260,13 @@ function NewStrategyPageInner() {
       await saveRun(run);
 
       try {
-        await saveStrategy(config, config.code, isPublic);
+        // saveRun ya hizo upsert de la estrategia (mismo id que el run) con
+        // code/params/metrics. Aquí solo marcamos visibilidad pública si toca
+        // y ligamos el run en backtest_runs. NO se crea una segunda fila.
+        if (isPublic) await setStrategyPublic(run.id, true);
         await saveBacktestRun(run.id, result);
       } catch (dbErr) {
-        // Persistencia en la nube best-effort; el run ya está en localStorage.
-        console.warn("No se pudo guardar en la nube:", dbErr);
+        console.warn("No se pudo completar el guardado en la nube:", dbErr);
       }
       router.push(`/app/strategies/${run.id}/results`);
     } catch (err) {
