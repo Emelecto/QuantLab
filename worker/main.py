@@ -35,24 +35,75 @@ app = FastAPI(
 logger = logging.getLogger("quantlab.worker")
 
 # ---------------------------------------------------------------------------
-# CORS: por defecto abierto ("*"); se puede restringir con CORS_ORIGINS.
-# Formato de CORS_ORIGINS: lista separada por comas, p.ej. "http://localhost:3000,https://app.quantlab.io"
+# CORS: por defecto abierto (refleja el Origin del request); se puede restringir
+# con CORS_ORIGINS.
+#
+# Formato de CORS_ORIGINS: lista separada por comas, p.ej.
+#   "http://localhost:3000,https://app.quantlab.io"
+#
+# Nota importante: el frontend envía `Authorization: Bearer <jwt>` en requests
+# autenticados. Cuando una request lleva credenciales, el navegador RECHAZA la
+# respuesta si Access-Control-Allow-Origin es "*" genérico o si falta
+# Access-Control-Allow-Credentials: true. Por eso:
+#   - Si CORS_ORIGINS está configurado → lista blanca + credentials=true.
+#   - Si NO está configurado → reflejamos el Origin del request (dinámico) +
+#     credentials=true, para que el navegador acepte la respuesta.
 # ---------------------------------------------------------------------------
-_cors_env = os.environ.get("CORS_ORIGINS", "*").strip()
-if _cors_env and _cors_env != "*":
-    allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-    allow_credentials = True
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+if _cors_env:
+    _cors_allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
 else:
-    allow_origins = ["*"]
-    allow_credentials = False
+    _cors_allow_origins = []  # dinámico: reflejamos el Origin
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=allow_credentials,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Middleware CORS personalizado: refleja el Origin cuando no hay lista blanca,
+# permitiendo siempre credenciales para que el navegador acepte requests con
+# header Authorization.
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class DynamicCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        origin = request.headers.get("origin")
+
+        # Preflight OPTIONS: responder directamente con los headers correctos.
+        if request.method == "OPTIONS":
+            from starlette.responses import Response
+            resp = Response(status_code=200)
+            if _cors_env:
+                if origin and origin in _cors_allow_origins:
+                    resp.headers["Access-Control-Allow-Origin"] = origin
+                    resp.headers["Access-Control-Allow-Credentials"] = "true"
+            else:
+                if origin:
+                    resp.headers["Access-Control-Allow-Origin"] = origin
+                    resp.headers["Access-Control-Allow-Credentials"] = "true"
+                else:
+                    resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["Access-Control-Allow-Methods"] = "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
+            resp.headers["Access-Control-Allow-Headers"] = "*"
+            resp.headers["Access-Control-Max-Age"] = "600"
+            return resp
+
+        response = await call_next(request)
+
+        if _cors_env:
+            # Lista blanca configurada: reflejar solo si el Origin está en ella.
+            if origin and origin in _cors_allow_origins:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+        else:
+            # Sin lista blanca: reflejamos cualquier Origin (modo abierto).
+            if origin:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+            else:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+
+        response.headers.setdefault("Access-Control-Allow-Methods", "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT")
+        response.headers.setdefault("Access-Control-Allow-Headers", "*")
+        response.headers.setdefault("Access-Control-Max-Age", "600")
+        return response
+
+app.add_middleware(DynamicCORSMiddleware)
 
 # Router de torneos + marketplace + QP + social (follows / actividad)
 app.include_router(tournaments_router)
