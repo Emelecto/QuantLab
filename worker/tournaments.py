@@ -10,7 +10,21 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from auth import require_user, get_optional_user
 from pydantic import BaseModel
 
+# Motor de backtest (datos reales, walk-forward) + esquema de config.
+# Import diferido a nivel de módulo: engine solo trae pandas (dependencia central),
+# no acopla a red en los tests unitarios. Permite monkear tournaments.run_backtest.
+from engine import run_backtest  # noqa: E402
+from schemas import StrategyConfig  # noqa: E402
+
 logger = logging.getLogger(__name__)
+
+# Rate-limit en memoria (best-effort) para el endpoint /replicate:
+# no re-correr el backtest más de 1 vez por minuto por estrategia.
+_replicate_last_run: dict[str, float] = {}
+
+# Umbral de tolerancia del Sello de Replicabilidad (Δ sharpe OOS).
+REPLICATE_SHARPE_TOLERANCE = 0.3
+_REPLICATE_COOLDOWN_S = 60
 
 router = APIRouter(prefix="", tags=["tournaments"])
 
@@ -412,7 +426,171 @@ def marketplace_publish(body: PublishBody, request: Request):
     except Exception:  # noqa: BLE001
         pass
 
-    return {"id": res.data[0]["id"]}
+    # -----------------------------------------------------------------------
+    # SELLO DE INTEGRIDAD REAL (item 1 del rediseño del marketplace).
+    # Corre el backtest OOS con datos REALES y escribe los campos de sello en
+    # la fila recién insertada. Si el backtest falla, publica igual pero deja
+    # backtest_metrics=None (no rompe el flujo de publicación).
+    # -----------------------------------------------------------------------
+    strategy_id = res.data[0]["id"]
+    try:
+        # Construir StrategyConfig desde body.config + metadatos del marketplace.
+        cfg = dict(body.config) if isinstance(body.config, dict) else {}
+        cfg.setdefault("code", body.code or "fast={fast},slow={slow}".format(
+            fast=cfg.get("fast", 20), slow=cfg.get("slow", 50)))
+        cfg["symbol"] = body.symbol
+        cfg["asset_type"] = body.asset_type
+        cfg["timeframe"] = body.timeframe
+        sc = StrategyConfig(**cfg)
+
+        bt = run_backtest(sc)
+
+        seal = {
+            "backtest_metrics": bt.get("metrics"),
+            "backtest_equity": bt.get("equity_curve"),
+            "integrity_label": bt.get("integrity_label"),
+            "method": "walk-forward " + str(bt.get("folds_used")) + "-fold, slippage por rango/volumen",
+            "data_hash": bt.get("data_hash"),
+            "replicable": False,
+        }
+
+        # Benchmarks vs estrategias naive (buy&hold y media móvil simple 20).
+        try:
+            from data_feed import get_ohlcv
+            df = get_ohlcv(sc.asset_type, sc.symbol, sc.timeframe, sc.start, sc.end)
+            if df is not None and not df.empty and "close" in df.columns:
+                close = df["close"].astype(float)
+                bh_ret = float((1.0 + close.pct_change().dropna()).prod() - 1.0)
+                ma_ret = float((1.0 + close.rolling(20).mean().pct_change().dropna()).prod() - 1.0)
+                strat_ret = float((bt.get("metrics") or {}).get("ret_total") or 0.0)
+                seal["bench_buyhold"] = (strat_ret - bh_ret) * 100.0
+                seal["bench_ma"] = (strat_ret - ma_ret) * 100.0
+            else:
+                seal["bench_buyhold"] = None
+                seal["bench_ma"] = None
+        except Exception as bench_exc:  # noqa: BLE001
+            logger.warning("Sello: cálculo de benchmarks falló (se deja None): %s", bench_exc)
+            seal["bench_buyhold"] = None
+            seal["bench_ma"] = None
+
+        sb.table("marketplace_strategies").update(seal).eq("id", strategy_id).execute()
+    except Exception as seal_exc:  # noqa: BLE001
+        logger.warning(
+            "Sello de Integridad falló al publicar (se publica igual, backtest_metrics=None): %s",
+            seal_exc,
+        )
+        # Publica igual, pero deja el sello en estado 'sin datos' y no replicable.
+        try:
+            sb.table("marketplace_strategies").update(
+                {"backtest_metrics": None, "replicable": False}
+            ).eq("id", strategy_id).execute()
+        except Exception:  # noqa: BLE001
+            pass
+
+    return {"id": strategy_id}
+
+
+@router.get("/marketplace/{strategy_id}/replicate")
+def marketplace_replicate(strategy_id: str):
+    """VERIFICACIÓN / SELLO DE REPLICABILIDAD (item 2 del rediseño).
+
+    Corre el backtest OTRA VEZ con datos frescos (mismo config) y compara el
+    sharpe OOS con el guardado al publicar. Si |Δ| <= 0.3 y ambos > 0, marca la
+    estrategia como `replicable=True` (Sello de Integridad confirmado). Si el
+    hash de datos cambió, avisa que se evaluó sobre una ventana distinta.
+
+    Protección: rate-limit en memoria (best-effort) de 1 corrida por minuto por
+    estrategia, para no re-bajar la API de datos en cada click.
+    """
+    import time
+
+    now = time.time()
+    last = _replicate_last_run.get(strategy_id)
+    if last is not None and (now - last) < _REPLICATE_COOLDOWN_S:
+        raise HTTPException(
+            429,
+            f"Replicar solo se puede correr 1 vez por minuto por estrategia "
+            f"(espera {int(_REPLICATE_COOLDOWN_S - (now - last))}s).",
+        )
+    _replicate_last_run[strategy_id] = now
+
+    sb = get_supabase()
+    s = sb.table("marketplace_strategies").select("*").eq("id", strategy_id).execute()
+    if not s.data:
+        raise HTTPException(404, "Estrategia no encontrada")
+    row = s.data[0]
+
+    # Reconstruir StrategyConfig desde la fila (config + metadatos de respaldo).
+    base = row.get("config") or {}
+    cfg = dict(base) if isinstance(base, dict) else {}
+    if "symbol" not in cfg and row.get("symbol"):
+        cfg["symbol"] = row["symbol"]
+    if "asset_type" not in cfg and row.get("asset_type"):
+        cfg["asset_type"] = row["asset_type"]
+    if "timeframe" not in cfg and row.get("timeframe"):
+        cfg["timeframe"] = row["timeframe"]
+    if "code" not in cfg:
+        cfg["code"] = row.get("code") or "fast={fast},slow={slow}".format(
+            fast=cfg.get("fast", 20), slow=cfg.get("slow", 50))
+    sc = StrategyConfig(**cfg)
+
+    try:
+        bt = run_backtest(sc)
+    except Exception as rep_exc:  # noqa: BLE001
+        logger.warning("Replicar falló al correr backtest: %s", rep_exc)
+        return {
+            "replicable": False,
+            "error": str(rep_exc),
+            "sharpe_original": None,
+            "sharpe_replica": None,
+            "delta": None,
+        }
+
+    new_sharpe = float((bt.get("metrics") or {}).get("sharpe_oos") or 0.0)
+    old_metrics = row.get("backtest_metrics") or {}
+    old_sharpe = old_metrics.get("sharpe_oos") if isinstance(old_metrics, dict) else None
+    if old_sharpe is not None:
+        old_sharpe = float(old_sharpe)
+    old_data_hash = row.get("data_hash")
+    data_hash_changed = bt.get("data_hash") != old_data_hash
+    delta = (new_sharpe - old_sharpe) if old_sharpe is not None else None
+
+    replicable = False
+    note = None
+    if old_sharpe is None:
+        note = "Sin métricas previas para comparar (sharpe_oos original no disponible)."
+    elif abs(new_sharpe - old_sharpe) <= REPLICATE_SHARPE_TOLERANCE and new_sharpe > 0 and old_sharpe > 0:
+        replicable = True
+    else:
+        note = (
+            f"Sharpe OOS no se mantuvo dentro del umbral "
+            f"(|Δ|={abs(delta):.3f} > {REPLICATE_SHARPE_TOLERANCE} o alguno <= 0). "
+            f"Estrategia NO replicable."
+        )
+
+    # Persistir el veredicto + el hash fresco (best-effort).
+    try:
+        sb.table("marketplace_strategies").update(
+            {"replicable": replicable, "data_hash": bt.get("data_hash")}
+        ).eq("id", strategy_id).execute()
+    except Exception:  # noqa: BLE001
+        pass
+
+    result = {
+        "replicable": replicable,
+        "sharpe_original": old_sharpe,
+        "sharpe_replica": new_sharpe,
+        "delta": delta,
+        "data_hash_changed": data_hash_changed,
+    }
+    if note:
+        result["note"] = note
+    if data_hash_changed:
+        result["window_note"] = (
+            "El hash de datos cambió: se evaluó sobre una ventana/distribución "
+            "distinta a la de la publicación original."
+        )
+    return result
 
 
 @router.post("/marketplace/{strategy_id}/subscribe")

@@ -18,7 +18,18 @@ def test_publish_strategy_inserts_and_returns_id(mock_supabase):
 
     mock_supabase.table.return_value.insert.side_effect = capture_insert
 
-    with patch("tournaments.get_supabase", return_value=mock_supabase):
+    # Evita un backtest real de red en el test (el Sello se ejercita en
+    # tests/test_marketplace_integrity.py). El flujo de publicación no cambia.
+    dummy_bt = {
+        "metrics": {"sharpe_oos": 1.0, "ret_total": 0.2},
+        "integrity_label": "Media",
+        "equity_curve": [],
+        "folds_used": 5,
+        "data_hash": "testhash",
+    }
+
+    with patch("tournaments.get_supabase", return_value=mock_supabase), \
+         patch("tournaments.run_backtest", return_value=dummy_bt):
         from tournaments import PublishBody, marketplace_publish
 
         body = PublishBody(
