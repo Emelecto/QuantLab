@@ -377,6 +377,46 @@ def marketplace_list(asset_type: str | None = None, symbol: str | None = None):
     return q.execute().data or []
 
 
+# ---------------------------------------------------------------------------
+# Señal viva del meta-modelo comunitario (item 5 del rediseño)
+# ---------------------------------------------------------------------------
+@router.get("/marketplace/consensus-signal")
+def marketplace_consensus_signal(tournament_id: str | None = None, round_number: int | None = None):
+    """Devuelve la señal viva del meta-modelo comunitario de los torneos ML.
+
+    Lee la fila mas reciente de consensus_signals (filtra por tournament_id /
+    round_number si vienen). Si no hay ninguna, 404 claro.
+    """
+    sb = get_supabase()
+    q = (
+        sb.table("consensus_signals")
+        .select("tournament_id,round_number,dataset_id,signal_json,created_at")
+        .order("created_at", desc=True)
+        .limit(1)
+    )
+    if tournament_id:
+        q = q.eq("tournament_id", tournament_id)
+    if round_number is not None:
+        q = q.eq("round_number", round_number)
+    res = q.execute()
+    if not res.data:
+        raise HTTPException(
+            404,
+            "No hay senal de meta-modelo comunitario disponible para esos filtros",
+        )
+    row = res.data[0]
+    signal = row.get("signal_json") or {}
+    return {
+        "tournament_id": row.get("tournament_id"),
+        "round_number": row.get("round_number"),
+        "dataset_id": row.get("dataset_id"),
+        "n_signals": len(signal),
+        "signal": signal,
+        "created_at": row.get("created_at"),
+        "source": "meta-modelo comunitario",
+    }
+
+
 class PublishBody(BaseModel):
     title: str
     description: str | None = None

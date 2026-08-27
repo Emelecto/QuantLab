@@ -151,6 +151,36 @@ def _distribute_ml_qp(supabase_client, dataset_id: str):
             pesos = pd.Series(e / e.sum(), index=cols_validas)
             meta = sc.stake_weight(preds_df[cols_validas], pesos)
 
+    # --- Persistir el meta-modelo comunitario como SEÑAL VIVA del marketplace ---
+    # Se guarda en consensus_signals (upsert por (tournament_id, round_number)) para
+    # que el endpoint /marketplace/consensus-signal lo exponga. Si la migración 0013
+    # aún no está aplicada, no rompemos el flujo de la ronda: logueamos y seguimos.
+    if meta is not None and len(meta) > 0:
+        try:
+            ds_meta = (
+                supabase_client.table("ml_datasets")
+                .select("tournament_id,round_number")
+                .eq("id", dataset_id)
+                .execute()
+            )
+            if ds_meta.data:
+                info = ds_meta.data[0]
+                supabase_client.table("consensus_signals").upsert({
+                    "tournament_id": info.get("tournament_id"),
+                    "round_number": info.get("round_number"),
+                    "dataset_id": dataset_id,
+                    "signal_json": meta.to_dict(),
+                }, on_conflict="tournament_id,round_number").execute()
+                logger.info(
+                    f"Meta-modelo comunitario persistido en consensus_signals "
+                    f"(torneo {info.get('tournament_id')}, ronda {info.get('round_number')}): "
+                    f"{len(meta)} señales)."
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                f"No se pudo guardar consensus_signals (¿migración 0013 no aplicada?): {e}"
+            )
+
     # --- Re-puntuar cada submission con el meta-modelo alineado por índice ---
     subs_validas = (
         supabase_client.table("prediction_submissions")
