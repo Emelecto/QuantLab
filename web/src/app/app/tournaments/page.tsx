@@ -108,14 +108,22 @@ export default function TournamentsPage() {
           <EmptyTournamentsState hasQP={userQP > 0} />
         ) : (
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fadeIn">
-            {tournaments.map((t) => (
+            {tournaments.map((t) => {
+              // Los torneos ML no usan el modal de código: se resuelven en el
+              // detalle (pestañas Datos / Enviar / Ranking).
+              const esML = t.type === "ml";
+              return (
               <TournamentCard
                 key={t.id}
-                onEnviar={(tt) => setSubmitTarget({ id: tt.id, name: tt.name })}
+                onEnviar={
+                  esML
+                    ? undefined
+                    : (tt) => setSubmitTarget({ id: tt.id, name: tt.name })
+                }
                 tournament={{
                   id: t.id,
                   name: t.name,
-                  type: "custom",
+                  type: esML ? "ml" : "custom",
                   status:
                     t.status === "open"
                       ? "active"
@@ -130,7 +138,8 @@ export default function TournamentsPage() {
                   metric_label: t.primary_metric,
                 }}
               />
-            ))}
+              );
+            })}
 
             {submitTarget && (
               <SubmitStrategyModal

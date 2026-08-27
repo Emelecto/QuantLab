@@ -9,7 +9,7 @@ import { CountdownTimer } from "./CountdownTimer";
 export interface TournamentSummary {
   id: string;
   name: string;
-  type: "sharpe" | "returns" | "sortino" | "custom";
+  type: "sharpe" | "returns" | "sortino" | "custom" | "ml";
   status: "active" | "upcoming" | "finished";
   asset_type: "crypto" | "stock" | "any";
   symbol?: string;
@@ -26,7 +26,12 @@ const typeLabels: Record<TournamentSummary["type"], string> = {
   returns: "Retornos",
   sortino: "Sortino",
   custom: "Custom",
+  ml: "Predicciones ML",
 };
+
+/** Los torneos ML llevan un color propio (violeta) para distinguirse del resto. */
+const ML_BADGE_CLASS =
+  "border-[#a78bfa]/35 bg-[#a78bfa]/12 text-[#c4b5fd]";
 
 const statusTones: Record<TournamentSummary["status"], "long" | "cyan" | "neutral"> = {
   active: "long",
@@ -47,6 +52,8 @@ export function TournamentCard({
   tournament: TournamentSummary;
   onEnviar?: (t: TournamentSummary) => void;
 }) {
+  const esML = tournament.type === "ml";
+
   return (
     <Card className="ql-tilt ql-glass-hover h-full flex flex-col overflow-hidden">
       <Link
@@ -64,7 +71,11 @@ export function TournamentCard({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            <Badge tone="cyan">{typeLabels[tournament.type]}</Badge>
+            {esML ? (
+              <Badge className={ML_BADGE_CLASS}>Predicciones ML</Badge>
+            ) : (
+              <Badge tone="cyan">{typeLabels[tournament.type]}</Badge>
+            )}
             <Badge tone="neutral">
               {tournament.asset_type === "any"
                 ? "Multi-activo"
@@ -116,7 +127,19 @@ export function TournamentCard({
         </CardFooter>
       </Link>
 
-      {onEnviar && tournament.status === "active" && (
+      {/* ML: se compite subiendo un CSV de predicciones, no código → "Ver ronda". */}
+      {esML ? (
+        <div className="border-t border-line px-5 py-3">
+          <Link
+            href={`/app/tournaments/${tournament.id}`}
+            className={buttonClasses("secondary", "sm", "w-full")}
+          >
+            Ver ronda
+          </Link>
+        </div>
+      ) : (
+        onEnviar &&
+        tournament.status === "active" && (
         <div className="border-t border-line px-5 py-3">
           <button
             type="button"
@@ -126,6 +149,7 @@ export function TournamentCard({
             Enviar estrategia
           </button>
         </div>
+        )
       )}
     </Card>
   );

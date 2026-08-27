@@ -12,7 +12,7 @@ export interface Tournament {
   id: string;
   name: string;
   slug: string;
-  type: "weekly" | "monthly" | "kaggle" | "express" | "community";
+  type: "weekly" | "monthly" | "kaggle" | "express" | "community" | "ml";
   status: "draft" | "open" | "closed" | "evaluating" | "completed";
   asset_type: string;
   symbols: string[];
