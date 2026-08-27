@@ -408,11 +408,36 @@ async def scheduler_run(
     except Exception as e:  # noqa: BLE001
         logger.warning(f"generate_weekly_signals falló: {e}")
 
+    # Rondas ML: cerrar vencidas y crear una nueva. Un fallo aquí NO debe
+    # devolver 500 al scheduler (cadencia cada ~4 días vía GitHub Actions).
+    ml_evaluated = 0
+    ml_created = None
+    try:
+        from ml_scheduler import create_ml_round, evaluate_ml_rounds
+
+        ml_evaluated = evaluate_ml_rounds(sb, now)
+        ml_created = create_ml_round(
+            sb,
+            mode="sintetico",
+            now=now,
+            round_days=4,
+            n_activos=600,
+            n_eras=350,
+            n_features=50,
+            n_features_utiles=12,
+            ic_objetivo=0.06,
+            seed=42,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Scheduler ML falló (evaluate/create): {e}")
+
     return {
         "status": "ok",
         "tournament_created": created_id,
         "tournaments_evaluated": evaluated,
         "signals_generated": signals_generated,
+        "ml_evaluated": ml_evaluated,
+        "ml_created": ml_created,
         "timestamp": now.isoformat(),
     }
 
