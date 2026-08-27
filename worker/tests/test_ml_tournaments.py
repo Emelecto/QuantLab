@@ -342,3 +342,44 @@ def ml_scheduler_crear(sb, monkeypatch, seed=1, reciente=False):
     return ml_scheduler.create_ml_round(sb, mode="sintetico", now=__import__("datetime").datetime(2026, 1, 1),
                                        round_days=4, n_activos=120, n_eras=60,
                                        n_features=12, n_features_utiles=5, ic_objetivo=0.06, seed=seed)
+
+
+def test_metamodelo_penaliza_clon(sb, monkeypatch, stub_storage):
+    """Con 2 subs idénticas (clon), el meta-modelo marca una con plagio o meta_corr>0.95."""
+    import tournaments as _t
+    import ml_scheduler
+    monkeypatch.setattr(_t, "get_supabase", lambda: sb)
+    panel, cols, meta = _dataset_real(n_activos=200, n_eras=80, seed=3)
+    with patch.object(db, "generar_mercado_sintetico", return_value=(panel, cols, meta)):
+        ml_persist.crear_dataset("t", 1, mode="sintetico", n_activos=200, n_eras=80,
+                                 n_features=12, n_features_utiles=5, ic_objetivo=0.06, seed=3)
+    live = [r for r in sb._store["ml_datasets"] if r["kind"] == "live"][0]
+    feat = live["feature_cols"]
+    interna = db.obfuscar(panel, cols, salt=ml_persist._SALT, seed=meta.get("seed", 0))[1]
+    partes = db.partir(interna)
+    from sklearn.ensemble import HistGradientBoostingRegressor
+    m = HistGradientBoostingRegressor(max_iter=120, learning_rate=0.08, max_depth=4, random_state=0)
+    m.fit(partes["train"][feat], partes["train"]["target"])
+    partes["live"]["prediction"] = m.predict(partes["live"][feat])
+    preds = partes["live"][["id", "prediction"]]
+    # Dos usuarios envían el MISMO modelo (clon)
+    sb._store.setdefault("prediction_submissions", [])
+    for uid in ("u1", "u2"):
+        sb._store["prediction_submissions"].append({
+            "id": f"sub_{uid}", "dataset_id": live["id"], "user_id": uid,
+            "file_path": f"{uid}.csv", "_predicciones_df": preds.copy(),
+        })
+    # Puntuar ambas (is_valid=True, score>0)
+    ml_persist.puntuar_submission_en_bd("sub_u1")
+    ml_persist.puntuar_submission_en_bd("sub_u2")
+    # Construir meta-modelo y re-puntuar con penalización por falta de originalidad
+    ml_scheduler._distribute_ml_qp(sb, live["id"])
+    # Una de las dos debe quedar marcada (plagio o meta_corr alto)
+    st = sb.table("prediction_submissions").select("id,plagio_flag,meta_corr").eq(
+        "dataset_id", live["id"]
+    ).execute()
+    assert any(
+        (s.get("plagio_flag") is True)
+        or (s.get("meta_corr") is not None and s["meta_corr"] > 0.95)
+        for s in st.data
+    )

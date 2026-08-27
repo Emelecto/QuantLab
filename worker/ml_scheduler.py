@@ -118,9 +118,51 @@ def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
 
 
 def _distribute_ml_qp(supabase_client, dataset_id: str):
-    """Rankea submissions válidas y reparte QP por posición (reusa _credit_qp)."""
+    """Rankea submissions válidas y reparte QP por posición (reusa _credit_qp).
+
+    Antes de repartir QP construye el meta-modelo comunitario (solo con subs
+    score>0) y re-puntúa cada submission penalizando falta de originalidad.
+    """
+    import numpy as np
+    import pandas as pd
     from scheduler import _credit_qp  # evita import circular en tests
 
+    import ml_persist
+    import scoring_ml as sc
+
+    # --- Meta-modelo comunitario: se construye SOLO con subs score>0 ---
+    preds_df = ml_persist.cargar_predicciones_validas(supabase_client, dataset_id)
+    meta = None
+    if not preds_df.empty:
+        # scores desde BD para descartar subs no aportantes (score <= 0)
+        score_rows = (
+            supabase_client.table("prediction_submissions")
+            .select("id,score")
+            .eq("dataset_id", dataset_id)
+            .eq("is_valid", True)
+            .execute()
+        )
+        score_map = {r["id"]: (r.get("score") or 0) for r in (score_rows.data or [])}
+        cols_validas = [c for c in preds_df.columns if score_map.get(c, 0) > 0]
+        if cols_validas:
+            # pesos = softmax de los scores: más score -> más peso en el meta-modelo
+            s = np.asarray([score_map[c] for c in cols_validas], dtype=float)
+            e = np.exp(s - s.max())
+            pesos = pd.Series(e / e.sum(), index=cols_validas)
+            meta = sc.stake_weight(preds_df[cols_validas], pesos)
+
+    # --- Re-puntuar cada submission con el meta-modelo alineado por índice ---
+    subs_validas = (
+        supabase_client.table("prediction_submissions")
+        .select("id")
+        .eq("dataset_id", dataset_id)
+        .eq("is_valid", True)
+        .execute()
+    )
+    for sub in (subs_validas.data or []):
+        ml_persist.puntuar_submission_en_bd(sub["id"], meta_modelo=meta)
+
+    # --- Repartir QP (score ya incluye la penalización por meta_corr) ---
     subs = (
         supabase_client.table("prediction_submissions")
         .select("id,user_id,score")

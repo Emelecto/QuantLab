@@ -125,8 +125,12 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
 # ---------------------------------------------------------------------------
 # Scoring de una submission
 # ---------------------------------------------------------------------------
-def puntuar_submission_en_bd(submission_id: str) -> dict:
-    """Carga la submission + el holdout privado, puntúa y guarda el resultado."""
+def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
+    """Carga la submission + el holdout privado, puntúa y guarda el resultado.
+
+    Si `meta_modelo` (Serie de predicciones del meta-modelo comunitario) se
+    pasa, se usa para penalizar falta de originalidad (meta_corr > UMBRAL_PLAGIO).
+    """
     from tournaments import get_supabase
     supabase = get_supabase()
 
@@ -167,6 +171,7 @@ def puntuar_submission_en_bd(submission_id: str) -> dict:
     res = sc.puntuar_submission(
         merged["prediction"], merged["target"], merged["era"],
         merged[feat_cols] if feat_cols else merged.drop(columns=["id", "prediction", "target", "era", "row_id"]),
+        meta_modelo=meta_modelo,
     )
 
     # Anti-plagio: comparar con otras submissions del mismo dataset
@@ -175,11 +180,17 @@ def puntuar_submission_en_bd(submission_id: str) -> dict:
     ).neq("id", submission_id).eq("is_valid", True).execute()
     plagio = False
     if otras.data:
-        sim = sc.matriz_similitud([merged["prediction"].values] + [
-            _leer_predicciones(s).iloc[:, 1].values for s in otras.data
-        ])
-        if len(sim) > 1 and sim[0].max() > sc.UMBRAL_PLAGIO:
-            plagio = True
+        dfp = pd.DataFrame({"base": merged["prediction"].values})
+        for s in otras.data:
+            op = _leer_predicciones(s)
+            if op is None or len(op) == 0:
+                continue
+            dfp[len(dfp.columns)] = op.iloc[:, 1].values
+        if dfp.shape[1] > 1:
+            pares = sc.matriz_similitud(dfp)
+            # Sospechoso si el "base" (col 0) se parece a otra submission
+            if any(p["a"] == "base" or p["b"] == "base" for p in pares):
+                plagio = True
 
     supabase.table("prediction_submissions").update({
         "status": "scored", "is_valid": res["valida"], "plagio_flag": plagio,
@@ -207,3 +218,31 @@ def _leer_predicciones(sub: dict) -> pd.DataFrame | None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"No se pudo leer predicciones desde {path}: {e}")
         return None
+
+
+def cargar_predicciones_validas(supabase, dataset_id) -> pd.DataFrame:
+    """Trae las predicciones de subs is_valid=True del dataset y arma un DataFrame.
+
+    Índice = row_id (columna `id` del CSV de la submission), columnas = submission
+    id, valores = prediction. Devuelve un DataFrame vacío si no hay subs válidas.
+    """
+    subs = (
+        supabase.table("prediction_submissions")
+        .select("id,file_path,status,is_valid,plagio_flag")
+        .eq("dataset_id", dataset_id)
+        .eq("is_valid", True)
+        .execute()
+    )
+    if not subs.data:
+        return pd.DataFrame()
+    series = {}
+    for sub in subs.data:
+        preds = _leer_predicciones(sub)
+        if preds is None or len(preds) == 0:
+            continue
+        s = preds.set_index("id")["prediction"]
+        s.name = sub["id"]
+        series[sub["id"]] = s
+    if not series:
+        return pd.DataFrame()
+    return pd.concat(series, axis=1)
