@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import math  # noqa: E402  (import tardío para no penalizar los tests unitarios)
 import re  # noqa: E402
+import pandas as pd  # noqa: E402  (pandas es dependencia central, no acopla a red)
 from datetime import datetime  # noqa: E402
 
 
@@ -249,18 +250,36 @@ def run_backtest(config) -> dict:
     sma_slow = close.rolling(slow, min_periods=slow).mean()
     pos = (sma_fast > sma_slow).astype(float).fillna(0.0)
 
-    # --- Costos realistas por transición de señal (cada compra/venta) ---
-    # commission viene en % por lado; slippage en fracción por lado.
-    # No hay order book => el costo de spread implícito se modela con el
-    # slippage como proxy (documentado). Cada cambio de posición paga ambos.
-    cost_each = (config.commission / 100.0) + float(config.slippage)
-    trade = pos.diff().abs().fillna(0.0)              # 1.0 en cada flip de señal
-    # El costo se aplica en el periodo en que se mantiene la nueva posición.
-    cost_series = trade.shift(1).fillna(0.0) * cost_each
+    # OHLCV necesarios para el slippage realista (rango intrabar + impacto de volumen).
+    high = df["high"].astype(float)
+    low = df["low"].astype(float)
+    volume = df["volume"].astype(float)
 
-    # Posición del día anterior (sin look-ahead) sobre los retornos del close,
-    # menos el costo de cada transición ejecutada.
-    strat = pos.shift(1).fillna(0.0) * rets - cost_series
+    # --- Motor EVENT-DRIVEN: bucle barra a barra (sin look-ahead) ---
+    # fill en la misma barra i al close, senal calculada con datos hasta i-1 => sin look-ahead
+    commission_frac = config.commission / 100.0
+    slippage_config = float(config.slippage)
+    coef = 0.1
+    strat_returns = [0.0] * n
+    prev_pos = 0.0
+    for i in range(1, n):
+        target_pos = float(pos.iloc[i - 1])          # senal objetivo para barra i (datos hasta i-1)
+        ret_i = float(rets.iloc[i])
+        cost_i = 0.0
+        if target_pos != prev_pos:                   # flip => se ejecuta al close de i
+            # slippage_modelado = max(slippage_config, spread_proxy + impacto)
+            #   spread_proxy = (high-low)/close ; impacto = coef*|trade_size|/volume (0 si vol NaN/0)
+            trade_size = abs(target_pos - prev_pos)
+            denom = float(volume.iloc[i])
+            impacto = coef * trade_size / denom if (denom == denom and denom != 0.0) else 0.0
+            spread_proxy = (float(high.iloc[i]) - float(low.iloc[i])) / float(close.iloc[i])
+            slippage_modelado = max(slippage_config, spread_proxy + impacto)
+            cost_i = commission_frac + slippage_modelado
+        strat_returns[i] = target_pos * ret_i - cost_i
+        prev_pos = target_pos
+
+    # Serie de retornos de estrategia (misma interfaz que antes para walk-forward/metricas).
+    strat = pd.Series(strat_returns, index=close.index)
 
     splits = _make_walkforward(n, config.folds, config.split)
     sharpes_is, sharpes_oos = [], []
