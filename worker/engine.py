@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import hashlib  # noqa: E402
 import math  # noqa: E402  (import tardío para no penalizar los tests unitarios)
 import re  # noqa: E402
 import pandas as pd  # noqa: E402  (pandas es dependencia central, no acopla a red)
@@ -217,34 +218,25 @@ def _build_report(metrics: dict, integrity: str) -> str:
     return intro + tail
 
 
-def run_backtest(config) -> dict:
-    """Backtest OOS con datos REALES y walk-forward, con costos realistas.
+def _strategy_returns(df, fast, slow, commission, slippage, n) -> Tuple[pd.Series, pd.Series]:
+    """Núcleo EVENT-DRIVEN de UNA señal SMA por activo (sin look-ahead).
 
-    Descarga OHLCV reales (Binance crypto / yfinance stock), genera señal de
-    cruce de medias móviles (SMA fast/slow) y evalúa in-sample / out-of-sample
-    por fold. En cada transición de señal resta comisión + slippage (costo de
-    spread implícito, usando el slippage como proxy cuando no hay order book).
+    Extrae la lógica de cruce de medias móviles + costos de comisión/slippage
+    ya existente en el motor single-symbol, de modo que tanto ``run_backtest``
+    (un activo) como ``run_backtest_portfolio`` (multi-activo) la reutilicen sin
+    duplicarla.
 
-    Devuelve métricas (incl. CALMAR y operaciones/año), etiqueta de integridad,
-    curva de equity y un 'report' en lenguaje claro (ESPAÑOL).
+    Devuelve una tupla ``(strat, pos)``:
+      - ``strat``: Serie de retornos de estrategia (mismo índice que df), con
+        comisión + slippage modelado por barra.
+      - ``pos``:   Serie de posición (0/1) usada para contar operaciones.
+
+    ``n`` es la longitud de la serie (se pasa explícitamente para mantener la
+    firma del contrato; debe coincidir con ``len(df)``).
     """
-    _validate_config(config)  # validación de entrada antes de descargar
-    # Imports diferidos: no acoplan engine a la red ni a yfinance en los tests unitarios.
-    from data_feed import get_ohlcv  # noqa: F401
-
-    df = get_ohlcv(config.asset_type, config.symbol, config.timeframe, config.start, config.end)
-    if df is None or df.empty:
-        raise ValueError("run_backtest: no se obtuvieron datos OHLCV reales.")
-
     close = df["close"].astype(float)
-    n = len(close)
-    if n < 5:
-        raise ValueError(f"run_backtest: serie demasiado corta ({n} velas) para backtest.")
-
-    # Ventanas SMA: desde code o desde campos fast/slow, adaptadas a la muestra.
-    fast_cfg, slow_cfg = _parse_windows_from_code(config.code, config.fast, config.slow)
-    fast, slow = _resolve_windows(n, fast_cfg, slow_cfg)
-
+    if n != len(close):
+        n = len(close)
     rets = close.pct_change().fillna(0.0)
     sma_fast = close.rolling(fast, min_periods=fast).mean()
     sma_slow = close.rolling(slow, min_periods=slow).mean()
@@ -257,8 +249,8 @@ def run_backtest(config) -> dict:
 
     # --- Motor EVENT-DRIVEN: bucle barra a barra (sin look-ahead) ---
     # fill en la misma barra i al close, senal calculada con datos hasta i-1 => sin look-ahead
-    commission_frac = config.commission / 100.0
-    slippage_config = float(config.slippage)
+    commission_frac = commission / 100.0
+    slippage_config = float(slippage)
     coef = 0.1
     strat_returns = [0.0] * n
     prev_pos = 0.0
@@ -278,9 +270,18 @@ def run_backtest(config) -> dict:
         strat_returns[i] = target_pos * ret_i - cost_i
         prev_pos = target_pos
 
-    # Serie de retornos de estrategia (misma interfaz que antes para walk-forward/metricas).
     strat = pd.Series(strat_returns, index=close.index)
+    return strat, pos
 
+
+def _build_backtest_result(strat, df, config, n_trades, n_symbols: int = 1) -> dict:
+    """Ensambla el dict de resultado OOS (walk-forward + métricas + reporte).
+
+    Compartido por ``run_backtest`` y ``run_backtest_portfolio``: recibe la
+    serie de retornos de estrategia ``strat`` (ya combinada en cartera si aplica)
+    y el ``df`` cuyo índice da las marcas de tiempo de la curva de equity.
+    """
+    n = len(strat)
     splits = _make_walkforward(n, config.folds, config.split)
     sharpes_is, sharpes_oos = [], []
     cum_is, cum_oos = 1.0, 1.0
@@ -323,7 +324,6 @@ def run_backtest(config) -> dict:
 
     ret_total = float((1.0 + strat).prod() - 1.0)
     maxdd = float(dd.min())
-    n_trades = int((pos.diff().fillna(0.0) != 0).sum())
     n_trades_per_year = float(n_trades / span_years) if span_years > 0 else 0.0
     # CALMAR = retorno total / |drawdown máximo| (0 si no hubo drawdown).
     calmar = float(ret_total / abs(maxdd)) if maxdd != 0 else 0.0
@@ -359,5 +359,138 @@ def run_backtest(config) -> dict:
         "equity_curve": equity_curve,
         "folds_used": len(splits),
         "n_bars": n,
+        "n_symbols": n_symbols,
         "report": report,
     }
+
+
+def _compute_data_hash(config) -> str:
+    """Hash determinista del 'experimento' para auditoría / réplica (objetivo 20).
+
+    Identifica unívocamente la combinación de parámetros de datos y de la
+    estrategia: dos corridas con la MISMA config producen el MISMO hash, y
+    cualquier cambio en los datos/params produce uno DISTINTO. Así se puede
+    verificar y reproducir un backtest (auditabilidad del resultado).
+
+    Devuelve los primeros 16 caracteres del sha256 en hex.
+    """
+    sym_key = tuple(config.symbols) if config.symbols else config.symbol
+    payload = (
+        config.asset_type,
+        sym_key,
+        config.timeframe,
+        config.start,
+        config.end,
+        config.folds,
+        config.split,
+        config.commission,
+        config.slippage,
+        config.fast,
+        config.slow,
+        config.seed,
+    )
+    digest = hashlib.sha256(repr(payload).encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def run_backtest(config) -> dict:
+    """Backtest OOS con datos REALES y walk-forward, con costos realistas.
+
+    Descarga OHLCV reales (Binance crypto / yfinance stock), genera señal de
+    cruce de medias móviles (SMA fast/slow) y evalúa in-sample / out-of-sample
+    por fold. En cada transición de señal resta comisión + slippage (costo de
+    spread implícito, usando el slippage como proxy cuando no hay order book).
+
+    Devuelve métricas (incl. CALMAR y operaciones/año), etiqueta de integridad,
+    curva de equity y un 'report' en lenguaje claro (ESPAÑOL).
+
+    Mantiene el contrato exacto de un solo símbolo (torneos/marketplace lo usan):
+    si ``config.symbols`` está vacío usa ``config.symbol``. El dict devuelto es
+    IDÉNTICO en forma al de antes, con la clave extra ``data_hash`` (objetivo 20).
+    """
+    _validate_config(config)  # validación de entrada antes de descargar
+    # Imports diferidos: no acoplan engine a la red ni a yfinance en los tests unitarios.
+    from data_feed import get_ohlcv  # noqa: F401
+
+    df = get_ohlcv(config.asset_type, config.symbol, config.timeframe, config.start, config.end)
+    if df is None or df.empty:
+        raise ValueError("run_backtest: no se obtuvieron datos OHLCV reales.")
+
+    n = len(df)
+    if n < 5:
+        raise ValueError(f"run_backtest: serie demasiado corta ({n} velas) para backtest.")
+
+    # Ventanas SMA: desde code o desde campos fast/slow, adaptadas a la muestra.
+    fast_cfg, slow_cfg = _parse_windows_from_code(config.code, config.fast, config.slow)
+    fast, slow = _resolve_windows(n, fast_cfg, slow_cfg)
+
+    strat, pos = _strategy_returns(df, fast, slow, config.commission, config.slippage, n)
+    n_trades = int((pos.diff().fillna(0.0) != 0).sum())
+
+    result = _build_backtest_result(strat, df, config, n_trades, n_symbols=1)
+    result["data_hash"] = _compute_data_hash(config)
+    return result
+
+
+def run_backtest_portfolio(config) -> dict:
+    """Backtest OOS MULTI-ACTIVO / CARTERA (mismo shape que ``run_backtest``).
+
+    Cuando ``config.symbols`` tiene >= 2 activos, descarga cada símbolo vía
+    ``get_ohlcv``, calcula la señal SMA event-driven por activo (misma lógica
+    que ``run_backtest``, reutilizando ``_strategy_returns``) y combina en
+    retorno de cartera = suma(peso_i * ret_strat_i) por barra.
+
+    - ``weights``: pesos de cartera; si ``None`` => igual peso (normalizado).
+    - Si ``config.symbols`` tiene < 2, cae a ``run_backtest`` (compatibilidad).
+
+    El dict devuelto es IDÉNTICO en forma al de ``run_backtest``, pero
+    ``n_symbols`` = len(símbolos) y la ``equity_curve`` es sobre la cartera
+    combinada. Incluye también ``data_hash`` (objetivo 20).
+    """
+    _validate_config(config)  # validación de entrada antes de descargar
+    from data_feed import get_ohlcv  # noqa: F401
+
+    symbols = list(config.symbols) if config.symbols else [config.symbol]
+    if len(symbols) < 2:
+        # Compatibilidad total: un solo activo => mismo comportamiento que run_backtest.
+        return run_backtest(config)
+
+    # Pesos de cartera: igual peso si no se especifican; siempre normalizados.
+    if config.weights:
+        weights = [float(w) for w in config.weights]
+    else:
+        weights = [1.0 / len(symbols)] * len(symbols)
+    wsum = sum(weights)
+    if wsum == 0:
+        weights = [1.0 / len(symbols)] * len(symbols)
+    else:
+        weights = [w / wsum for w in weights]
+
+    # Descarga y señal por activo.
+    asset_strats = []   # retornos de estrategia por activo (Series alineables)
+    total_trades = 0
+    for sym in symbols:
+        d = get_ohlcv(config.asset_type, sym, config.timeframe, config.start, config.end)
+        if d is None or d.empty:
+            raise ValueError(f"run_backtest_portfolio: no se obtuvieron datos para '{sym}'.")
+        m = len(d)
+        if m < 5:
+            raise ValueError(
+                f"run_backtest_portfolio: serie demasiado corta ({m} velas) para '{sym}'."
+            )
+        fast_cfg, slow_cfg = _parse_windows_from_code(config.code, config.fast, config.slow)
+        fast, slow = _resolve_windows(m, fast_cfg, slow_cfg)
+        strat_i, pos_i = _strategy_returns(d, fast, slow, config.commission, config.slippage, m)
+        asset_strats.append(strat_i)
+        total_trades += int((pos_i.diff().fillna(0.0) != 0).sum())
+
+    # Alinea por las fechas comunes (inner join) y combina con los pesos.
+    aligned = pd.concat(asset_strats, axis=1).dropna()
+    aligned.columns = [f"a{i}" for i in range(len(asset_strats))]
+    portfolio_ret = pd.Series(0.0, index=aligned.index)
+    for w, col in zip(weights, aligned.columns):
+        portfolio_ret = portfolio_ret + w * aligned[col]
+
+    result = _build_backtest_result(portfolio_ret, aligned, config, total_trades, n_symbols=len(symbols))
+    result["data_hash"] = _compute_data_hash(config)
+    return result

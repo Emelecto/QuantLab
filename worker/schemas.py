@@ -15,6 +15,11 @@ class StrategyConfig(BaseModel):
     split: int = 70                     # % train
     start: str = "2023-01-01"           # rango de datos OHLCV reales
     end: str = "2023-12-31"
+    # --- Multi-activo / cartera (objetivo 19): opcionales, no rompen el default ---
+    symbols: list[str] = []             # si vacío, se usa `symbol` (compatibilidad total)
+    weights: list[float] | None = None  # pesos de cartera; si None => igual peso
+    # --- Reproducibilidad (objetivo 20): semilla registrada para el hash de experimento ---
+    seed: int = 42
 
 
 class Metrics(BaseModel):
