@@ -61,11 +61,38 @@ def run_evaluate() -> None:
     logger.info(f"Torneos evaluados: {evaluated}")
 
 
+def run_create_ml_round() -> None:
+    """Crea una ronda de predicciones ML (sintético por defecto)."""
+    from ml_scheduler import create_ml_round
+
+    sb = get_supabase_client()
+    now = datetime.now(timezone.utc)
+    result = create_ml_round(sb, mode="sintetico", now=now, round_days=4,
+                             n_activos=600, n_eras=350, n_features=50,
+                             n_features_utiles=12, ic_objetivo=0.06, seed=42)
+    if result:
+        logger.info(f"Ronda ML creada: {result.get('id')}")
+    else:
+        logger.info("No se creó ronda ML (posible duplicado reciente)")
+
+
+def run_evaluate_ml() -> None:
+    """Evalúa submissions de rondas ML cerradas y reparte QP."""
+    from ml_scheduler import evaluate_ml_rounds
+
+    sb = get_supabase_client()
+    now = datetime.now(timezone.utc)
+    evaluados = evaluate_ml_rounds(sb, now)
+    logger.info(f"Rondas ML evaluadas: {evaluados}")
+
+
 def run_all() -> None:
-    """Ejecuta create_weekly_tournament y luego evaluate_tournaments."""
+    """Ejecuta el scheduler completo (código + ML)."""
     logger.info("=== Iniciando scheduler completo ===")
     run_create_tournament()
     run_evaluate()
+    run_create_ml_round()
+    run_evaluate_ml()
     logger.info("=== Scheduler finalizado ===")
 
 
@@ -84,16 +111,26 @@ def main():
         help="Evaluar torneos cerrados",
     )
     parser.add_argument(
+        "--create-ml-round",
+        action="store_true",
+        help="Crear ronda de predicciones ML (sintético)",
+    )
+    parser.add_argument(
+        "--evaluate-ml",
+        action="store_true",
+        help="Evaluar submissions de rondas ML cerradas",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
         default=True,
-        help="Ejecutar todo (crear + evaluar). Comportamiento por defecto.",
+        help="Ejecutar todo (crear + evaluar + ML). Comportamiento por defecto.",
     )
 
     args = parser.parse_args()
 
     # Si no se especifica ninguna acción, --all por defecto
-    if not args.create_tournament and not args.evaluate:
+    if not (args.create_tournament or args.evaluate or args.create_ml_round or args.evaluate_ml):
         args.all = True
 
     try:
@@ -104,6 +141,10 @@ def main():
                 run_create_tournament()
             if args.evaluate:
                 run_evaluate()
+            if args.create_ml_round:
+                run_create_ml_round()
+            if args.evaluate_ml:
+                run_evaluate_ml()
     except Exception as e:
         logger.error(f"Error ejecutando scheduler: {e}")
         sys.exit(1)
