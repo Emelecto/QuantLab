@@ -136,6 +136,20 @@ export interface MarketplaceStrategy {
   author?: string;
   author_name?: string;
   author_avatar?: string;
+  // Campos de integridad (Fase 2 — migración 0012). Se leen con fallback
+  // para no romper si la migración aún no se ha aplicado en Supabase.
+  delivers?: "signals" | "package" | string;
+  replicable?: boolean;
+  bench_buyhold?: number;
+  bench_ma?: number;
+  method?: string;
+  integrity_label?: string;
+  author_integrity_streak?: number;
+  profiles?: {
+    username?: string;
+    display_name?: string;
+    avatar_url?: string;
+  } | null;
 }
 
 export interface Signal {

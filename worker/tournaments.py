@@ -509,6 +509,27 @@ def marketplace_signals(strategy_id: str, limit: int = 20):
     return res.data or []
 
 
+@router.get("/marketplace/{strategy_id}")
+def marketplace_detail(strategy_id: str):
+    """Detalle de una estrategia del marketplace (lectura, sin auth).
+
+    Devuelve la fila completa (`*` incluye backtest_metrics, backtest_equity,
+    is_public_code y, tras la migración 0012, delivers/replicable/bench_*).
+    Trae también el perfil del autor vía join para el Sello de Integridad y
+    la zona de autor de la página de detalle.
+    """
+    sb = get_supabase()
+    res = (
+        sb.table("marketplace_strategies")
+        .select("*,profiles(username,display_name,avatar_url)")
+        .eq("id", strategy_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(404, "Estrategia no encontrada")
+    return res.data[0]
+
+
 # ---------------------------------------------------------------------------
 # HELPERS
 # ---------------------------------------------------------------------------

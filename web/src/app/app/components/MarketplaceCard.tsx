@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { subscribeToStrategy } from "@/lib/tournaments";
 import type { MarketplaceStrategy } from "@/lib/tokens";
+import { IntegritySeal } from "@/components/IntegritySeal";
 
 const assetLabels: Record<string, string> = {
   crypto: "Cripto",
@@ -48,10 +49,19 @@ export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy })
     setMsg(null);
     try {
       await subscribeToStrategy(strategy.id);
-      setMsg("✅ Suscrito");
+      const precio = strategy.price_qp ?? 0;
+      setMsg(`✅ Suscrito · −${precio} QP`);
       router.push("/app/marketplace/my-subscriptions");
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "No se pudo suscribir.");
+      const errMsg =
+        e instanceof Error ? e.message : "No se pudo suscribir.";
+      // El worker responde 402 (QP insuficientes) cuando el saldo no alcanza.
+      // `call` eleva "HTTP 402" o el mensaje "QP insuficientes" del detail.
+      if (errMsg.includes("402") || errMsg.toLowerCase().includes("insuficiente")) {
+        setMsg("QP insuficientes");
+      } else {
+        setMsg(errMsg);
+      }
     } finally {
       setBusy(false);
     }
@@ -73,8 +83,20 @@ export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy })
               @{strategy.author ?? "anónimo"}
             </span>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <Badge tone="cyan" mono>
+              <Badge tone="neutral" mono>
                 {assetLabel}
+              </Badge>
+              <Badge
+                tone={
+                  strategy.delivers === "package"
+                    ? "violet"
+                    : "cyan"
+                }
+                mono
+              >
+                {strategy.delivers === "package"
+                  ? "Paquete completo"
+                  : "Señales en vivo"}
               </Badge>
               <Badge tone="neutral" mono>
                 {strategy.symbol}
@@ -98,10 +120,19 @@ export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy })
             {strategy.description}
           </p>
 
+          {/* Sello de Integridad */}
+          <div className="mt-3">
+            <IntegritySeal
+              backtest_metrics={strategy.backtest_metrics}
+              replicable={strategy.replicable}
+              method={strategy.method}
+            />
+          </div>
+
           {/* Métricas */}
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-md border border-line bg-surface/50 px-3 py-2">
-              <p className="metric text-[10px] uppercase tracking-wider text-muted">Sharpe</p>
+              <p className="metric text-[10px] uppercase tracking-wider text-muted">Sharpe OOS</p>
               <p
                 className={`metric text-sm font-semibold ${
                   (strategy.sharpe ?? 0) >= 0 ? "text-long" : "text-short"

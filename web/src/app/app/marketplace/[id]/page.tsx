@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { EquityChart, DrawdownChart } from "@/components/EquityChart";
+import { EquityChart } from "@/components/EquityChart";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { getMarketplaceStrategy, type MarketplaceStrategy } from "@/lib/tokens";
-import { getStrategySignals, type Signal } from "@/lib/tournaments";
+import { getStrategySignals, subscribeToStrategy, call, type Signal } from "@/lib/tournaments";
 import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
 import type { BacktestResult } from "@/lib/api";
+import { IntegritySeal } from "@/components/IntegritySeal";
 import CommentsThread from "@/components/marketplace/CommentsThread";
 
 function Metric({
@@ -160,8 +161,13 @@ export default function StrategyDetailPage() {
   const [run, setRun] = useState<BacktestResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [subMsg, setSubMsg] = useState<string | null>(null);
   // null = cargando; [] = sin señales (o error/404 → empty state)
   const [signals, setSignals] = useState<Signal[] | null>(null);
+  // Pestañas de la zona inferior: "senales" | "integridad"
+  const [tab, setTab] = useState<"senales" | "integridad">("senales");
+  // Sección de código colapsable (solo si is_public_code === true)
+  const [codeOpen, setCodeOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -203,10 +209,25 @@ export default function StrategyDetailPage() {
   }, [params.id]);
 
   async function handleSubscribe() {
+    if (!strategy) return;
     setSubscribing(true);
-    // TODO: Integrar pasarela de pago / cobro QP
-    await new Promise((r) => setTimeout(r, 600));
-    setSubscribing(false);
+    setSubMsg(null);
+    try {
+      await subscribeToStrategy(strategy.id);
+      const precio = strategy.price_qp ?? 0;
+      setSubMsg(`✅ Suscrito · −${precio} QP`);
+    } catch (e) {
+      const errMsg =
+        e instanceof Error ? e.message : "No se pudo suscribir.";
+      // 402 = saldo QP insuficiente (lo devuelve el worker al cobrar).
+      if (errMsg.includes("402") || errMsg.toLowerCase().includes("insuficiente")) {
+        setSubMsg("QP insuficientes");
+      } else {
+        setSubMsg(errMsg);
+      }
+    } finally {
+      setSubscribing(false);
+    }
   }
 
   if (loading) {
@@ -229,7 +250,26 @@ export default function StrategyDetailPage() {
   }
 
   const m = run?.metrics;
-  const equity = run?.equity_curve ?? [];
+
+  // Campos de integridad (Fase 2) con fallback a backtest_metrics / defaults.
+  const benchBH =
+    typeof strategy.bench_buyhold === "number"
+      ? strategy.bench_buyhold
+      : typeof strategy.backtest_metrics?.bench_buyhold === "number"
+      ? strategy.backtest_metrics.bench_buyhold
+      : undefined;
+  const benchMA =
+    typeof strategy.bench_ma === "number"
+      ? strategy.bench_ma
+      : typeof strategy.backtest_metrics?.bench_ma === "number"
+      ? strategy.backtest_metrics.bench_ma
+      : undefined;
+  const methodText =
+    strategy.method ||
+    (typeof strategy.backtest_metrics?.method === "string"
+      ? strategy.backtest_metrics.method
+      : "walk-forward OOS");
+  const prof = strategy.profiles ?? undefined;
 
   return (
     <main className="flex min-h-screen flex-col">
@@ -289,6 +329,15 @@ export default function StrategyDetailPage() {
             >
               {subscribing ? "Procesando…" : `Suscribirse (${strategy.price_qp} QP/sem)`}
             </button>
+            {subMsg && (
+              <p
+                className={`metric text-[11px] mt-2 text-center ${
+                  subMsg.startsWith("✅") ? "text-long" : "text-short"
+                }`}
+              >
+                {subMsg}
+              </p>
+            )}
             <p className="metric text-[10px] text-muted mt-2 text-center">
               Cancela cuando quieras
             </p>
@@ -322,73 +371,215 @@ export default function StrategyDetailPage() {
           />
         </div>
 
-        {/* Curva de equity */}
-        {equity.length > 0 && (
-          <div className="ql-glass ql-elev-2 mt-8 rounded-xl p-6">
-            <h2 className="mb-4 text-sm font-semibold tracking-tight text-ink">
-              Curva de equity (backtest)
-            </h2>
-            <EquityChart curve={equity} height={260} />
-            <h3 className="mt-6 mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
-              Drawdown
-            </h3>
-            <DrawdownChart data={equity} height={120} />
-          </div>
-        )}
-
-        {/* Código o descripción completa */}
+        {/* Código fuente (solo si el autor lo hizo público) — colapsable */}
         <div className="ql-glass ql-elev-1 mt-8 rounded-xl p-6">
-          <h2 className="mb-4 text-sm font-semibold tracking-tight text-ink">
-            {strategy.is_public && strategy.code ? "Código fuente" : "Descripción"}
-          </h2>
-          {strategy.is_public && strategy.code ? (
-            <pre className="overflow-x-auto rounded-lg bg-bg/60 border border-line p-4 text-[12px] font-mono text-muted leading-relaxed max-h-[400px] overflow-y-auto">
-              <code>{strategy.code}</code>
-            </pre>
+          {strategy.is_public_code ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setCodeOpen((v) => !v)}
+                className="flex w-full items-center justify-between text-left"
+                aria-expanded={codeOpen}
+              >
+                <h2 className="text-sm font-semibold tracking-tight text-ink">
+                  Código fuente
+                </h2>
+                <span className="metric text-[11px] text-muted">
+                  {codeOpen ? "Ocultar ▲" : "Ver código ▼"}
+                </span>
+              </button>
+              {codeOpen &&
+                (strategy.code ? (
+                  <pre className="mt-4 overflow-x-auto rounded-lg bg-bg/60 border border-line p-4 text-[12px] font-mono text-muted leading-relaxed max-h-[400px] overflow-y-auto">
+                    <code>{strategy.code}</code>
+                  </pre>
+                ) : (
+                  <p className="mt-4 text-sm text-muted">
+                    El autor marcó el código como público, pero aún no lo ha
+                    subido.
+                  </p>
+                ))}
+            </>
           ) : (
-            <p className="text-sm leading-relaxed text-muted">
-              {strategy.description}
-              {"\n\n"}
-              El código fuente es privado. Al suscribirte recibes las señales
-              generadas por la estrategia en tiempo real.
-            </p>
+            <>
+              <h2 className="mb-3 text-sm font-semibold tracking-tight text-ink">
+                Cómo funciona
+              </h2>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
+                {strategy.description}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <Metric
+                  label="Sharpe OOS"
+                  value={
+                    typeof strategy.backtest_metrics?.sharpe_oos === "number"
+                      ? strategy.backtest_metrics.sharpe_oos.toFixed(2)
+                      : strategy.sharpe?.toFixed(2) ?? "—"
+                  }
+                />
+                <Metric
+                  label="MaxDD"
+                  value={
+                    typeof strategy.backtest_metrics?.maxdd === "number"
+                      ? `${(strategy.backtest_metrics.maxdd * 100).toFixed(1)}%`
+                      : strategy.max_dd != null
+                      ? `${strategy.max_dd.toFixed(1)}%`
+                      : "—"
+                  }
+                />
+                <Metric label="Método" value={methodText} />
+              </div>
+            </>
           )}
         </div>
 
-        {/* Señales recientes */}
-        <div className="mt-8 animate-fadeIn">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold tracking-tight text-ink">
-              Señales recientes
-            </h2>
-            {signals && signals.length > 0 && (
-              <span className="metric text-[11px] text-muted">
-                {signals.length} señales
-              </span>
-            )}
+        {/* Perfil del autor embebido */}
+        <div className="ql-glass ql-elev-1 mt-8 rounded-xl p-6">
+          <h2 className="mb-4 text-sm font-semibold tracking-tight text-ink">
+            Autor
+          </h2>
+          <div className="flex items-center gap-3">
+            <span className="metric flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-[#1a2131] text-[14px] text-muted">
+              {(prof?.display_name ?? strategy.author ?? "??").slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <Link
+                href={`/app/profile/${strategy.author_id}`}
+                className="text-sm font-medium text-ink transition-colors hover:text-accent"
+              >
+                @{prof?.username ?? strategy.author ?? "anónimo"}
+                {prof?.display_name ? ` · ${prof.display_name}` : ""}
+              </Link>
+              <p className="metric mt-0.5 text-[11px] text-muted">
+                Racha de integridad:{" "}
+                {typeof strategy.author_integrity_streak === "number"
+                  ? `${strategy.author_integrity_streak} sem`
+                  : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pestañas: Señales / Integridad */}
+        <div className="mt-8">
+          <div className="mb-4 flex items-center gap-1 border-b border-line">
+            <button
+              type="button"
+              onClick={() => setTab("senales")}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "senales"
+                  ? "border-accent text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              Señales
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("integridad")}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "integridad"
+                  ? "border-accent text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              Integridad
+            </button>
           </div>
 
-          {signals === null ? (
-            <div className="ql-glass ql-elev-1 space-y-3 rounded-xl p-5">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="ql-skeleton-line h-8 w-full" />
-              ))}
+          {tab === "senales" ? (
+            <div className="animate-fadeIn">
+              <p className="mb-3 text-[12px] text-muted">
+                Muestra gratis: 3 señales recientes. Suscríbete para recibirlas
+                en vivo.
+              </p>
+              {signals === null ? (
+                <div className="ql-glass ql-elev-1 space-y-3 rounded-xl p-5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="ql-skeleton-line h-8 w-full" />
+                  ))}
+                </div>
+              ) : signals.length === 0 ? (
+                <SignalsEmptyState />
+              ) : (
+                <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
+                  <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+                    {signals.slice(0, 3).map((s) => (
+                      <SignalRow key={s.id} signal={s} />
+                    ))}
+                  </ul>
+                  {signals.length > 3 && (
+                    <div className="border-t border-line px-5 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={handleSubscribe}
+                        disabled={subscribing}
+                        className={buttonClasses("primary", "sm")}
+                      >
+                        {subscribing
+                          ? "Procesando…"
+                          : `Ver ${signals.length - 3} señales más (${strategy.price_qp} QP/sem)`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-muted">
+                Las señales son informativas. No es asesoría financiera.
+              </p>
             </div>
-          ) : signals.length === 0 ? (
-            <SignalsEmptyState />
           ) : (
-            <div className="ql-glass ql-elev-1 overflow-hidden rounded-xl">
-              <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
-                {signals.map((s) => (
-                  <SignalRow key={s.id} signal={s} />
-                ))}
-              </ul>
+            <div className="animate-fadeIn space-y-4">
+              {/* Gráfico equity IS / OOS */}
+              <div className="ql-glass ql-elev-2 rounded-xl p-6">
+                <h3 className="mb-4 text-sm font-semibold tracking-tight text-ink">
+                  Curva de equity — IS / OOS
+                </h3>
+                <EquityChart data={strategy.backtest_equity ?? []} height={260} />
+              </div>
+
+              {/* Método + benchmarks */}
+              <div className="ql-glass ql-elev-1 rounded-xl p-6">
+                <h3 className="mb-4 text-sm font-semibold tracking-tight text-ink">
+                  Metodología y benchmarks
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Metric label="Método" value={methodText} />
+                  <Metric
+                    label="vs Buy & Hold"
+                    value={
+                      benchBH == null
+                        ? "—"
+                        : `${benchBH >= 0 ? "+" : "−"}${Math.abs(benchBH).toFixed(1)}%`
+                    }
+                    tone={benchBH == null ? undefined : benchBH >= 0 ? "long" : "short"}
+                  />
+                  <Metric
+                    label="vs Media Móvil"
+                    value={
+                      benchMA == null
+                        ? "—"
+                        : `${benchMA >= 0 ? "+" : "−"}${Math.abs(benchMA).toFixed(1)}%`
+                    }
+                    tone={benchMA == null ? undefined : benchMA >= 0 ? "long" : "short"}
+                  />
+                </div>
+              </div>
+
+              {/* Sello ampliado */}
+              <div className="ql-glass ql-elev-1 rounded-xl p-6">
+                <h3 className="mb-4 text-sm font-semibold tracking-tight text-ink">
+                  Sello de Integridad
+                </h3>
+                <IntegritySeal
+                  backtest_metrics={strategy.backtest_metrics}
+                  replicable={strategy.replicable}
+                  method={strategy.method}
+                  size="lg"
+                />
+              </div>
             </div>
           )}
-
-          <p className="mt-2 text-[10px] text-muted">
-            Las señales son informativas. No es asesoría financiera.
-          </p>
         </div>
 
         {/* Comentarios */}
