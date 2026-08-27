@@ -126,3 +126,34 @@ def test_signals_with_data(mock_supabase):
         from tournaments import signals_list
         result = signals_list("strat-1")
         assert len(result) == 2
+
+
+def test_unique_slug_no_se_cuelga_si_todo_esta_ocupado(mock_supabase):
+    """REGRESION: _unique_slug usaba `while True`.
+
+    Si la consulta devuelve SIEMPRE datos (mock, o un fallo raro de la DB) el
+    request se colgaba para siempre. Se detecto porque este fichero de tests
+    bloqueaba la suite completa de forma indefinida.
+    """
+    ocupado = MagicMock(
+        execute=MagicMock(return_value=MagicMock(data=[{"id": "ya-existe"}]))
+    )
+    mock_supabase.table.return_value.select.return_value.eq.return_value.limit.return_value = ocupado
+
+    from tournaments import _unique_slug
+
+    slug = _unique_slug(mock_supabase, "BTCUSDT · 1d", "2ca7b197-86f5-4605")
+    assert slug.startswith("btcusdt-1d-")
+    assert len(slug) > len("btcusdt-1d-")
+
+
+def test_unique_slug_tolera_error_de_consulta(mock_supabase):
+    """Si la comprobacion del slug revienta, debe devolver algo, no propagar."""
+    mock_supabase.table.return_value.select.return_value.eq.return_value.limit.side_effect = (
+        RuntimeError("DB caida")
+    )
+
+    from tournaments import _unique_slug
+
+    slug = _unique_slug(mock_supabase, "Mi Estrategia", "abcdef1234")
+    assert slug.startswith("mi-estrategia-")

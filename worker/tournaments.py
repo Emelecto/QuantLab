@@ -603,18 +603,41 @@ def _unique_slug(sb, title: str, author_id: str) -> str:
 
     marketplace_strategies.slug tiene constraint UNIQUE; sin esto, publicar dos
     veces una estrategia con el mismo título (ej: 'BTCUSDT · 1d') revienta 500.
+
+    El bucle está ACOTADO a propósito: la versión anterior usaba `while True`,
+    y si la consulta devolvía siempre datos (mock en tests, o un fallo raro de
+    la DB) el request se colgaba para siempre. Tras los intentos se cae a un
+    sufijo largo aleatorio, que en la práctica no colisiona.
     """
     import secrets
 
     base = _slugify(title) or "estrategia"
     slug = f"{base}-{author_id[:8]}"
-    if not sb.table("marketplace_strategies").select("id").eq("slug", slug).limit(1).execute().data:
+
+    def libre(candidato: str) -> bool:
+        try:
+            res = (
+                sb.table("marketplace_strategies")
+                .select("id")
+                .eq("slug", candidato)
+                .limit(1)
+                .execute()
+            )
+            return not res.data
+        except Exception as e:  # noqa: BLE001 - ante duda, seguimos probando
+            logger.warning(f"No se pudo comprobar el slug '{candidato}': {e}")
+            return False
+
+    if libre(slug):
         return slug
-    # Colisión improbable: sufijo aleatorio.
-    while True:
+
+    for _ in range(5):
         candidate = f"{base}-{secrets.token_hex(2)}"
-        if not sb.table("marketplace_strategies").select("id").eq("slug", candidate).limit(1).execute().data:
+        if libre(candidate):
             return candidate
+
+    # Salida garantizada: sufijo de 8 hex (32 bits) — colisión despreciable.
+    return f"{base}-{secrets.token_hex(4)}"
 
 
 # ---------------------------------------------------------------------------
