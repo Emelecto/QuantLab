@@ -68,6 +68,12 @@ export function TopBar() {
           // Sesión iniciada: navegación de app autenticada.
           <nav className="hidden items-center gap-5 md:flex">
             <Link
+              href="/learn"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              Aprende
+            </Link>
+            <Link
               href="/app"
               className="text-sm text-muted transition-colors hover:text-ink"
             >
@@ -91,6 +97,12 @@ export function TopBar() {
               className="text-sm text-muted transition-colors hover:text-ink"
             >
               Rankings
+            </Link>
+            <Link
+              href="/app/api-keys"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              API
             </Link>
           </nav>
         ) : (
