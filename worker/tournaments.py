@@ -366,6 +366,7 @@ def internal_tokens_grant(body: GrantBody, x_scheduler_key: str | None = Header(
 # ---------------------------------------------------------------------------
 
 @router.get("/marketplace")
+@router.get("/marketplace/list")
 def marketplace_list(asset_type: str | None = None, symbol: str | None = None):
     sb = get_supabase()
     q = sb.table("marketplace_strategies").select("*,profiles(username,display_name,avatar_url)").eq("status", "published")
@@ -375,6 +376,20 @@ def marketplace_list(asset_type: str | None = None, symbol: str | None = None):
         q = q.eq("symbol", symbol)
     q = q.order("subscribers", desc=True)
     return q.execute().data or []
+
+
+# Alias para el frontend de torneos ML: /tournament/ml lista torneos type="ml"
+# (sin esto, el frontend que llama /tournament/ml cae en /tournament/{id}
+#  y Postgres recibe "ml" como UUID -> 500).
+@router.get("/tournament/ml")
+def tournament_list_ml(status: str | None = None):
+    sb = get_supabase()
+    q = sb.table("tournaments").select("*").eq("type", "ml")
+    if status:
+        q = q.eq("status", status)
+    q = q.order("created_at", desc=True)
+    res = q.execute()
+    return res.data or []
 
 
 # ---------------------------------------------------------------------------
