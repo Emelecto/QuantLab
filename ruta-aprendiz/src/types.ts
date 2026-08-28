@@ -9,6 +9,7 @@ export interface DatasetRow {
   low: number;
   close: number;
   volume: number;
+  direction?: 1 | -1 | 0; // etiqueta de predicción del torneo (solo en tournament-sample)
 }
 
 export interface Dataset {
@@ -77,12 +78,18 @@ export interface BacktestResult {
 export type Part = 'Ciencia de Datos' | 'Machine Learning' | 'Finanzas' | 'Trading';
 
 export interface ModuleDef {
-  id: number;
-  title: string;
-  subtitle: string;
-  kind: 'lesson' | 'tournament';
-  part: Part;
-  xp: number;
+  def: {
+    id: number;
+    part: Part;
+    title: string;
+    subtitle: string;
+    kind: 'lesson' | 'tournament';
+    xp: number;
+  };
+  intro: string;
+  sections: { heading: string; body: string }[];
+  exercise: LessonExercise;
+  takeaway: string;
 }
 
 export interface QuizQuestion {

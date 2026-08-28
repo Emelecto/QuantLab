@@ -2,9 +2,17 @@ import { useState } from 'react';
 import type { DatasetRow } from '../types';
 import { getDataset } from '../data/datasets';
 
-const COLS: (keyof DatasetRow)[] = ['date', 'open', 'high', 'low', 'close', 'volume'];
+const DIR_LABEL: Record<number, string> = { 1: '▲', '-1': '▼', 0: '–' };
 
-// "Read the raw data": show the OHLCV table; user identifies a column or flags an outlier.
+function cellText(c: keyof DatasetRow, r: DatasetRow): string {
+  const v = r[c];
+  if (c === 'volume') return (v as number).toLocaleString();
+  if (c === 'direction') return DIR_LABEL[(v as number) ?? 0] ?? String(v);
+  return String(v);
+}
+
+// "Read the raw data": show the dataset table (all its columns, incl. the
+// tournament's "direction" label); user identifies a column or flags an outlier.
 export function DatasetReader({ datasetId, prompt, answerCol, outlierRow, hint }: {
   datasetId: string;
   prompt: string;
@@ -19,6 +27,7 @@ export function DatasetReader({ datasetId, prompt, answerCol, outlierRow, hint }
 
   if (!d) return <div className="err">Dataset no encontrado.</div>;
 
+  const cols = Object.keys(d.rows[0]) as (keyof DatasetRow)[];
   const correct =
     (answerCol && picked === answerCol) &&
     (outlierRow == null || flagged === outlierRow);
@@ -30,7 +39,7 @@ export function DatasetReader({ datasetId, prompt, answerCol, outlierRow, hint }
         <table className="ohclv">
           <thead>
             <tr>
-              {COLS.map((c) => (
+              {cols.map((c) => (
                 <th key={c}>
                   <button
                     className={`col-head ${picked === c ? 'picked' : ''}`}
@@ -45,9 +54,9 @@ export function DatasetReader({ datasetId, prompt, answerCol, outlierRow, hint }
           <tbody>
             {d.rows.map((r, i) => (
               <tr key={r.date} className={flagged === i ? 'flagged' : ''}>
-                {COLS.map((c) => (
+                {cols.map((c) => (
                   <td key={c} onClick={() => outlierRow != null && setFlagged(i)}>
-                    {c === 'volume' ? r[c].toLocaleString() : r[c]}
+                    {cellText(c, r)}
                   </td>
                 ))}
               </tr>
@@ -66,7 +75,6 @@ export function DatasetReader({ datasetId, prompt, answerCol, outlierRow, hint }
           {correct ? '✓ Correcto.' : '✗ Revisa.'} {hint}
         </div>
       )}
-      <p className="seam-note">⭐ Este dataset quedó como favorito en tu Biblioteca.</p>
     </div>
   );
 }

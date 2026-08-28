@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ProgressState } from '../types';
+import type { DatasetRow, ProgressState } from '../types';
 import { getModule } from '../data/modules';
 import { getDataset } from '../data/datasets';
 import { getTemplate } from '../data/strategies';
@@ -81,7 +81,7 @@ export function Lesson({ moduleId, progress, onComplete, onOpenLibrary, onBack, 
           <DatasetReader
             datasetId={mod.exercise.datasetId!}
             prompt={mod.exercise.readTask!.prompt}
-            answerCol={mod.exercise.readTask!.answerCol}
+            answerCol={mod.exercise.readTask!.answerCol as keyof DatasetRow}
             outlierRow={mod.exercise.readTask!.outlierRow}
             hint={mod.exercise.readTask!.hint}
           />

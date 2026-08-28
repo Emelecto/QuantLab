@@ -15,12 +15,12 @@ export function CourseHome({ progress, onOpen }: CourseHomeProps) {
   return (
     <div className="course-home">
       <header className="course-hero">
-        <h1>Ruta Aprendiz</h1>
+        <h1>Introducción a QuantLab</h1>
         <p>De cero a tu primer torneo, sin escribir código.</p>
         <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} />
-          <span className="progress-text">{done}/{total} módulos · {progress.xp} XP</span>
+          <div className="progress-fill" style={{ width: `${Math.max((done / total) * 100, done > 0 ? 4 : 0)}%` }} />
         </div>
+        <span className="progress-text">{done}/{total} módulos completados · {progress.xp} XP</span>
         {allDone && <div className="course-done">🏅 ¡Ruta completa! Eres Aprendiz Cuant. +10 QP ganados.</div>}
       </header>
 
@@ -58,7 +58,7 @@ export function CourseHome({ progress, onOpen }: CourseHomeProps) {
 
       <div className="resume-bar">
         {allDone ? (
-          <button className="btn-primary" onClick={() => onOpen(12)}>
+          <button className="btn-primary" onClick={() => onOpen(14)}>
             Ver mi debut en el torneo
           </button>
         ) : (

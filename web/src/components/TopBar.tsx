@@ -11,8 +11,8 @@ import { useCountUp } from "@/hooks/useCountUp";
 const PUBLIC_NAV = [
   { href: "/learn", label: "Aprende" },
   { href: "/library", label: "Biblioteca" },
-  { href: "/features", label: "Producto" },
-  { href: "/community", label: "Comunidad" },
+  { href: "/app/tournaments", label: "Torneos" },
+  { href: "/app/marketplace", label: "Mercado" },
   { href: "/leaderboard", label: "Ranking" },
   { href: "/pricing", label: "Precios" },
   { href: "/app/api-keys", label: "API" },

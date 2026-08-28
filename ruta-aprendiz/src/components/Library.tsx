@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { datasets } from '../data/datasets';
 import type { AssetClass, Level } from '../types';
 import { progress } from '../lib/progress';
-import { StrategyLab } from './StrategyLab';
-import { genPriceSeries } from '../lib/random';
 
 interface LibraryProps {
   favoriteId: string | null;
@@ -15,6 +13,8 @@ export function Library({ favoriteId }: LibraryProps) {
   const [asset, setAsset] = useState<'all' | AssetClass>('all');
   const [level, setLevel] = useState<'all' | Level>('all');
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const isEmbed =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === '1';
 
   const filtered = useMemo(
     () => datasets.filter((d) => (asset === 'all' || d.assetClass === asset) && (level === 'all' || d.level === level)),
@@ -22,13 +22,19 @@ export function Library({ favoriteId }: LibraryProps) {
   );
 
   const preview = previewId ? datasets.find((d) => d.id === previewId) : undefined;
-  const series = useMemo(() => (previewId ? genPriceSeries(hashId(previewId), 200) : []), [previewId]);
 
   return (
     <div className="library">
       <header className="library-head">
-        <h1>Biblioteca de Datasets</h1>
-        <p>Filtra por activo y nivel. Los que usa el curso están marcados.</p>
+        <div>
+          <h1>Biblioteca de Datasets</h1>
+          <p>Filtra por activo y nivel. Los que usa el curso están marcados.</p>
+        </div>
+        {isEmbed && (
+          <button className="btn-secondary" onClick={() => window.parent.postMessage({ source: 'ruta-aprendiz', type: 'navigate', route: 'learn' }, '*')}>
+            ← Volver a Aprende
+          </button>
+        )}
       </header>
 
       <div className="filters">
@@ -80,15 +86,37 @@ export function Library({ favoriteId }: LibraryProps) {
       {preview && (
         <div className="preview-panel">
           <h2>Vista previa · {preview.name}</h2>
-          <StrategyLab templateId="ma_cross" series={series} compact />
+          <p className="lib-blurb">{preview.blurb}</p>
+          <div className="lib-meta" style={{ marginBottom: 12 }}>{preview.dateRange} · {preview.frequency} · {preview.assetClass}</div>
+          <div className="table-wrap">
+            <table className="ohclv">
+              <thead>
+                <tr>
+                  <th>fecha</th>
+                  <th>open</th>
+                  <th>high</th>
+                  <th>low</th>
+                  <th>close</th>
+                  <th>volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows?.slice(0, 12).map((r) => (
+                  <tr key={r.date}>
+                    <td>{r.date}</td>
+                    <td>{r.open.toFixed(2)}</td>
+                    <td>{r.high.toFixed(2)}</td>
+                    <td>{r.low.toFixed(2)}</td>
+                    <td>{r.close.toFixed(2)}</td>
+                    <td>{r.volume.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="read-hint">Así se ven los datos en crudo. Este es el mismo formato que recibirás en un torneo real (columnas OHLCV).</p>
         </div>
       )}
     </div>
   );
-}
-
-function hashId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h % 100000;
 }

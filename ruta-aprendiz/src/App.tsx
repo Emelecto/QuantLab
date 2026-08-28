@@ -7,6 +7,7 @@ import { Profile } from './components/Profile';
 import { Tournament } from './components/Tournament';
 import { Stub } from './components/Stub';
 import { useProgress, progress } from './lib/progress';
+import { modules } from './data/modules';
 
 type Route = 'home' | 'course' | 'competencias' | 'marketplace' | 'library' | 'profile' | 'tournament';
 
@@ -78,13 +79,13 @@ function Home({ onNav, progress: pr }: { onNav: (r: string) => void; progress: R
         <h1>QuantLab</h1>
         <p className="hero-sub">Comunidad de trading cuantitativo, ML y ciencia de datos.</p>
         {done === 0 ? (
-          <button className="btn-primary lg" onClick={() => onNav('course')}>Comienza la Ruta Aprendiz →</button>
+          <button className="btn-primary lg" onClick={() => onNav('course')}>Comienza la Introducción a QuantLab →</button>
         ) : (
-          <button className="btn-primary lg" onClick={() => onNav('course')}>Retoma tu Ruta Aprendiz ({done}/5)</button>
+          <button className="btn-primary lg" onClick={() => onNav('course')}>Retoma tu Introducción a QuantLab ({done}/{modules.length})</button>
         )}
       </section>
       <section className="home-cards">
-        <HomeCard icon="📚" title="Aprende" body="Curso gamificado de 5 módulos, de cero a tu primer torneo." onClick={() => onNav('course')} />
+        <HomeCard icon="📚" title="Aprende" body="Curso gamificado de cero a tu primer torneo de trading cuantitativo." onClick={() => onNav('course')} />
         <HomeCard icon="🏁" title="Competencias" body="Torneos donde compites con estrategias reales." onClick={() => onNav('competencias')} />
         <HomeCard icon="🛒" title="Marketplace" body="Estrategias compartidas por la comunidad." onClick={() => onNav('marketplace')} />
       </section>

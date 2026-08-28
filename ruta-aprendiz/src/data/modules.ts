@@ -1,221 +1,188 @@
-import type { Level, ModuleDef, Part } from '../types';
+import type { Part } from '../types';
 
-export interface LessonExercise {
-  kind: 'risk' | 'dataset' | 'strategy' | 'backtest' | 'read' | 'predict' | 'quiz';
-  templateId?: string;
-  datasetId?: string;
-  readTask?: { prompt: string; answerCol?: keyof import('../types').DatasetRow; outlierRow?: number; hint: string };
-  predictTask?: { prompt: string; seriesId: string; revealNote: string };
-  quiz?: { q: string; options: string[]; answer: number; explain: string }[];
-}
-
-export interface ModuleContent {
-  def: ModuleDef;
-  intro: string;
-  sections: { heading: string; body: string }[];
-  exercise: LessonExercise;
-  takeaway: string;
-}
-
-const DATA: Part = 'Ciencia de Datos';
-const ML: Part = 'Machine Learning';
-const FIN: Part = 'Finanzas';
-const TR: Part = 'Trading';
-
-export const modules: ModuleContent[] = [
-  // ===================== PARTE 1 — CIENCIA DE DATOS (módulos 1-3) =====================
+export const modules = [
+  // ===== PARTE 1 — CIENCIA DE DATOS =====
   {
-    def: { id: 1, title: 'Bienvenido al trading cuant', subtitle: 'De cero: intuición y riesgo', kind: 'lesson', part: DATA, xp: 100 },
-    intro:
-      'El trading cuantitativo usa datos y reglas para decidir cuándo comprar y vender, en lugar de intuición o rumores. ' +
-      'Antes de cualquier fórmula: entendamos el riesgo, porque es lo que de verdad te borra del juego.',
+    def: { id: 1, part: 'Ciencia de Datos', title: 'Bienvenido al trading cuant', subtitle: 'De cero: intuición y riesgo', kind: 'lesson', xp: 100 },
+    intro: 'El trading cuantitativo usa datos y reglas, no corazón. Antes de código, entiende la única regla que importa: sobrevivir al riesgo.',
     sections: [
-      { heading: 'Señal vs ruido', body: 'Los precios se mueven por información real y por ruido (movimientos al azar). Una buena estrategia captura lo primero e ignora lo segundo. Adivinar la dirección de un solo día es casi ruido puro.' },
-      { heading: 'El riesgo es real', body: 'Poner mucho capital en una sola operación puede borrarte en días. El drawdown (caída desde el máximo) es tu enemigo silencioso: si pierdes 50%, necesitas +100% solo para volver al punto de partida.' },
-      { heading: 'Por qué un curso', body: 'Vas a leer datos crudos, hacer tus primeras predicciones, entrenar un modelo simple y, al final, competir en un torneo real. Sin escribir una línea de código.' },
+      { heading: '¿Qué es trading cuantitativo?', body: 'Es tomar decisiones de compra/venta con un método reproducible basado en datos históricos, no en intuición. Tú (pronto) competirás con estrategias, no con suerte.' },
+      { heading: 'El riesgo es el jefe', body: 'Una sola mala apuesta puede borrar semanas de ganancias. Por eso todo módulo repite lo mismo: controla el riesgo antes de buscar retorno.' },
+      { heading: 'Lo que vas a hacer', body: 'En 14 módulos pasarás de no saber qué es un "close" a entrar a un torneo real con una estrategia tuya, sin escribir una línea de código.' },
     ],
     exercise: { kind: 'risk' },
-    takeaway: 'Menos capital en riesgo = drawdowns pequeños y sobrevives para iterar mañana.',
+    takeaway: 'Cuant = método + datos + control de riesgo. Si dominas eso, ya eres peligroso (para el mercado, no para tu cuenta).',
   },
   {
-    def: { id: 2, title: 'Tus primeros datos: lee el crudo', subtitle: 'Abre un dataset y entiende cada columna', kind: 'lesson', part: DATA, xp: 100 },
-    intro:
-      'Toda estrategia come datos. Hoy abres un dataset real de la Biblioteca y aprendes a leerlo fila por fila. ' +
-      'El dataset que uses queda guardado como favorito automáticamente para el resto del curso.',
+    def: { id: 2, part: 'Ciencia de Datos', title: 'Tus primeros datos: lee el crudo', subtitle: 'Abre un dataset y entiende cada columna', kind: 'lesson', xp: 100 },
+    intro: 'Todo empieza con una tabla. Aprende a leer un dataset de precios como quien lee un parte meteorológico: cada columna cuenta algo.',
     sections: [
-      { heading: 'Qué es una serie de precios', body: 'Es una tabla con una fila por día (o hora) y columnas: apertura (open), máximo (high), mínimo (low), cierre (close) y volumen (volume). El cierre es el precio al final del periodo: es la columna que casi siempre usamos.' },
-      { heading: 'OHLCV', body: 'Open = precio al inicio del día. High/Low = el máximo y mínimo que tocó. Close = dónde cerró. Volume = cuántas unidades se negociaron. Juntas cuentan la historia del día.' },
-      { heading: 'Calidad importa', body: 'Datos con huecos (fines de semana, festivos), errores tipográficos o precios imposibles generan señales falsas. Siempre revisa rango y frecuencia antes de confiar.' },
+      { heading: 'OHLCV: el alfabeto', body: 'Open, High, Low, Close, Volume. Son los 5 datos de cada día (o velas). El "Close" es el precio de cierre: tu referencia.' },
+      { heading: 'Por qué importa el formato', body: 'Los torneos te dan exactamente esta tabla. Si la lees mal, predices mal. Hoy la abres de verdad.' },
+      { heading: 'Frecuencia', body: 'Diario, horario, minuto. Más frecuencia = más ruido. El curso usa diario para que veas la señal, no el pixeleo.' },
     ],
     exercise: { kind: 'dataset', datasetId: 'btc-daily' },
-    takeaway: 'Si no entiendes las columnas, no entiendes la estrategia. Lee el crudo siempre.',
+    takeaway: 'Close es tu ancla. Si solo recuerdas una columna, que sea esa.',
   },
   {
-    def: { id: 3, title: 'Detecta mentiras en los datos', subtitle: 'Huecos, outliers y frecuencias', kind: 'lesson', part: DATA, xp: 120 },
-    intro:
-      'Los datasets del mundo real tienen errores. Aprende a detectarlos antes de que arruinen tu backtest. ' +
-      'En este ejercicio abres la tabla cruda y señalas dónde algo no cuadra.',
+    def: { id: 3, part: 'Ciencia de Datos', title: 'Detecta mentiras en los datos', subtitle: 'Huecos, outliers y frecuencias', kind: 'lesson', xp: 120 },
+    intro: 'Los datos mentirosos arruinan modelos. Aprende a oler un outlier y un hueco antes de confiar en la tabla.',
     sections: [
-      { heading: 'Huecos de tiempo', body: 'Si ves fechas que saltan (ej. del lunes al jueves sin martes/miércoles), hay datos faltantes. Los findes en cripto no cuentan, pero en acciones sí: ahí el hueco es real.' },
-      { heading: 'Outliers', body: 'Un precio 10x el anterior suele ser un error de tipeo, no un evento real. Detectarlo a ojo es la habilidad más barata y más útil que tienes.' },
-      { heading: 'Frecuencia', body: 'Diario, horario o mensual cambia todo. Un modelo de velas diarias no sirve para datos mensuales. Confirma la frecuencia antes de entrenar.' },
+      { heading: 'Huecos (missing)', body: 'Un fin de semana en cripto no para, pero en acciones sí. Un hueco en los datos puede duplicar una vela y romper tu señal.' },
+      { heading: 'Outliers', body: 'Un "low" raro puede ser un flash de liquidez, no la realidad. Detectarlo evita que tu modelo aprenda basura.' },
+      { heading: 'Frecuencia coherente', body: 'Mezclar diario con horario es el error de novato #1. Mantén una sola granularidad.' },
     ],
-    exercise: {
-      kind: 'read',
-      datasetId: 'btc-daily',
-      readTask: {
-        prompt: 'En la tabla cruda de BTC, ¿qué columna te dice el precio al FINAL de cada día? Señala la columna correcta.',
-        answerCol: 'close',
-        hint: 'Es la columna que usamos para calcular retornos y señales. No es el máximo ni el mínimo.',
-      },
-    },
-    takeaway: 'Un outlier o hueco ignorado puede hacer que tu "gran estrategia" sea pura suerte.',
+    exercise: { kind: 'read', datasetId: 'btc-daily', readTask: { prompt: 'En la tabla cruda de BTC, señala qué columna representa el precio de CIERRE de cada día.', answerCol: 'close', outlierRow: 4, hint: 'El cierre es el último precio negociado ese día; suele estar cerca del high y el low.' } },
+    takeaway: 'Datos sucios => señales sucias. Revisa siempre antes de entrenar.',
+  },
+  {
+    def: { id: 4, part: 'Ciencia de Datos', title: 'Anatomía de un dataset de torneo', subtitle: 'Cómo se ve el archivo real que recibirás', kind: 'lesson', xp: 130 },
+    intro: 'En un torneo recibes un CSV con columnas OHLCV y, lo más importante, las columnas de PREDICCIÓN que debes llenar. Las ves hoy.',
+    sections: [
+      { heading: 'El formato del torneo', body: 'Recibes fecha, open, high, low, close, volume… y un espacio para tu predicción: "target" (precio futuro) o "direction" (1=sube, -1=baja, 0=plano).' },
+      { heading: 'Direction vs Target', body: 'Predecir dirección (sube/baja) es más fácil y estable que predecir el precio exacto. Por eso los torneos suelen pedir direction.' },
+      { heading: 'Tu entrega', body: 'Llenas la columna de predicción fila por fila (o con tu estrategia). Quien acierte más dirección, gana QP.' },
+    ],
+    exercise: { kind: 'read', datasetId: 'tournament-sample', readTask: { prompt: 'En el dataset de ejemplo del torneo, identifica la columna que tú debes completar con tu predicción (direction).', answerCol: 'direction', outlierRow: undefined, hint: 'Busca la columna que el torneo espera que llenes: suele llamarse "direction" o "target".' } },
+    takeaway: 'El torneo no es adivinar: es llenar una columna de predicción con un método. Hoy viste cómo.',
   },
 
-  // ===================== PARTE 2 — MACHINE LEARNING (módulos 4-7) =====================
+  // ===== PARTE 2 — MACHINE LEARNING =====
   {
-    def: { id: 4, title: 'Patrones vs ruido', subtitle: 'Medias móviles: tu primer modelo', kind: 'lesson', part: ML, xp: 150 },
-    intro:
-      'El modelo más simple de todos: la media móvil. Suaviza el ruido y te muestra la tendencia. ' +
-      'Mueve el slider y observa cómo cambia la línea.',
+    def: { id: 5, part: 'Machine Learning', title: 'Patrones vs ruido', subtitle: 'Medias móviles: tu primer modelo', kind: 'lesson', xp: 150 },
+    intro: 'El mercado tiene señal y ruido. Una media móvil suaviza el ruido y deja ver la tendencia. Tu primer "modelo".',
     sections: [
-      { heading: 'Media móvil', body: 'Promedio del precio de los últimos N días. Con N pequeño reacciona rápido (ruido); con N grande es suave (tendencia lenta). Es "aprendizaje" en el sentido más básico: resume el pasado.' },
-      { heading: 'Por qué funciona', body: 'Cuando la media corta cruza por encima de la larga, la tendencia reciente es más fuerte que la histórica: sesgo al alza. Al revés: sesgo a la baja.' },
-      { heading: 'No es magia', body: 'Una media móvil siempre va ATRASADA del precio. Gana en tendencias, pierde en mercados planos. Conocer cuándo falla es más importante que creer que siempre acierta.' },
+      { heading: 'Media móvil', body: 'Promedio de los últimos N cierres. Suaviza el día a día y revela la dirección dominante.' },
+      { heading: 'Cruce', body: 'Cuando la media rápida pasa por encima de la lenta ⇒ tendencia al alza. Debajo ⇒ a la baja. Eso es tu señal.' },
+      { heading: 'No es magia', body: 'La media solo resume el pasado. Si el pasado deja de parecerse al futuro, la señal falla. Por eso medimos.' },
     ],
     exercise: { kind: 'strategy', templateId: 'ma_cross' },
-    takeaway: 'Tu primer "modelo" ya es una estrategia completa. La afinas después.',
+    takeaway: 'Toda estrategia es una regla sobre el pasado. La media móvil es la más vieja y aún útil.',
   },
   {
-    def: { id: 5, title: 'Tu primera predicción', subtitle: 'Adivina mañana antes de verlo', kind: 'lesson', part: ML, xp: 150 },
-    intro:
-      'Haz tu primera predicción como principiante: mira la serie y declara si el próximo cierre sube o baja. ' +
-      'Luego revelamos el resultado real. El objetivo no es acertar, es entrenar el ojo.',
+    def: { id: 6, part: 'Machine Learning', title: 'Tu primera predicción', subtitle: 'Adivina mañana antes de verlo', kind: 'lesson', xp: 150 },
+    intro: 'Cierra los ojos (no, cierra el futuro): mira las últimas velas y declara si mañana sube o baja. Luego lo compruebas.',
     sections: [
-      { heading: 'Predecir dirección', body: 'En vez de un número exacto, predice la DIRECCIÓN (↑ o ↓). Es más fácil y es lo que importa para una señal de compra/venta.' },
-      { heading: 'Usa el contexto', body: 'Si vienen 3 días al alza con volumen creciente, ¿continúa o se agota? No hay respuesta correcta única; lo que entrenas es mirar el cuadro completo, no un solo número.' },
-      { heading: 'La base del ML', body: 'Todo modelo de machine learning hace esto mismo: recibe datos pasados y produce una predicción. Tú acabas de hacer inferencia manual.' },
+      { heading: 'Predecir dirección', body: 'El ejercicio: ves N cierres, declaras dirección del siguiente. Es exactamente lo que harás en el torneo.' },
+      { heading: 'Sé honesto contigo', body: 'Anota tu predicción ANTES de revelar. Si adivinas después, no estás aprendiendo, estás haciendo trampa a tu ego.' },
+      { heading: 'La base del torneo', body: 'El torneo premia aciertos de dirección. Lo que practicas aquí es el deporte olímpico de QuantLab.' },
     ],
-    exercise: { kind: 'predict', predictTask: { prompt: 'Con los últimos días de BTC que ves abajo, ¿crees que el próximo cierre sube o baja? Decláralo y luego pulsa Revelar.', seriesId: 'btc-daily', revealNote: 'La predicción manual entrena tu intuición; un modelo la hace a escala y con miles de ejemplos.' } },
-    takeaway: 'Predecir dirección es inferencia. Eso es exactamente lo que entrena un modelo después.',
+    exercise: { kind: 'predict', predictTask: { seriesId: 'btc-daily', prompt: 'Mirando las últimas 8 velas de BTC, ¿crees que la próxima cierra MÁS ALTA o MÁS BAJA que la última?', revealNote: 'La dirección real se compara con tu predicción. Acertar dirección consistentemente es lo que premia el leaderboard del torneo.' } },
+    takeaway: 'Predecir dirección es el núcleo del torneo. Si lo haces bien aquí, ya tienes oficio.',
   },
   {
-    def: { id: 6, title: 'Overfit: la trampa', subtitle: 'Por qué tu estrategia "perfecta" engaña', kind: 'lesson', part: ML, xp: 150 },
-    intro:
-      'Corres el backtest de tu señal del Módulo 4 y ves la trampa del overfit: lo bien que funciona en el pasado no garantiza el futuro. ' +
-      'Compara muestra-in vs muestra-out con los mismos parámetros.',
+    def: { id: 7, part: 'Machine Learning', title: 'Overfit: la trampa', subtitle: 'Por qué tu estrategia "perfecta" engaña', kind: 'lesson', xp: 150 },
+    intro: 'Memorizar el pasado parece ganar siempre. Hasta que usas datos nuevos. Bienvenido al overfit.',
     sections: [
-      { heading: 'Overfit', body: 'Ajustar parámetros hasta que el historial quede perfecto. El modelo "memoriza" en vez de "aprender". En datos nuevos se desploma.' },
-      { heading: 'Muestra fuera de muestra (OOS)', body: 'La prueba real: ¿funciona en datos que NO usaste para calibrar? Si la brecha entre muestra-in y muestra-out es grande, desconfía.' },
-      { heading: 'Train / test siempre', body: 'Regla de oro del ML: nunca evalúes en los mismos datos con los que entrenaste. Por eso el backtest serio separa las dos mitades.' },
+      { heading: 'Memorizar ≠ aprender', body: 'Si ajustas parámetros hasta que el backtest es perfecto, probablemente memorizaste ruido. No generalizas.' },
+      { heading: 'Muestra dentro vs fuera', body: 'Entrenas en una parte (in-sample) y pruebas en otra que nunca viste (out-of-sample). Si ahí falla, está sobreajustado.' },
+      { heading: 'Señal de alerta', body: 'Retorno gigante y curvita perfecta en el backtest = casi siempre overfit. Desconfía.' },
     ],
     exercise: { kind: 'backtest', templateId: 'ma_cross' },
-    takeaway: 'Desconfía de estrategias que solo funcionan en el pasado.',
+    takeaway: 'Lo que importa no es el backtest bonito, sino cómo se porta en datos que no viste.',
   },
   {
-    def: { id: 7, title: 'Métricas que no mienten', subtitle: 'Lee los resultados como un pro', kind: 'lesson', part: ML, xp: 150 },
-    intro:
-      'Un backtest arroja muchos números. Aprende cuáles importan de verdad para no dejarte engañar por el retorno total.',
+    def: { id: 8, part: 'Machine Learning', title: 'Métricas que no mienten', subtitle: 'Lee los resultados como un pro', kind: 'lesson', xp: 150 },
+    intro: 'Sharpe, drawdown, winrate. Tres números que separan a quien entiende de quien se engaña.',
     sections: [
-      { heading: 'Sharpe', body: 'Retorno por unidad de riesgo. Un Sharpe de 1 ya es bueno; 2 es excelente. Premia ganar SIN volatilidad loca. Es la métrica que más usa la industia.' },
-      { heading: 'Max Drawdown', body: 'La caída máxima desde un pico. Un 40% de drawdown duele aunque el retorno total sea positivo: duerme mal y puede liquidarte si usaste apalancamiento.' },
-      { heading: 'Win rate', body: '% de operaciones ganadoras. Sorprendentemente menos importante: puedes ganar poco seguido y perder mucho rara vez, y seguir perdiendo dinero. Mira siempre el contexto.' },
-    ],
-    exercise: {
-      kind: 'quiz',
-      quiz: [
-        { q: '¿Qué significa un Sharpe alto?', options: ['Mucho retorno sin importar riesgo', 'Buen retorno por unidad de riesgo', 'Cero operaciones perdidas', 'Drawdown pequeño siempre'], answer: 1, explain: 'Sharpe = retorno / volatilidad. Alto = ganas bien sin volatilidad extrema.' },
-        { q: 'El overfit ocurre cuando…', options: ['Usas datos recientes', 'Ajustas tanto que memorizas el pasado', 'El drawdown es bajo', 'Ganas en muestra-out'], answer: 1, explain: 'Overfit = el modelo memoriza el entrenamiento y falla fuera de muestra.' },
-      ],
-    },
-    takeaway: 'Sharpe y drawdown OOS cuentan la historia; el retorno total a veces miente.',
-  },
-
-  // ===================== PARTE 3 — FINANZAS (módulos 8-9) =====================
-  {
-    def: { id: 8, title: 'Retornos, capital y riesgo', subtitle: 'El lenguaje de las finanzas', kind: 'lesson', part: FIN, xp: 150 },
-    intro:
-      'Trading es finanzas. Aprende a hablar en retornos (porcentajes) en vez de precios, y por qué el riesgo se mide en drawdown.',
-    sections: [
-      { heading: 'Retorno', body: 'En vez de "subió $100", di "subió 2.3%". El retorno es comparable entre activos; el precio absoluto no. Si BTC sube $100 (0.2%) y AAPL sube $2 (1.1%), AAPL ganó más proporcionalmente.' },
-      { heading: 'Capital', body: 'Tu capital total es lo que puedes arriesgar. Una posición es qué fracción de ese capital pones en una operación. Posiciones pequeñas = supervivencia.' },
-      { heading: 'Riesgo', body: 'Se mide en pérdida potencial, no en emoción. Un stop-loss (precio donde sales) convierte el riesgo infinito en finito. Sin stop, una sola mala noche puede ser la última.' },
+      { heading: 'Sharpe', body: 'Retorno por unidad de riesgo. >1 está bien, >2 muy bien. Premia consistencia, no un solo golpe de suerte.' },
+      { heading: 'Drawdown', body: 'La caída máxima desde un pico. Tu peor racha. Si no podrías soportarla, la estrategia es muy grande para ti.' },
+      { heading: 'Winrate', body: '% de operaciones ganadoras. Alto no implica rentable: si pierdes mucho en pocas, igual sangras.' },
     ],
     exercise: { kind: 'quiz', quiz: [
-      { q: '¿Por qué usamos retornos y no precios?', options: ['Los precios son más fáciles', 'Son comparables entre activos', 'Los precios no existen', 'El retorno siempre es positivo'], answer: 1, explain: 'El retorno % se compara entre BTC y AAPL; el precio absoluto no.' },
-      { q: 'Un stop-loss sirve para…', options: ['Subir el retorno', 'Limitar la pérdida máxima', 'Evitar impuestos', 'Comprar más barato'], answer: 1, explain: 'Convierte un riesgo abierto en una pérdida conocida y acotada.' },
+      { q: '¿Qué significa un Sharpe alto?', options: ['Retorno alto sin importar riesgo', 'Buen retorno por unidad de riesgo', 'Cero pérdidas', 'Muchas operaciones'], answer: 1, explain: 'Sharpe = retorno / volatilidad. Premia hacerlo sin volatilidad loca.' },
+      { q: 'El drawdown es…', options: ['El retorno total', 'La caída máxima desde un pico', 'La comisión', 'El winrate'], answer: 1, explain: 'Es tu peor racha; dice cuánto dolor tolera la estrategia.' },
+      { q: 'Winrate alto garantiza ganar dinero?', options: ['Sí siempre', 'No, si las pérdidas son grandes', 'Solo en cripto'], answer: 1, explain: 'Unas pocas pérdidas grandes pueden comerse muchas ganancias pequeñas.' },
     ] },
-    takeaway: 'Finanzas = hablar en % y acotar el riesgo antes de operar.',
-  },
-  {
-    def: { id: 9, title: 'Costos que se comen tu ganancia', subtitle: 'Comisiones, slippage y benchmark', kind: 'lesson', part: FIN, xp: 150 },
-    intro:
-      'Una estrategia puede verse perfecta y perder dinero real por los costos. Aprende a contarlos.',
-    sections: [
-      { heading: 'Comisiones', body: 'Cada compra y venta paga una comisión (ej. 0.1% por lado). Operar mucho las acumula. Una señal que gana 0.15% por trade puede perder tras comisiones.' },
-      { heading: 'Slippage', body: 'El precio real de ejecución rara vez es el que viste: al operar tamaño grande se mueve el mercado. El slippage es esa diferencia escondida.' },
-      { heading: 'Benchmark', body: '¿Superaste al S&P 500 (buy & hold)? Si tu estrategia compleja gana menos que solo comprar y aguantar, ¿valió la pena el riesgo? Ese es el benchmark.' },
-    ],
-    exercise: { kind: 'quiz', quiz: [
-      { q: '¿Por qué importa el slippage?', options: ['Es un impuesto', 'El precio real difiere del visto', 'Sube el drawdown', 'Baja la comisión'], answer: 1, explain: 'Al ejecutar tamaño real, el precio se mueve: pagas más o vendes menos de lo planeado.' },
-      { q: 'El benchmark sirve para…', options: ['Comparar contra no hacer nada', 'Subir comisiones', 'Medir el slippage', 'Definir el stop'], answer: 0, explain: 'Si no superas al buy & hold simple, la estrategia no aportó valor.' },
-    ] },
-    takeaway: 'Cuenta costos siempre. La mitad de las estrategias "ganadoras" mueren ahí.',
+    takeaway: 'Lee Sharpe, drawdown y winrate juntos. Ninguno solo cuenta la historia.',
   },
 
-  // ===================== PARTE 4 — TRADING (módulos 10-12) =====================
+  // ===== PARTE 3 — FINANZAS =====
   {
-    def: { id: 10, title: 'Tu primera señal de trading', subtitle: 'Cruce de medias en vivo', kind: 'lesson', part: TR, xp: 200 },
-    intro:
-      'Construyes tu primera señal de trading moviendo un slider. Elige plantilla y periodo; el gráfico y los trades cambian en vivo. ' +
-      'Esta estrategia es la que llevarás al torneo.',
+    def: { id: 9, part: 'Finanzas', title: 'Retornos, capital y riesgo', subtitle: 'El lenguaje de las finanzas', kind: 'lesson', xp: 150 },
+    intro: 'No hablamos de "subió 5 dólares". Hablamos de % y de cuánto de tu capital estabas arriesgando. Ese es el salto a finanzas.',
     sections: [
-      { heading: 'Señal = regla', body: 'Una señal es solo una regla: "si la media rápida > lenta, compra". Al convertirla en código (o en este slider) deja de ser opinión y pasa a ser reproducible.' },
-      { heading: 'Parámetros', body: 'Rápido (ej. 20) y lento (ej. 50). Más cerca = más operaciones y más ruido; más lejos = menos operaciones y más tardías. Tu trabajo es encontrar el equilibrio.' },
-      { heading: 'Reproducible', body: 'Lo bueno de una señal explícita: cualquiera (o un bot) la puede repetir mañana con los mismos datos. Eso es trading sistemático.' },
+      { heading: 'Retorno %', body: 'Importa el porcentaje, no el absoluto. Subir $5 en un activo de $10 es +50%; en uno de $5000 es nada.' },
+      { heading: 'Riesgo por operación', body: 'Profesionales arriesgan 1–2% de su capital por trade. Así, 10 pérdidas seguidas no te borran.' },
+      { heading: 'Capital', body: 'Tu capital define el tamaño. Mismo porcentaje de riesgo, distinto tamaño absoluto.' },
+    ],
+    exercise: { kind: 'quiz', quiz: [
+      { q: '¿Por qué importa el retorno en % y no en $?', options: ['Porque suena pro', 'Porque compara activos de distinto precio', 'Porque el dólar sube'], answer: 1, explain: 'El % normaliza: te dice la magnitud relativa, no el número absoluto.' },
+      { q: 'Arriesgar 1% por trade significa…', options: ['Perder 1% de tu capital si falla', 'Ganar 1% siempre', 'Operar 1 vez al mes'], answer: 0, explain: 'Limitas el daño de una operación mala al 1% de tu cuenta.' },
+    ] },
+    takeaway: 'Finanzas = hablar en %, no en $. El tamaño lo dicta tu capital y tu tolerancia.',
+  },
+  {
+    def: { id: 10, part: 'Finanzas', title: 'Costos que se comen tu ganancia', subtitle: 'Comisiones, slippage y benchmark', kind: 'lesson', xp: 150 },
+    intro: 'Una estrategia "ganadora" en papel puede perder en la vida real por los costos. Los ves hoy.',
+    sections: [
+      { heading: 'Comisiones', body: 'Cada entrada y salida paga. Con muchas operaciones, se acumulan y devoran el margen.' },
+      { heading: 'Slippage', body: 'El precio real de ejecución rara vez es el que viste. Ese pequeño desliz es costo real.' },
+      { heading: 'Benchmark', body: '¿Ganaste 2%? El mercado subió 5%. Entonces perdiste oportunidad. Compara siempre.' },
+    ],
+    exercise: { kind: 'quiz', quiz: [
+      { q: 'El slippage es…', options: ['La comisión del exchange', 'La diferencia entre precio visto y ejecutado', 'El impuesto'], answer: 1, explain: 'Es el desliz entre lo que creíste y lo que pagaste.' },
+      { q: 'Un benchmark sirve para…', options: ['Pagar menos', 'Comparar tu retorno contra el mercado', 'Subir el Sharpe'], answer: 1, explain: 'Si el mercado gana más, tu estrategia no aportó valor.' },
+    ] },
+    takeaway: 'Gana en papel no cuenta. Resta comisiones, slippage y compara con el benchmark.',
+  },
+
+  // ===== PARTE 4 — TRADING =====
+  {
+    def: { id: 11, part: 'Trading', title: 'Tu primera señal de trading', subtitle: 'Cruce de medias en vivo', kind: 'lesson', xp: 200 },
+    intro: 'Junta todo: una señal real (cruce de medias), tú mueves los parámetros y ves la operación nacer.',
+    sections: [
+      { heading: 'La señal', body: 'Media rápida cruza a la lenta ⇒ entras largo; al revés ⇒ corto. Simples, claras, ejecutables.' },
+      { heading: 'Tus parámetros', body: 'Los sliders son tus decisiones de diseño. Cada valor cambia cuánto opera y cuánto ruido filtra.' },
+      { heading: 'De regla a estrategia', body: 'Una señal + gestión de riesgo = estrategia. Lo que llevarás al torneo.' },
     ],
     exercise: { kind: 'strategy', templateId: 'ma_cross' },
-    takeaway: 'Una señal simple ya es una estrategia completa y reproducible.',
+    takeaway: 'Una señal no es una estrategia hasta que le pones gestión de riesgo.',
   },
   {
-    def: { id: 11, title: 'Backtest real de tu señal', subtitle: 'Muestra-in vs muestra-out', kind: 'lesson', part: TR, xp: 200 },
-    intro:
-      'Corres el backtest de tu señal del Módulo 10 con parámetros que NO tocaste en el entrenamiento. ' +
-      'Compara contra dos configuraciones alternativas para ver la brecha de overfit.',
+    def: { id: 12, part: 'Trading', title: 'Backtest real de tu señal', subtitle: 'Muestra-in vs muestra-out', kind: 'lesson', xp: 200 },
+    intro: 'Pon a prueba tu señal contra datos que no viste. Si aguanta fuera de muestra, tiene algo.',
     sections: [
-      { heading: 'Diseña el test', body: 'Usa la misma señal pero mírala en la mitad de datos que no calib raste. Si ahí también gana, tienes algo. Si solo gana en la mitad conocida, es suerte.' },
-      { heading: 'Lee el equity', body: 'La curva de capital (inicia en 100) debe subir suavemente. Si parece una montaña rusa, el riesgo es alto aunque el retorno final sea bueno.' },
-      { heading: 'Decide con humildad', body: 'Una sola prueba no prueba nada. La ventaja real se ve tras muchos mercados y meses. Aquí solo entrenas el ojo del escepticismo.' },
+      { heading: 'Dos mitades', body: 'Ajustas en la primera mitad (in-sample) y validas en la segunda (out-of-sample). La segunda es la prueba de fuego.' },
+      { heading: 'Compara curvas', body: 'Si la curva fuera es plana o negativa mientras la de dentro brilla, hay overfit.' },
+      { heading: 'Decide con humildad', body: 'Una señal mediocre honesta vence a una "perfecta" mentirosa.' },
     ],
     exercise: { kind: 'backtest', templateId: 'ma_cross' },
-    takeaway: 'La señal que sobrevive fuera de muestra es la que llevas al torneo.',
+    takeaway: 'El backtest fuera de muestra es tu único amigo honesto.',
   },
   {
-    def: { id: 12, title: '🏆 Tu debut', subtitle: 'El torneo real de la comunidad', kind: 'tournament', part: TR, xp: 300 },
-    intro:
-      'Este módulo no es una lección: es un torneo real. Tu estrategia del Módulo 11 entra precargada. ' +
-      'Completas y ya estás compitiendo — sin escribir código, sin salir del flujo. Al terminar recibes 10 QP de recompensa.',
+    def: { id: 13, part: 'Trading', title: 'Cómo se evalúan tus predicciones', subtitle: 'La métrica del leaderboard del torneo', kind: 'lesson', xp: 200 },
+    intro: 'Entender cómo te puntúan es medio camino para ganar. Hoy predices y ves la métrica exacta que usa el torneo.',
     sections: [
-      { heading: 'De aprendiz a competidor', body: 'La entrega final del curso es tu estrategia corriendo contra la comunidad. Lo que aprendiste en 11 módulos se pone a prueba.' },
-      { heading: 'Sin clic de pegado', body: 'Los parámetros del Módulo 11 ya están cargados. Solo confírmalos y entra. El handoff es automático.' },
-      { heading: 'Recompensa', body: 'Completar la Ruta Aprendiz te acredita 10 QP en tu wallet, canjeables en el Marketplace. Empezaste de cero; terminas con activo.' },
+      { heading: 'Acierto de dirección', body: 'El torneo cuenta cuántas veces acertaste la dirección (sube/baja). No el precio exacto, solo el sentido.' },
+      { heading: 'Leaderboard', body: 'Tu puntaje se rankea contra la comunidad. Arriba = más QP. Por eso practicar dirección importa.' },
+      { heading: 'Consistencia > suerte', body: 'Una predicción afortunada no te sube. 60% de acierto sostenido, sí.' },
+    ],
+    exercise: { kind: 'predict', predictTask: { seriesId: 'eth-daily', prompt: 'Con las últimas 8 velas de ETH, declara la dirección de la próxima (▲ sube / ▼ baja). Luego verás tu acierto.', revealNote: 'Esta es la misma métrica del leaderboard: aciertos de dirección sobre el total. Consistente > suerte.' } },
+    takeaway: 'Te evalúan por acierto de dirección. Lo que entrenaste en el Módulo 6 y 13 es el deporte del torneo.',
+  },
+  {
+    def: { id: 14, part: 'Trading', title: '🏆 Tu debut', subtitle: 'El torneo real de la comunidad', kind: 'tournament', xp: 300 },
+    intro: 'Llegaste. Tu estrategia del Módulo 11/12 está precargada. Entra al torneo real y compite por QP con la comunidad.',
+    sections: [
+      { heading: 'Sin clic, sin copiar', body: 'La estrategia que construiste ya viajó hasta aquí. Solo confirma y entras.' },
+      { heading: 'Qué ganas', body: 'Por completar el curso: +10 QP. Por competir bien en el torneo: más QP del leaderboard.' },
+      { heading: 'No es el final', body: 'Es el comienzo: ahora puedes crear estrategias propias en el Dashboard y entrar a más torneos.' },
     ],
     exercise: { kind: 'backtest', templateId: 'ma_cross' },
-    takeaway: 'Completaste la Ruta Aprendiz. Ahora compites — y ganaste 10 QP.',
+    takeaway: 'Curso completo = Aprendiz Cuant. Ahora el mundo real: torneos, Dashboard, comunidad.',
   },
 ];
 
-export function getModule(id: number): ModuleContent | undefined {
-  return modules.find((m) => m.def.id === id);
-}
+const PART_ORDER: Part[] = ['Ciencia de Datos', 'Machine Learning', 'Finanzas', 'Trading'];
 
-export const partOrder: Part[] = [DATA, ML, FIN, TR];
-
-export function modulesByPart(): { part: Part; mods: ModuleContent[] }[] {
-  return partOrder.map((part) => ({
+export function modulesByPart() {
+  return PART_ORDER.map((part) => ({
     part,
     mods: modules.filter((m) => m.def.part === part),
-  }));
+  })).filter((g) => g.mods.length > 0);
 }
 
-export const beginnerLevel: Level = 'beginner';
+export function getModule(id: number) {
+  return modules.find((m) => m.def.id === id);
+}

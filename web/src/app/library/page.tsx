@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LibraryBridge } from "./LibraryBridge";
 
 export const metadata: Metadata = {
   title: "Biblioteca de Datasets — QuantLab",
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
 
 // Biblioteca accesible desde cualquier parte del sitio (no solo desde Aprende).
 // Reutiliza el SPA de ruta-aprendiz en modo librería (?view=library) para no
-// duplicar la lógica de filtros y favoritos.
+// duplicar la lógica de filtros y favoritos. El botón "Volver a Aprende" del
+// SPA avisa al padre vía postMessage y este puente navega a /learn.
 export default function LibraryPage() {
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
@@ -18,6 +20,7 @@ export default function LibraryPage() {
         className="h-[calc(100vh-3.5rem)] w-full border-0"
         style={{ display: "block" }}
       />
+      <LibraryBridge />
     </div>
   );
 }
