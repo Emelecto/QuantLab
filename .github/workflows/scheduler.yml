@@ -24,20 +24,36 @@ jobs:
             exit 1
           fi
 
-          echo "Llamando al scheduler en $WORKER_URL/scheduler/run ..."
-          HTTP_CODE=$(curl -s -o /tmp/scheduler_response.txt -w "%{http_code}" \
-            -X POST "$WORKER_URL/scheduler/run" \
-            -H "Content-Type: application/json" \
-            -H "X-Scheduler-Key: $SCHEDULER_KEY" \
-            --max-time 600)
+          echo "Despertando el worker de Render (plan free puede estar dormido)..."
+          for i in 1 2 3 4 5; do
+            echo "Warm-up intento $i -> $WORKER_URL/health"
+            curl -s -o /dev/null -m 30 "$WORKER_URL/health" || true
+            sleep 10
+          done
 
-          echo "HTTP Status: $HTTP_CODE"
+          echo "Llamando al scheduler en $WORKER_URL/scheduler/run ..."
+          HTTP_CODE="000"
+          for i in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -s -o /tmp/scheduler_response.txt -w "%{http_code}" \
+              -X POST "$WORKER_URL/scheduler/run" \
+              -H "Content-Type: application/json" \
+              -H "X-Scheduler-Key: $SCHEDULER_KEY" \
+              --max-time 600)
+            echo "Intento $i -> HTTP Status: $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+            echo "Reintentando en 15s..."
+            sleep 15
+          done
+
+          echo "HTTP Status final: $HTTP_CODE"
           echo "Response:"
           cat /tmp/scheduler_response.txt
           echo ""
 
           if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "ERROR: El scheduler respondió con código $HTTP_CODE"
+            echo "ERROR: El scheduler respondió con código $HTTP_CODE tras reintentos"
             exit 1
           fi
 
