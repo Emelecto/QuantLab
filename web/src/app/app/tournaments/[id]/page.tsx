@@ -484,13 +484,23 @@ function TabDatos({ datasets }: { datasets: MlDataset[] }) {
           las features <span className="text-ink">feature_XX</span> y genera el CSV{" "}
           <span className="text-ink">id,prediction</span> listo para enviar.
         </p>
-        <a
-          href="/ml/ejemplo_quantlab.ipynb"
-          download
-          className={buttonClasses("secondary", "sm", "mt-4")}
-        >
-          Ver notebook de ejemplo
-        </a>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href="https://colab.research.google.com/github/Emelecto/QuantLab/blob/main/web/public/ml/ejemplo_quantlab.ipynb"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClasses("primary", "sm")}
+          >
+            Abrir en Colab
+          </a>
+          <a
+            href="/ml/ejemplo_quantlab.ipynb"
+            download
+            className={buttonClasses("secondary", "sm")}
+          >
+            Descargar .ipynb
+          </a>
+        </div>
       </div>
     </div>
   );
