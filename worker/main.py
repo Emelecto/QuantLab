@@ -448,6 +448,61 @@ async def scheduler_run(
     }
 
 
+@app.post("/scheduler/evaluate")
+async def scheduler_evaluate(
+    x_scheduler_key: str | None = Header(None),
+) -> dict:
+    """Evalua rondas ML vencidas (ligero). NO genera datasets.
+
+    La generacion de datasets se hace en GitHub Actions (mayor RAM, no se duerme)
+    y se sube a Supabase Storage. Este endpoint solo puntua submissions pendientes.
+    """
+    expected = os.environ.get("SCHEDULER_KEY")
+    if not expected:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Scheduler no configurado (falta SCHEDULER_KEY)."},
+        )
+    if not x_scheduler_key or x_scheduler_key != expected:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
+        )
+
+    import asyncio
+    from datetime import datetime, timezone
+
+    import engine
+
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Supabase no configurado."},
+        )
+    from supabase import create_client
+
+    sb = create_client(url, key)
+    now = datetime.now(timezone.utc)
+
+    async def _run_eval():
+        loop = asyncio.get_event_loop()
+        try:
+            evaluated = await loop.run_in_executor(
+                None, lambda: evaluate_ml_rounds(sb, now)
+            )
+            logger.info(f"Evaluacion ML completada: {evaluated} rondas.")
+        except Exception:  # noqa: BLE001
+            logger.exception("Error en la evaluacion ML (background)")
+
+    asyncio.create_task(_run_eval())
+    return {
+        "status": "ok",
+        "message": "Evaluacion encolada en background.",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 

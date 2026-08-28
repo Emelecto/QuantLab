@@ -2,19 +2,60 @@ name: QuantLab Weekly Tournament Scheduler
 
 on:
   schedule:
-    # Cada 2 días a las 06:00 UTC (cadencia de rondas ML es ~4 días,
-    # garantiza crear/evaluar al menos cada 4 días).
+    # Cada 2 dias a las 06:00 UTC (cadencia de rondas ML ~4 dias,
+    # garantiza crear/evaluar al menos cada 4 dias).
     - cron: "0 6 */2 * *"
-  # Permitir ejecución manual desde la pestaña Actions
+  # Permitir ejecucion manual desde la pestaña Actions
   workflow_dispatch:
 
 jobs:
-  run-scheduler:
+  generate-dataset:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 30
+    # La generacion del dataset sintetico (600x350) es pesada en RAM.
+    # GitHub Actions corre en VM de 7 GB y no se duerme, asi que la generamos
+    # AQUI y la subimos a Supabase Storage. El worker de Render solo SIRVE
+    # los datasets (ya no los genera) -> se acaban los reinicios por memoria.
     steps:
-      - name: Run scheduler via worker endpoint
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: worker
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate and upload ML round to Supabase Storage
+        working-directory: worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATASET_SALT: ${{ secrets.DATASET_SALT }}
+          ROUND_DAYS: "4"
+          N_ACTIVOS: "600"
+          N_ERAS: "350"
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "ERROR: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY deben estar en Secrets"
+            exit 1
+          fi
+          echo "Generando ronda ML y subiendo a Storage..."
+          python generate_dataset_github.py
+
+  evaluate-rounds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: generate-dataset
+    # Evaluar rondas vencidas es ligero; lo dejamos en el worker de Render
+    # via su endpoint asincrono (devuelve 200 al instante).
+    steps:
+      - name: Trigger evaluation on worker
         env:
           SCHEDULER_KEY: ${{ secrets.SCHEDULER_KEY }}
           WORKER_URL: ${{ secrets.WORKER_URL }}
@@ -23,19 +64,11 @@ jobs:
             echo "ERROR: WORKER_URL y SCHEDULER_KEY deben estar configurados en Secrets"
             exit 1
           fi
-
-          echo "Despertando el worker de Render (plan free puede estar dormido)..."
-          for i in 1 2 3 4 5; do
-            echo "Warm-up intento $i -> $WORKER_URL/health"
-            curl -s -o /dev/null -m 30 "$WORKER_URL/health" || true
-            sleep 10
-          done
-
-          echo "Llamando al scheduler en $WORKER_URL/scheduler/run ..."
+          echo "Llamando a $WORKER_URL/scheduler/evaluate ..."
           HTTP_CODE="000"
           for i in 1 2 3 4 5; do
-            HTTP_CODE=$(curl -s -o /tmp/scheduler_response.txt -w "%{http_code}" \
-              -X POST "$WORKER_URL/scheduler/run" \
+            HTTP_CODE=$(curl -s -o /tmp/eval_response.txt -w "%{http_code}" \
+              -X POST "$WORKER_URL/scheduler/evaluate" \
               -H "Content-Type: application/json" \
               -H "X-Scheduler-Key: $SCHEDULER_KEY" \
               --max-time 600)
@@ -46,15 +79,11 @@ jobs:
             echo "Reintentando en 15s..."
             sleep 15
           done
-
           echo "HTTP Status final: $HTTP_CODE"
-          echo "Response:"
-          cat /tmp/scheduler_response.txt
+          cat /tmp/eval_response.txt
           echo ""
-
           if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "ERROR: El scheduler respondió con código $HTTP_CODE tras reintentos"
+            echo "ERROR: la evaluacion respondio con codigo $HTTP_CODE tras reintentos"
             exit 1
           fi
-
-          echo "Scheduler ejecutado exitosamente."
+          echo "Evaluacion ejecutada exitosamente."
