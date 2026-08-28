@@ -9,6 +9,7 @@ import { getBalance } from "@/lib/tokens";
 import { useCountUp } from "@/hooks/useCountUp";
 
 const PUBLIC_NAV = [
+  { href: "/learn", label: "Aprende" },
   { href: "/features", label: "Producto" },
   { href: "/community", label: "Comunidad" },
   { href: "/leaderboard", label: "Ranking" },

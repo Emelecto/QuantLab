@@ -10,9 +10,14 @@ import { useProgress, progress } from './lib/progress';
 
 type Route = 'home' | 'course' | 'competencias' | 'marketplace' | 'library' | 'profile' | 'tournament';
 
+// Embedded mode: when loaded inside the QuantLab site via iframe (?embed=1),
+// hide the SPA's own chrome and jump straight into the Ruta Aprendiz so the
+// host app's nav drives navigation (no duplicated bars).
+const EMBED = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === '1';
+
 export function App() {
   const p = useProgress();
-  const [route, setRoute] = useState<Route>('home');
+  const [route, setRoute] = useState<Route>(EMBED ? 'course' : 'home');
   const [activeModule, setActiveModule] = useState<number | null>(null);
 
   const onNav = (r: string) => {
@@ -32,9 +37,9 @@ export function App() {
 
   return (
     <div className="app">
-      <Nav route={route} onNav={onNav} progress={p} />
+      {!EMBED && <Nav route={route} onNav={onNav} progress={p} />}
       <main className="content">
-        {route === 'home' && <Home onNav={onNav} progress={p} />}
+        {!EMBED && route === 'home' && <Home onNav={onNav} progress={p} />}
         {route === 'course' &&
           (activeModule == null ? (
             <CourseHome progress={p} onOpen={openModule} />
@@ -52,11 +57,11 @@ export function App() {
               }}
             />
           ))}
-        {route === 'competencias' && <Stub title="Competencias" icon="🏁" body="Torneos de la comunidad con estrategias pro." />}
-        {route === 'marketplace' && <Stub title="Marketplace" icon="🛒" body="Estrategias compartidas por la comunidad." />}
+        {!EMBED && route === 'competencias' && <Stub title="Competencias" icon="🏁" body="Torneos de la comunidad con estrategias pro." />}
+        {!EMBED && route === 'marketplace' && <Stub title="Marketplace" icon="🛒" body="Estrategias compartidas por la comunidad." />}
         {route === 'library' && <Library favoriteId={p.favoriteDatasetId} />}
-        {route === 'profile' && <Profile progress={p} onNav={onNav} />}
-        {route === 'tournament' && <Tournament savedStrategy={p.savedStrategy} />}
+        {!EMBED && route === 'profile' && <Profile progress={p} onNav={onNav} />}
+        {!EMBED && route === 'tournament' && <Tournament savedStrategy={p.savedStrategy} />}
       </main>
     </div>
   );
