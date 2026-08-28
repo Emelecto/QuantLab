@@ -10,6 +10,7 @@ import { useCountUp } from "@/hooks/useCountUp";
 
 const PUBLIC_NAV = [
   { href: "/learn", label: "Aprende" },
+  { href: "/library", label: "Biblioteca" },
   { href: "/features", label: "Producto" },
   { href: "/community", label: "Comunidad" },
   { href: "/leaderboard", label: "Ranking" },
@@ -72,6 +73,12 @@ export function TopBar() {
               className="text-sm text-muted transition-colors hover:text-ink"
             >
               Aprende
+            </Link>
+            <Link
+              href="/library"
+              className="text-sm text-muted transition-colors hover:text-ink"
+            >
+              Biblioteca
             </Link>
             <Link
               href="/app"

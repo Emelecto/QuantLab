@@ -278,6 +278,51 @@ body {
 
 .err { color: var(--bad); padding: 20px; }
 
+/* ---------- Read / dataset-crudo ---------- */
+.read-ex { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.read-prompt { font-size: 14px; margin-bottom: 12px; line-height: 1.5; }
+.table-wrap { overflow-x: auto; }
+table.ohclv { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+table.ohclv th { text-align: right; padding: 6px 8px; color: var(--muted); border-bottom: 1px solid var(--border); }
+table.ohclv th:first-child, table.ohclv td:first-child { text-align: left; }
+table.ohclv td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+table.ohclv tr.flagged td { background: rgba(255, 90, 95, 0.16); }
+.col-head { background: transparent; border: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.col-head.picked { background: var(--accent); color: #06121f; }
+table.ohclv tbody tr { cursor: default; }
+.read-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.read-hint { font-size: 11px; color: var(--muted); }
+.read-result { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+.read-result.ok { background: rgba(70, 220, 140, 0.14); color: var(--good); }
+.read-result.bad { background: rgba(255, 90, 95, 0.14); color: var(--bad); }
+
+/* ---------- Predict ---------- */
+.predict-ex { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.spark { display: flex; align-items: flex-end; gap: 4px; height: 80px; margin: 10px 0; }
+.spark .bar { width: 18px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); border-radius: 4px 4px 0 0; }
+.predict-last { font-size: 14px; }
+.predict-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.btn-secondary.sel { outline: 2px solid var(--accent); }
+
+/* ---------- Quiz ---------- */
+.quiz { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.quiz-q { margin-bottom: 16px; }
+.quiz-prompt { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.quiz-opts { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.quiz-opt { width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.quiz-opt.chosen { border-color: var(--accent); }
+.quiz-opt.correct { border-color: var(--good); background: rgba(70, 220, 140, 0.16); }
+.quiz-opt.wrong { border-color: var(--bad); background: rgba(255, 90, 95, 0.16); }
+.quiz-explain { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.quiz-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.module-xp { font-size: 11px; color: var(--accent); font-weight: 600; }
+.module-kicker { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ---------- Partes en CourseHome ---------- */
+.part-block { margin-top: 26px; }
+.part-title { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; }
+.course-done { margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(70, 220, 140, 0.14); color: var(--good); font-weight: 600; font-size: 14px; }
+
 @media (max-width: 860px) {
   .lab, .module-grid, .home-cards, .dataset-grid, .metrics, .profile-stats { grid-template-columns: 1fr; }
   .nav-links button { padding: 8px 10px; }

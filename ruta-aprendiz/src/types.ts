@@ -2,6 +2,15 @@ export type AssetClass = 'crypto' | 'equities' | 'macro';
 
 export type Level = 'beginner' | 'advanced';
 
+export interface DatasetRow {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface Dataset {
   id: string;
   name: string;
@@ -11,6 +20,7 @@ export interface Dataset {
   frequency: string;
   usedInCourse: boolean;
   blurb: string;
+  rows: DatasetRow[]; // raw sample, shown in "read the data" exercises
 }
 
 // ---- Strategy templates (the bottleneck: the mini-runner) ----
@@ -64,12 +74,47 @@ export interface BacktestResult {
 }
 
 // ---- Course / progress ----
+export type Part = 'Ciencia de Datos' | 'Machine Learning' | 'Finanzas' | 'Trading';
+
 export interface ModuleDef {
   id: number;
   title: string;
   subtitle: string;
   kind: 'lesson' | 'tournament';
+  part: Part;
   xp: number;
+}
+
+export interface QuizQuestion {
+  q: string;
+  options: string[];
+  answer: number; // index of correct option
+  explain: string;
+}
+
+export interface ReadTask {
+  // "read the raw data" exercise: spot a column / an outlier / a gap.
+  prompt: string;
+  answerCol?: keyof DatasetRow; // column the user must identify
+  outlierRow?: number; // 0-based row index the user must flag (if any)
+  hint: string;
+}
+
+export interface PredictTask {
+  // beginner prediction: state direction / rough next close before revealing.
+  prompt: string;
+  // deterministic check: did the actual next close go up or down?
+  seriesId: string; // dataset id to read 'close'
+  revealNote: string;
+}
+
+export interface LessonExercise {
+  kind: 'risk' | 'dataset' | 'strategy' | 'backtest' | 'read' | 'predict' | 'quiz';
+  templateId?: string; // for strategy/backtest
+  datasetId?: string; // for dataset/read
+  readTask?: ReadTask; // for read
+  predictTask?: PredictTask; // for predict
+  quiz?: QuizQuestion[]; // for quiz
 }
 
 export interface ProgressState {

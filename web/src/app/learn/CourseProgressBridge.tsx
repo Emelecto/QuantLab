@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { earnQP } from "@/lib/tokens";
 import type { ProgressState } from "@/lib/types";
 
 // Puente de progreso del curso entre el iframe (Ruta Aprendiz) y Supabase.
@@ -9,14 +10,21 @@ import type { ProgressState } from "@/lib/types";
 // mensajes postMessage, leemos/escribimos course_progress con RLS (auth.uid())
 // y devolvemos el estado para que el curso refleje el progreso guardado.
 //
+// Recompensa: al completar el curso (badgeEarned) se acreditan 10 QP una vez.
+//
 // Si el usuario NO está logueado, simplemente no respondemos: el iframe usa su
 // copia local en localStorage. Así el curso funciona también para visitantes.
+
+const COURSE_REWARD_QP = 10;
 
 type HostMsg =
   | { source: "ruta-aprendiz"; type: "load" }
   | { source: "ruta-aprendiz"; type: "save"; payload: ProgressState };
 
 export function CourseProgressBridge() {
+  // Evita doble acreditación en la misma carga de página (ej. varios saves seguidos).
+  const awardedRef = useRef(false);
+
   useEffect(() => {
     function postState(state: ProgressState | null) {
       const frame = document.querySelector<HTMLIFrameElement>(
@@ -37,6 +45,8 @@ export function CourseProgressBridge() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (data) {
+        // Si ya estaba completo antes, marcamos como premiado para no re-acreditar.
+        if (data.badge_earned) awardedRef.current = true;
         postState({
           completedModules: data.completed_modules ?? [],
           xp: data.xp ?? 0,
@@ -73,6 +83,18 @@ export function CourseProgressBridge() {
       if (error) {
         // No tumbamos la UI del curso: el localStorage del iframe ya tiene el valor.
         console.warn("course_progress upsert falló:", error.message);
+        return;
+      }
+      // Recompensa única al completar el curso.
+      if (payload.badgeEarned && !awardedRef.current) {
+        awardedRef.current = true;
+        try {
+          await earnQP(COURSE_REWARD_QP, "course_complete", user.id, "Ruta Aprendiz completada");
+        } catch (e) {
+          // Si falla (ej. sin red), permitimos reintentar en el próximo save.
+          awardedRef.current = false;
+          console.warn("earnQP falló:", e);
+        }
       }
     }
 

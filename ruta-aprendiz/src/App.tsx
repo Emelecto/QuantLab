@@ -11,13 +11,16 @@ import { useProgress, progress } from './lib/progress';
 type Route = 'home' | 'course' | 'competencias' | 'marketplace' | 'library' | 'profile' | 'tournament';
 
 // Embedded mode: when loaded inside the QuantLab site via iframe (?embed=1),
-// hide the SPA's own chrome and jump straight into the Ruta Aprendiz so the
-// host app's nav drives navigation (no duplicated bars).
-const EMBED = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === '1';
+// hide the SPA's own chrome and jump straight into the Ruta Aprendiz (or the
+// Library when ?view=library) so the host app's nav drives navigation.
+const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const EMBED = params.get('embed') === '1';
+const EMBED_VIEW = params.get('view'); // 'library' => open Library directly
+const INITIAL_ROUTE = EMBED ? (EMBED_VIEW === 'library' ? 'library' : 'course') : 'home';
 
 export function App() {
   const p = useProgress();
-  const [route, setRoute] = useState<Route>(EMBED ? 'course' : 'home');
+  const [route, setRoute] = useState<Route>(INITIAL_ROUTE);
   const [activeModule, setActiveModule] = useState<number | null>(null);
 
   const onNav = (r: string) => {
@@ -52,7 +55,7 @@ export function App() {
               onBack={() => setActiveModule(null)}
               onEnterTournament={() => {
                 progress.enterTournament('debut-weekly');
-                progress.completeModule(5);
+                progress.completeModule(activeModule);
                 setRoute('tournament');
               }}
             />

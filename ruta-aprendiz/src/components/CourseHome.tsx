@@ -1,4 +1,4 @@
-import { modules } from '../data/modules';
+import { modules, modulesByPart } from '../data/modules';
 import type { ProgressState } from '../types';
 
 interface CourseHomeProps {
@@ -19,39 +19,46 @@ export function CourseHome({ progress, onOpen }: CourseHomeProps) {
         <p>De cero a tu primer torneo, sin escribir código.</p>
         <div className="progress-track">
           <div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} />
-          <span className="progress-text">{done}/{total} módulos</span>
+          <span className="progress-text">{done}/{total} módulos · {progress.xp} XP</span>
         </div>
-        {allDone && <div className="course-done">🏅 ¡Ruta completa! Eres Aprendiz Cuant.</div>}
+        {allDone && <div className="course-done">🏅 ¡Ruta completa! Eres Aprendiz Cuant. +10 QP ganados.</div>}
       </header>
 
-      <div className="module-grid">
-        {modules.map((m, idx) => {
-          const isDone = progress.completedModules.includes(m.def.id);
-          const isLocked = idx > 0 && !progress.completedModules.includes(modules[idx - 1].def.id);
-          const isStar = m.def.kind === 'tournament';
-          return (
-            <button
-              key={m.def.id}
-              className={`module-card ${isDone ? 'done' : ''} ${isLocked ? 'locked' : ''} ${isStar ? 'star' : ''}`}
-              disabled={isLocked}
-              onClick={() => onOpen(m.def.id)}
-            >
-              <div className="module-num">{isStar ? '🏆' : m.def.id}</div>
-              <div className="module-body">
-                <h3>{m.def.title}</h3>
-                <p>{m.def.subtitle}</p>
-                <span className="module-xp">+{m.def.xp} XP</span>
-              </div>
-              {isDone && <span className="module-check">✓</span>}
-              {isLocked && <span className="module-lock">🔒</span>}
-            </button>
-          );
-        })}
-      </div>
+      {modulesByPart().map(({ part, mods }) => (
+        <section className="part-block" key={part}>
+          <h2 className="part-title">{part}</h2>
+          <div className="module-grid">
+            {mods.map((m, idx) => {
+              const isDone = progress.completedModules.includes(m.def.id);
+              const prev = mods[idx - 1];
+              const isLocked = prev ? !progress.completedModules.includes(prev.def.id) : false;
+              const isStar = m.def.kind === 'tournament';
+              return (
+                <button
+                  key={m.def.id}
+                  className={`module-card ${isDone ? 'done' : ''} ${isLocked ? 'locked' : ''} ${isStar ? 'star' : ''}`}
+                  disabled={isLocked}
+                  onClick={() => onOpen(m.def.id)}
+                >
+                  <div className="module-num">{isStar ? '🏆' : m.def.id}</div>
+                  <div className="module-body">
+                    <span className="module-kicker">Módulo {m.def.id}</span>
+                    <h3>{m.def.title}</h3>
+                    <p>{m.def.subtitle}</p>
+                    <span className="module-xp">+{m.def.xp} XP</span>
+                  </div>
+                  {isDone && <span className="module-check">✓</span>}
+                  {isLocked && <span className="module-lock">🔒</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       <div className="resume-bar">
         {allDone ? (
-          <button className="btn-primary" onClick={() => onOpen(5)}>
+          <button className="btn-primary" onClick={() => onOpen(12)}>
             Ver mi debut en el torneo
           </button>
         ) : (

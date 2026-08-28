@@ -8,6 +8,9 @@ import { genPriceSeries } from '../lib/random';
 import { progress as progressStore } from '../lib/progress';
 import { RiskSim } from './RiskSim';
 import { StrategyLab } from './StrategyLab';
+import { DatasetReader } from './DatasetReader';
+import { PredictExercise } from './PredictExercise';
+import { Quiz } from './Quiz';
 
 interface LessonProps {
   moduleId: number;
@@ -50,7 +53,7 @@ export function Lesson({ moduleId, progress, onComplete, onOpenLibrary, onBack, 
     <div className="lesson">
       <button className="link-back" onClick={onBack}>← Ruta Aprendiz</button>
       <header className="lesson-head">
-        <span className="lesson-kicker">Módulo {mod.def.id}{mod.def.kind === 'tournament' ? ' · 🏆 Debut' : ''}</span>
+        <span className="lesson-kicker">Parte: {mod.def.part} · Módulo {mod.def.id}{mod.def.kind === 'tournament' ? ' · 🏆 Debut' : ''}</span>
         <h1>{mod.def.title}</h1>
         <p className="lesson-sub">{mod.def.subtitle}</p>
       </header>
@@ -74,26 +77,46 @@ export function Lesson({ moduleId, progress, onComplete, onOpenLibrary, onBack, 
           <DatasetExercise def={mod.exercise.datasetId!} onOpenLibrary={onOpenLibrary} onUsed={() => setDatasetUsed(true)} used={datasetUsed} />
         )}
 
+        {mod.exercise.kind === 'read' && (
+          <DatasetReader
+            datasetId={mod.exercise.datasetId!}
+            prompt={mod.exercise.readTask!.prompt}
+            answerCol={mod.exercise.readTask!.answerCol}
+            outlierRow={mod.exercise.readTask!.outlierRow}
+            hint={mod.exercise.readTask!.hint}
+          />
+        )}
+
+        {mod.exercise.kind === 'predict' && (
+          <PredictExercise
+            seriesId={mod.exercise.predictTask!.seriesId}
+            prompt={mod.exercise.predictTask!.prompt}
+            revealNote={mod.exercise.predictTask!.revealNote}
+          />
+        )}
+
+        {mod.exercise.kind === 'quiz' && <Quiz questions={mod.exercise.quiz!} />}
+
         {mod.exercise.kind === 'strategy' && (
           <StrategyLab
             templateId={mod.exercise.templateId!}
-            series={MOD_SERIES[moduleId]}
+            series={MOD_SERIES[moduleId] ?? MOD_SERIES[4]}
             onParamsChange={(p) => setSavedParams(p)}
           />
         )}
 
-        {mod.exercise.kind === 'backtest' && moduleId === 4 && (
+        {mod.exercise.kind === 'backtest' && mod.def.kind !== 'tournament' && (
           <StrategyLab
             templateId={mod.exercise.templateId!}
-            series={MOD_SERIES[4]}
+            series={MOD_SERIES[moduleId] ?? MOD_SERIES[4]}
             initialParams={progress.savedStrategy?.params ?? defaultParams(mod.exercise.templateId!)}
             onParamsChange={(p) => setSavedParams(p)}
             compare={compare4}
           />
         )}
 
-        {mod.exercise.kind === 'backtest' && moduleId === 5 && (
-          <TournamentHandoff savedParams={savedParams ?? defaultParams('ma_cross')} series={MOD_SERIES[5]} onEnter={onEnterTournament} />
+        {mod.def.kind === 'tournament' && (
+          <TournamentHandoff savedParams={savedParams ?? progress.savedStrategy?.params ?? defaultParams('ma_cross')} series={MOD_SERIES[moduleId] ?? MOD_SERIES[5]} onEnter={onEnterTournament} />
         )}
       </div>
 
@@ -106,9 +129,10 @@ export function Lesson({ moduleId, progress, onComplete, onOpenLibrary, onBack, 
           <button
             className="btn-primary"
             onClick={() => {
-              // Seam 3: when finishing M4, persist the strategy for the M5 handoff.
-              if (moduleId === 4 && savedParams) {
-                progressStore.saveStrategy({ templateId: mod.exercise.templateId!, params: savedParams });
+              // Seam 3: persist the strategy for the tournament handoff whenever this
+              // module carries a template (M4 / M6 build it; M12 consumes it).
+              if (mod.exercise.templateId && savedParams) {
+                progressStore.saveStrategy({ templateId: mod.exercise.templateId, params: savedParams });
               }
               onComplete();
             }}
@@ -157,7 +181,7 @@ function TournamentHandoff({ savedParams, series, onEnter }: { savedParams: Reco
   return (
     <div className="handoff">
       <div className="handoff-banner">
-        🤝 <b>Handoff sin clic:</b> tu estrategia del Módulo 4 está precargada. Confirma y entra al torneo.
+        🤝 <b>Handoff sin clic:</b> tu estrategia de los módulos anteriores está precargada. Confirma y entra al torneo.
       </div>
       <StrategyLab
         templateId="ma_cross"
