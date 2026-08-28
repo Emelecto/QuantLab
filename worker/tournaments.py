@@ -64,6 +64,17 @@ def tournament_list(type: str | None = None, status: str | None = None):
     return res.data or []
 
 
+@router.get("/tournament/ml")
+def tournament_list_ml(status: str | None = None):
+    sb = get_supabase()
+    q = sb.table("tournaments").select("*").eq("type", "ml")
+    if status:
+        q = q.eq("status", status)
+    q = q.order("created_at", desc=True)
+    res = q.execute()
+    return res.data or []
+
+
 @router.get("/tournament/{tournament_id}")
 def tournament_detail(tournament_id: str):
     sb = get_supabase()
