@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getBalance } from "@/lib/tokens";
 import "./dashboard.css";
 
 const NAV = [
@@ -117,6 +118,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [width, setWidth] = useState(248);
   const [dragging, setDragging] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const widthRef = useRef(width);
 
@@ -139,6 +141,20 @@ export function Sidebar() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (collapsed) return;
+    let active = true;
+    (async () => {
+      try {
+        const b = await getBalance();
+        if (active) setBalance(b.balance);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => { active = false; };
+  }, [collapsed]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {
@@ -196,7 +212,14 @@ export function Sidebar() {
       <div className="ql-sidebar-top">
         <Link href="/" className="ql-brand" title="Volver al landing">
           <span className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
-          {!collapsed && <span>QuantLab</span>}
+          {!collapsed && (
+            <span className="ql-brand-text">
+              <span>QuantLab</span>
+              {balance != null && (
+                <span className="ql-sidebar-balance">{balance.toLocaleString()} QP</span>
+              )}
+            </span>
+          )}
         </Link>
         <button className="ql-collapse-toggle" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"} aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}>
           <Icon name={collapsed ? "chevrons-right" : "chevrons-left"} size={16} />
