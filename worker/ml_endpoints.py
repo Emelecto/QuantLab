@@ -99,54 +99,72 @@ async def submit_predictions(
     body: PredictionsUpload | None = None,
     authorization: str | None = Header(None),
 ):
-    user_id = require_user(authorization)
-    from tournaments import get_supabase
-    sb = get_supabase()
+    try:
+        user_id = require_user(authorization)
+        from tournaments import get_supabase
+        sb = get_supabase()
 
-    # El dataset debe existir y estar abierto
-    ds = sb.table("ml_datasets").select("id,kind,status,closes_at").eq("id", dataset_id).execute()
-    if not ds.data or ds.data[0]["kind"] != "live":
-        raise HTTPException(404, "dataset de predicciones no encontrado")
-    if ds.data[0]["status"] not in ("ready", "building"):
-        raise HTTPException(409, f"ronda en estado {ds.data[0]['status']}")
+        # El dataset debe existir y estar abierto
+        ds = sb.table("ml_datasets").select("id,kind,status,closes_at").eq("id", dataset_id).execute()
+        if not ds.data or ds.data[0]["kind"] != "live":
+            raise HTTPException(404, "dataset de predicciones no encontrado")
+        if ds.data[0]["status"] not in ("ready", "building"):
+            raise HTTPException(409, f"ronda en estado {ds.data[0]['status']}")
 
-    # Parsear entrada
-    if file is not None:
-        content = await file.read()
+        # Parsear entrada
+        if file is not None:
+            content = await file.read()
+            try:
+                df = pd.read_csv(io.BytesIO(content))
+            except Exception as e:
+                raise HTTPException(422, f"CSV inválido: {e}")
+        elif body is not None:
+            try:
+                df = pd.DataFrame(body.rows)
+            except Exception as e:
+                raise HTTPException(422, f"Datos de predicciones inválidos: {e}")
+        else:
+            raise HTTPException(422, "envía un archivo CSV o un body JSON con 'rows'")
+        df = _validar_csv(df)
+
+        # ¿Envío previo? → reemplazar (UNIQUE dataset_id,user_id)
+        prev = sb.table("prediction_submissions").select("id").eq(
+            "dataset_id", dataset_id
+        ).eq("user_id", user_id).execute()
+        path = f"submissions/{dataset_id[:8]}/{user_id}.csv"
+        
         try:
-            df = pd.read_csv(io.BytesIO(content))
-        except Exception as e:  # noqa: BLE001
-            raise HTTPException(422, f"CSV inválido: {e}")
-    elif body is not None:
-        df = pd.DataFrame(body.rows)
-    else:
-        raise HTTPException(422, "envía un archivo CSV o un body JSON con 'rows'")
-    df = _validar_csv(df)
+            store.upload_parquet(df, path)
+        except Exception as e:
+            logger.exception("Error al subir predicciones a Storage")
+            raise HTTPException(502, f"No fue posible almacenar las predicciones: {e}")
 
-    # ¿Envío previo? → reemplazar (UNIQUE dataset_id,user_id)
-    prev = sb.table("prediction_submissions").select("id").eq(
-        "dataset_id", dataset_id
-    ).eq("user_id", user_id).execute()
-    path = f"submissions/{dataset_id[:8]}/{user_id}.csv"
-    store.upload_parquet(df, path)
+        payload = {
+            "dataset_id": dataset_id,
+            "user_id": user_id,
+            "file_name": file.filename if file else "inline.json",
+            "row_count": len(df),
+            "file_path": path,
+            "status": "pending",
+            "submitted_at": "now()",
+        }
+        try:
+            if prev.data:
+                sb.table("prediction_submissions").update(payload).eq("id", prev.data[0]["id"]).execute()
+                sub_id = prev.data[0]["id"]
+            else:
+                res = sb.table("prediction_submissions").insert(payload).execute()
+                sub_id = res.data[0]["id"]
+        except Exception as e:
+            logger.exception("Error al guardar submission en DB")
+            raise HTTPException(502, f"No fue posible guardar el envío: {e}")
 
-    payload = {
-        "dataset_id": dataset_id,
-        "user_id": user_id,
-        "file_name": file.filename if file else "inline.json",
-        "row_count": len(df),
-        "file_path": path,
-        "status": "pending",
-        "submitted_at": "now()",
-    }
-    if prev.data:
-        sb.table("prediction_submissions").update(payload).eq("id", prev.data[0]["id"]).execute()
-        sub_id = prev.data[0]["id"]
-    else:
-        res = sb.table("prediction_submissions").insert(payload).execute()
-        sub_id = res.data[0]["id"]
-
-    return {"id": sub_id, "row_count": len(df), "status": "pending"}
+        return {"id": sub_id, "row_count": len(df), "status": "pending"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error inesperado en submit_predictions")
+        raise HTTPException(500, f"Error interno del servidor: {e}")
 
 
 # ---------------------------------------------------------------------------
