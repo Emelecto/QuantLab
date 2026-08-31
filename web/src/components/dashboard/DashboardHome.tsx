@@ -145,7 +145,7 @@ function SummaryCard({
   source,
   value,
   detail,
-  emptyValue = "Sin registro",
+  emptyValue = "",
 }: {
   label: string;
   source: DashboardSourceState;
@@ -170,7 +170,7 @@ function SummaryCard({
       >
         {displayValue}
       </p>
-      <p className="ql-dashboard-summary-detail">{detail}</p>
+      {detail && <p className="ql-dashboard-summary-detail">{detail}</p>}
     </article>
   );
 }
@@ -287,52 +287,41 @@ export function DashboardHome() {
       )}
 
       <section aria-labelledby="dashboard-resumen">
-        <SectionHeader
-          title="Resumen"
-          description="Solo valores que existen en tus fuentes conectadas."
-        />
+        <SectionHeader title="Resumen" description="" />
         <div className="ql-dashboard-summary-grid">
           <SummaryCard
             label="Saldo disponible"
             source={sources.qp}
             value={formatNumber(qp) == null ? null : `${formatNumber(qp)} QP`}
-            detail="Puntos virtuales disponibles en tu wallet."
-            emptyValue="Sin saldo"
+            detail=""
+            emptyValue=""
           />
           <SummaryCard
             label="Estrategias"
             source={sources.strategies}
             value={formatNumber(strategies.length)}
-            detail="Estrategias registradas en tu cuenta."
-            emptyValue="Sin estrategias"
+            detail=""
+            emptyValue=""
           />
           <SummaryCard
             label="Aprendizaje"
             source={sources.course}
             value={courseSummary}
-            detail={courseDetail}
-            emptyValue="Sin registro"
+            detail=""
+            emptyValue=""
           />
           <SummaryCard
             label="Posición por QP"
             source={sources.ranking}
             value={rankingValue}
-            detail={rankingDetail}
-            emptyValue="Sin posición"
+            detail=""
+            emptyValue=""
           />
         </div>
       </section>
 
       <section aria-labelledby="dashboard-aprendizaje">
-        <SectionHeader
-          title="Aprendizaje"
-          description="Progreso persistido de la Ruta Aprendiz."
-          action={
-            <Link href="/app/learn" className="ql-dashboard-action ql-btn-secondary">
-              Abrir ruta
-            </Link>
-          }
-        />
+        <SectionHeader title="Aprendizaje" description="" />
         {sources.course === "loading" ? (
           <DashboardState kind="loading" title="Cargando progreso guardado">
             Consultando los módulos completados y la actividad más reciente.

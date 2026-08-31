@@ -12,6 +12,7 @@ const NAV = [
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
   { href: "/app/learn", label: "Aprende", icon: "book" },
   { href: "/app/library", label: "Datasets", icon: "database" },
+  { href: "/app/api-keys", label: "API Keys", icon: "key" },
   { href: "/app/profile", label: "Perfil", icon: "user" },
 ] as const;
 
@@ -81,6 +82,15 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
       return (
         <svg {...common}>
           <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+    case "key":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="14" r="3" />
+          <path d="M11 13l9-9" />
+          <path d="M17 7l3 3" />
+          <path d="M14 10l3 3" />
         </svg>
       );
     case "chevrons-left":
