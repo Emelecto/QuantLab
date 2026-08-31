@@ -1,7 +1,7 @@
 /* Curso ("Introducción a QuantLab") y Biblioteca — migrados de la SPA Vite a
    Next nativo. Hereda el design system de globals.css vía los tokens --ql-*.
    NO redefine :root; usa --ql-bg, --ql-surface, --ql-line, --ql-ink,
-   --ql-muted, --ql-accent, --ql-accent-2, --ql-long, --ql-short, --ql-warn. */
+   --ql-muted, --ql-accent, --ql-accent-2, --ql-long, --ql-short. */
 
 .ql-learn-wrap { width: 100%; }
 
@@ -57,7 +57,7 @@
 .module-lock { position: absolute; top: 14px; right: 16px; }
 
 .resume-bar { display: flex; align-items: center; gap: 16px; justify-content: center; margin-top: 26px; }
-.streak { color: var(--ql-warn); font-weight: 600; }
+.streak { color: var(--ql-accent-2); font-weight: 600; }
 
 /* ---------- Lesson ---------- */
 .lesson { max-width: 860px; margin: 0 auto; }
@@ -130,7 +130,7 @@
 .dataset-card p { color: var(--ql-muted); font-size: 13px; line-height: 1.5; }
 .dataset-meta { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; color: #c2cce0; }
 .dataset-actions { display: flex; gap: 10px; margin-top: 10px; }
-.seam-note { color: var(--ql-warn); font-size: 12px; margin: 10px 0 0; }
+.seam-note { color: var(--ql-accent-2); font-size: 12px; margin: 10px 0 0; }
 
 .library-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .library-head h1 { margin: 0 0 4px; font-size: 28px; color: var(--ql-ink); }
@@ -142,10 +142,10 @@
 
 .dataset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lib-card { background: var(--ql-surface); border: 1px solid var(--ql-line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.lib-card.fav { border-color: var(--ql-warn); }
+.lib-card.fav { border-color: var(--ql-accent-2); }
 .lib-card-top { display: flex; justify-content: space-between; align-items: center; }
 .lib-card-top h3 { margin: 0; font-size: 15px; color: var(--ql-ink); }
-.fav-star { color: var(--ql-warn); font-size: 18px; }
+.fav-star { color: var(--ql-accent-2); font-size: 18px; }
 .lib-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
 .tag-crypto { background: #2a2140; color: #c4a5ff; }
@@ -153,7 +153,7 @@
 .tag-macro { background: #1c2f22; color: #8ff0b0; }
 .tag-beginner { background: #202a3a; color: #9fb6dd; }
 .tag-advanced { background: #33242a; color: #ffb0b0; }
-.tag-course { background: #2a2a14; color: var(--ql-warn); }
+.tag-course { background: #2a2a14; color: var(--ql-accent-2); }
 .lib-blurb { color: var(--ql-muted); font-size: 12px; line-height: 1.45; margin: 0; flex: 1; }
 .lib-meta { font-size: 11px; color: var(--ql-muted); }
 .lib-card-actions { display: flex; gap: 8px; }

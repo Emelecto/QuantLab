@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { TopBarGate } from "@/components/TopBarGate";
+import { TopBarGate, FooterGate } from "@/components/TopBarGate";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
@@ -36,6 +36,7 @@ export default function RootLayout({
         <ToastProvider>
           <TopBarGate />
           <main className="flex flex-1 flex-col">{children}</main>
+          <FooterGate />
         </ToastProvider>
       </body>
     </html>

@@ -12,6 +12,23 @@ interface Row {
   volume: number;
 }
 
+type YahooQuote = {
+  open?: Array<number | null>;
+  high?: Array<number | null>;
+  low?: Array<number | null>;
+  close?: Array<number | null>;
+  volume?: Array<number | null>;
+};
+
+type YahooChartResponse = {
+  chart?: {
+    result?: Array<{
+      timestamp?: number[];
+      indicators?: { quote?: YahooQuote[] };
+    } | null>;
+  };
+};
+
 const CRYPTO_SYMBOLS = new Set([
   "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT",
   "BTCUSD", "ETHUSD", "BNBUSD", "SOLUSD", "XRPUSD", "ADAUSD", "DOGEUSD",
@@ -65,8 +82,8 @@ async function fetchYahoo(symbol: string, interval: Interval, limit: number): Pr
     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
   });
   if (!resp.ok) throw new Error(`Yahoo ${resp.status}`);
-  const json: any = await resp.json();
-  const result = json?.chart?.result?.[0];
+  const json = (await resp.json()) as YahooChartResponse;
+  const result = json.chart?.result?.[0];
   if (!result) throw new Error("Yahoo: sin datos");
   const timestamps: number[] = result.timestamp ?? [];
   const quote = result?.indicators?.quote?.[0];

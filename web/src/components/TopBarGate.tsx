@@ -4,19 +4,13 @@ import { usePathname } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { Footer } from "@/components/Footer";
 
-/**
- * En rutas /app (post-login) el header es el Sidebar del dashboard, no el
- * TopBar público. Este gate oculta TopBar + Footer en /app y los mantiene
- * en el resto del sitio.
- */
+/** El header y el footer públicos no forman parte del dashboard autenticado. */
 export function TopBarGate() {
   const pathname = usePathname();
-  const inApp = pathname.startsWith("/app");
-  if (inApp) return null;
-  return (
-    <>
-      <TopBar />
-      <Footer />
-    </>
-  );
+  return pathname.startsWith("/app") ? null : <TopBar />;
+}
+
+export function FooterGate() {
+  const pathname = usePathname();
+  return pathname.startsWith("/app") ? null : <Footer />;
 }

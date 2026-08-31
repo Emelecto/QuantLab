@@ -20,7 +20,7 @@ const MIN_WIDTH = 200;
 const MAX_WIDTH = 360;
 const COLLAPSED_WIDTH = 72;
 
-function Icon({ name, size = 18 }: { name: string; size?: number }) {
+export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const common = {
     width: size,
     height: size,
@@ -101,19 +101,26 @@ export function Sidebar() {
   const [width, setWidth] = useState(248);
   const [dragging, setDragging] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const widthRef = useRef(width);
 
   useEffect(() => {
-    try {
-      const c = localStorage.getItem(COLLAPSE_KEY);
-      if (c === "1") setCollapsed(true);
-      const w = localStorage.getItem(WIDTH_KEY);
-      if (w) {
-        const parsed = parseInt(w, 10);
-        if (parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) setWidth(parsed);
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const c = localStorage.getItem(COLLAPSE_KEY);
+        if (c === "1") setCollapsed(true);
+        const w = localStorage.getItem(WIDTH_KEY);
+        if (w) {
+          const parsed = parseInt(w, 10);
+          if (parsed >= MIN_WIDTH && parsed <= MAX_WIDTH) {
+            widthRef.current = parsed;
+            setWidth(parsed);
+          }
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const toggle = useCallback(() => {
@@ -138,6 +145,7 @@ export function Sidebar() {
     const onMouseMove = (ev: MouseEvent) => {
       const delta = ev.clientX - startX;
       const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
+      widthRef.current = next;
       setWidth(next);
       if (sidebarRef.current) {
         sidebarRef.current.style.width = `${next}px`;
@@ -149,7 +157,7 @@ export function Sidebar() {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
       try {
-        localStorage.setItem(WIDTH_KEY, String(width));
+        localStorage.setItem(WIDTH_KEY, String(widthRef.current));
       } catch {
         /* ignore */
       }
@@ -202,12 +210,13 @@ export function Sidebar() {
           style={{
             position: "absolute",
             top: 0,
-            right: -3,
-            width: 6,
+            right: 0,
+            width: 8,
             height: "100%",
             cursor: "col-resize",
-            background: dragging ? "var(--ql-accent)" : "transparent",
-            opacity: dragging ? 0.5 : 0,
+            zIndex: 40,
+            background: dragging ? "var(--ql-accent)" : "var(--ql-line)",
+            opacity: dragging ? 0.7 : 0.25,
             transition: "opacity 0.15s",
           }}
           className="ql-sidebar-resize"

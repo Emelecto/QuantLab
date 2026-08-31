@@ -25,6 +25,16 @@ const MAP: Record<string, DatasetMeta> = {
 
 const INTERVALS = ["1d", "1h", "4h", "1w"] as const;
 const LIMITS = [100, 250, 500, 1000] as const;
+type Interval = (typeof INTERVALS)[number];
+type Limit = (typeof LIMITS)[number];
+
+function isInterval(value: string | undefined): value is Interval {
+  return value !== undefined && (INTERVALS as readonly string[]).includes(value);
+}
+
+function isLimit(value: number): value is Limit {
+  return LIMITS.includes(value as Limit);
+}
 
 function buildSearch(symbol: string, source: "binance" | "yahoo", interval: string, limit: number) {
   const p = new URLSearchParams({ symbol, source, interval, limit: String(limit) });
@@ -71,8 +81,9 @@ export default async function DatasetDetailPage({
     );
   }
 
-  const interval = (sp.interval && INTERVALS.includes(sp.interval as any) ? sp.interval : meta.interval) as string;
-  const limit = (sp.limit && LIMITS.includes(Number(sp.limit) as any) ? Number(sp.limit) : 500);
+  const interval: Interval = isInterval(sp.interval) ? sp.interval : meta.interval;
+  const requestedLimit = Number(sp.limit);
+  const limit: Limit = isLimit(requestedLimit) ? requestedLimit : 500;
 
   const { rows, error } = await fetchRows(meta.symbol, meta.source, interval, limit);
 

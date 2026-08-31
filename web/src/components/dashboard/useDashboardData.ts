@@ -5,6 +5,7 @@ import { getBalance } from "@/lib/tokens";
 import { getMyStrategies } from "@/lib/db";
 import { listTournaments } from "@/lib/tournaments";
 import type { MyStrategy } from "@/lib/db";
+import type { Tournament } from "@/lib/tournaments";
 import type { TournamentSummary } from "@/app/app/tournaments/components/TournamentCard";
 
 export type DashboardData = {
@@ -14,6 +15,27 @@ export type DashboardData = {
   loading: boolean;
   error: string | null;
 };
+
+function toAssetType(assetType: string): TournamentSummary["asset_type"] {
+  if (assetType === "crypto") return "crypto";
+  if (assetType === "stock" || assetType === "stocks" || assetType === "equities") return "stock";
+  return "any";
+}
+
+function toSummary(tournament: Tournament): TournamentSummary {
+  return {
+    id: tournament.id,
+    name: tournament.name,
+    type: tournament.type === "ml" ? "ml" : "custom",
+    status: "active",
+    asset_type: toAssetType(tournament.asset_type),
+    symbol: tournament.symbols?.[0],
+    qp_prize: tournament.prize_pool_qp ?? 0,
+    deadline: tournament.submission_deadline,
+    participants: tournament.submission_count ?? 0,
+    metric_label: tournament.primary_metric ?? "deflated_sharpe_oos",
+  };
+}
 
 export function useDashboardData(): DashboardData {
   const [data, setData] = useState<DashboardData>({
@@ -36,28 +58,12 @@ export function useDashboardData(): DashboardData {
 
         if (!active) return;
 
-        const qp =
-          balance.status === "fulfilled" ? (balance.value?.balance ?? 0) : null;
-        const myStrategies =
-          strategies.status === "fulfilled" ? (strategies.value ?? []) : [];
-
-        const rawTournaments =
-          tournaments.status === "fulfilled" ? (tournaments.value ?? []) : [];
-        const activeTournaments: TournamentSummary[] = rawTournaments
-          .filter((t: any) => t.status === "open" || t.status === "active")
-          .map((t: any) => ({
-            id: t.id,
-            name: t.name,
-            type: t.type === "ml" ? "ml" : "custom",
-            status: "active" as const,
-            asset_type: (t.asset_type ?? "any") as "crypto" | "stock" | "any",
-            symbol: t.symbols?.[0],
-            qp_prize: t.prize_pool_qp ?? 0,
-            deadline: t.submission_deadline,
-            participants: t.submission_count ?? 0,
-            max_participants: t.max_participants,
-            metric_label: t.primary_metric ?? "deflated_sharpe_oos",
-          }));
+        const qp = balance.status === "fulfilled" ? (balance.value?.balance ?? 0) : null;
+        const myStrategies = strategies.status === "fulfilled" ? (strategies.value ?? []) : [];
+        const rawTournaments = tournaments.status === "fulfilled" ? (tournaments.value ?? []) : [];
+        const activeTournaments = rawTournaments
+          .filter((t) => t.status === "open")
+          .map(toSummary);
 
         setData({
           qp,
@@ -66,9 +72,10 @@ export function useDashboardData(): DashboardData {
           loading: false,
           error: null,
         });
-      } catch (e: any) {
+      } catch (error) {
         if (!active) return;
-        setData((d) => ({ ...d, loading: false, error: e?.message ?? "Error" }));
+        const message = error instanceof Error ? error.message : "Error";
+        setData((d) => ({ ...d, loading: false, error: message }));
       }
     })();
     return () => {

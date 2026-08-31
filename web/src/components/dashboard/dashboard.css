@@ -8,8 +8,11 @@
   top: 0;
   align-self: flex-start;
   height: 100vh;
-  background: var(--ql-surface-solid);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)), rgba(17, 21, 28, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-right: 1px solid var(--ql-line);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03), 12px 0 36px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   padding: 16px 12px;
@@ -78,7 +81,9 @@
   border: none;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   width: 100%;
+  min-height: 44px;
   text-align: left;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 .ql-sidebar.collapsed .ql-nav-item {
   justify-content: center;
@@ -95,9 +100,9 @@
 }
 .ql-nav-item:hover { background: rgba(255, 255, 255, 0.04); color: var(--ql-ink); }
 .ql-nav-item.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.08), rgba(248, 250, 252, 0.025));
   color: var(--ql-ink);
-  box-shadow: inset 3px 0 0 var(--ql-accent);
+  box-shadow: inset 3px 0 0 var(--ql-accent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .ql-sidebar.collapsed .ql-nav-item span:not(.ic) { display: none; }
 
@@ -106,7 +111,17 @@
 
 .ql-sidebar-spacer { flex: 1; }
 
-.ql-sidebar-resize:hover { opacity: 0.3 !important; }
+.ql-sidebar-resize {
+  touch-action: none;
+}
+.ql-sidebar-resize:hover { opacity: 0.75 !important; }
+
+/* ===== Dashboard shell ===== */
+.ql-app-shell {
+  display: flex;
+  min-height: 100vh;
+  gap: 20px;
+}
 
 /* ===== Área principal ===== */
 .ql-dash-main {
@@ -114,17 +129,16 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 24px;
-  gap: 20px;
+  padding: 24px 28px 32px 0;
 }
 .ql-dash-topbar {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 18px 26px;
-  border-bottom: 1px solid var(--ql-line);
-  background: var(--ql-surface);
+  padding: 0 0 8px;
+  border-bottom: 0;
+  background: transparent;
 }
 .ql-dash-topbar h1 { font-size: 19px; margin: 0; font-weight: 600; color: var(--ql-ink); }
 .ql-dash-topbar .sub { color: var(--ql-muted); font-size: 13px; margin-top: 2px; }
@@ -141,7 +155,8 @@
 }
 .ql-role-pill.on { background: var(--ql-accent); border-color: var(--ql-accent); color: #04110d; font-weight: 600; }
 
-.ql-dash-content { padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; }
+.ql-dash-content { padding: 0; display: flex; flex-direction: column; gap: 20px; }
+.ql-dash-content > .ql-dash-grid { gap: 16px; }
 
 .ql-section-label {
   font-size: 12px;
@@ -156,15 +171,18 @@
   gap: 14px;
 }
 .ql-panel {
-  padding: 16px;
-  cursor: grab;
-  min-height: 128px;
+  padding: 20px;
+  min-height: 144px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
-.ql-panel:active { cursor: grabbing; }
-.ql-panel.dragover { border-color: var(--ql-accent); border-style: dashed; }
+.ql-panel:hover {
+  transform: translateY(-2px);
+  border-color: rgba(248, 250, 252, 0.18);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+}
 .ql-panel .ph {
   display: flex;
   justify-content: space-between;
@@ -187,15 +205,33 @@
 
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
-  .ql-sidebar { width: 74px; flex-basis: 74px; }
-  .ql-sidebar .ql-brand span,
-  .ql-sidebar .ql-nav-item span,
-  .ql-sidebar .ql-fav-title,
-  .ql-sidebar .ql-fav-item,
-  .ql-sidebar .ql-collapse-btn span { display: none; }
+  .ql-sidebar {
+    width: 72px !important;
+    flex-basis: 72px !important;
+    padding: 16px 8px;
+  }
+  .ql-sidebar .ql-sidebar-top {
+    justify-content: center;
+  }
+  .ql-sidebar .ql-brand > span:not(.ql-glow-box),
+  .ql-sidebar .ql-nav-item > span:not(.ic) {
+    display: none;
+  }
+  .ql-sidebar .ql-nav-item {
+    justify-content: center;
+    padding: 10px;
+  }
+  .ql-sidebar .ql-collapse-toggle {
+    display: flex;
+  }
+  .ql-sidebar .ql-sidebar-resize {
+    display: none;
+  }
 }
 @media (max-width: 640px) {
+  .ql-app-shell { gap: 0; }
   .ql-sidebar { display: none; }
+  .ql-dash-main { padding: 16px 16px 76px; }
   .ql-dash-bottomnav {
     display: flex;
     position: fixed;
@@ -211,10 +247,14 @@
   }
   .ql-dash-bottomnav a {
     color: var(--ql-muted);
-    font-size: 20px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
     text-decoration: none;
-    padding: 8px;
   }
+  .ql-dash-bottomnav a:hover { background: rgba(255, 255, 255, 0.04); }
   .ql-dash-bottomnav a.on { color: var(--ql-accent); }
-  .ql-dash-content { padding-bottom: 84px; }
+
 }
