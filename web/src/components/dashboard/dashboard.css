@@ -203,6 +203,435 @@
 
 .ql-dash-bottomnav { display: none; }
 
+/* ===== NEW DASHBOARD (DashboardHome.tsx) ===== */
+
+/* Contenedor principal */
+.ql-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Header */
+.ql-dashboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--ql-line);
+}
+.ql-dashboard-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ql-accent);
+}
+.ql-dashboard-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ql-ink);
+  margin: 0;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+.ql-dashboard-lede {
+  font-size: 14px;
+  color: var(--ql-muted);
+  margin: 0;
+  max-width: 540px;
+  line-height: 1.5;
+}
+.ql-dashboard-source-note {
+  font-size: 12px;
+  color: var(--ql-muted);
+  opacity: 0.75;
+  align-self: flex-start;
+}
+
+/* Notices (loading / error) */
+.ql-dashboard-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ql-dashboard-notice--loading {
+  background: rgba(248, 250, 252, 0.05);
+  color: var(--ql-muted);
+  border: 1px solid var(--ql-line);
+}
+.ql-dashboard-notice--error {
+  background: rgba(255, 0, 85, 0.10);
+  color: var(--ql-short);
+  border: 1px solid rgba(255, 0, 85, 0.28);
+}
+.ql-dashboard-retry {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: var(--ql-short);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.ql-dashboard-retry:hover { opacity: 0.85; }
+
+/* Section header */
+.ql-dashboard-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.ql-dashboard-section-header h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ql-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.ql-dashboard-section-header p {
+  font-size: 13px;
+  color: var(--ql-muted);
+  margin: 0;
+}
+
+/* Action links (ql-btn-primary / ql-btn-secondary heredan de globals) */
+.ql-dashboard-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.ql-dashboard-action.ql-btn-primary {
+  background: var(--ql-accent);
+  color: #04110d;
+  font-weight: 600;
+}
+.ql-dashboard-action.ql-btn-primary:hover {
+  background: var(--ql-accent-2);
+}
+.ql-dashboard-action.ql-btn-secondary {
+  background: var(--ql-surface);
+  color: var(--ql-muted);
+  border-color: var(--ql-line);
+}
+.ql-dashboard-action.ql-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ql-ink);
+  border-color: rgba(248, 250, 252, 0.18);
+}
+
+/* Summary grid */
+.ql-dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.ql-dashboard-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  min-height: 92px;
+}
+.ql-dashboard-summary-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ql-muted);
+}
+.ql-dashboard-summary-value {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ql-ink);
+  line-height: 1.2;
+}
+.ql-dashboard-summary-value--loading {
+  color: var(--ql-muted);
+  opacity: 0.55;
+}
+.ql-dashboard-summary-detail {
+  font-size: 12px;
+  color: var(--ql-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Dashboard state (loading / empty / error) */
+.ql-dashboard-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 24px;
+  gap: 14px;
+}
+.ql-dashboard-state-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ql-ink);
+  margin: 0;
+}
+.ql-dashboard-state-copy {
+  font-size: 13px;
+  color: var(--ql-muted);
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Course progress card */
+.ql-dashboard-course {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+.ql-dashboard-course-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ql-dashboard-card-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ql-accent);
+  margin: 0 0 4px;
+}
+.ql-dashboard-course-main h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ql-ink);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.ql-dashboard-course-main > div > p {
+  font-size: 13px;
+  color: var(--ql-muted);
+  margin: 0;
+}
+.ql-dashboard-course-percent {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 46px;
+  font-weight: 700;
+  color: var(--ql-accent);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ql-dashboard-progress {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ql-dashboard-progress > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ql-accent), var(--ql-accent-2));
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Facts grid (dl / dt / dd) */
+.ql-dashboard-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+  padding: 0;
+}
+.ql-dashboard-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ql-dashboard-facts dt {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ql-muted);
+}
+.ql-dashboard-facts dd {
+  font-size: 13px;
+  color: var(--ql-ink);
+  margin: 0;
+  font-weight: 500;
+}
+.ql-dashboard-facts dd.metric {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Card grid (torneos / estrategias) */
+.ql-dashboard-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.ql-dashboard-card-grid--strategies {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.ql-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+.ql-dashboard-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ql-dashboard-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ql-accent);
+  background: rgba(248, 250, 252, 0.07);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.ql-dashboard-tournament h3,
+.ql-dashboard-strategy h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ql-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* Status badges */
+.ql-dashboard-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1;
+}
+.ql-dashboard-status--positive { background: rgba(16, 185, 129, 0.14); color: var(--ql-long); }
+.ql-dashboard-status--negative { background: rgba(255, 0, 85, 0.14); color: var(--ql-short); }
+.ql-dashboard-status--pending { background: rgba(255, 183, 3, 0.14); color: var(--ql-amber); }
+.ql-dashboard-status--neutral { background: rgba(255, 255, 255, 0.06); color: var(--ql-muted); }
+
+/* Submission facts (más compacto) */
+.ql-dashboard-submission-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border: 1px solid var(--ql-line);
+}
+.ql-dashboard-submission-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ql-dashboard-submission-facts dt {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ql-muted);
+}
+.ql-dashboard-submission-facts dd {
+  font-size: 13px;
+  color: var(--ql-ink);
+  margin: 0;
+  font-weight: 500;
+}
+.ql-dashboard-submission-facts dd.metric {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Strategy card extras */
+.ql-dashboard-card-meta {
+  font-size: 12px;
+  color: var(--ql-muted);
+  margin: 0;
+}
+.ql-dashboard-run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border: 1px solid var(--ql-line);
+}
+.ql-dashboard-run span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ql-muted);
+}
+.ql-dashboard-run strong {
+  font-size: 13px;
+  color: var(--ql-ink);
+  font-weight: 500;
+}
+
+/* Ranking card */
+.ql-dashboard-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.ql-dashboard-ranking > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ql-dashboard-ranking-value {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--ql-accent);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
   .ql-sidebar {
