@@ -18,6 +18,7 @@ const COLLAPSE_KEY = "ql:sidebar-collapsed";
 const WIDTH_KEY = "ql:sidebar-width";
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 360;
+const COLLAPSED_WIDTH = 72;
 
 function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const common = {
@@ -75,12 +76,18 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
         </svg>
       );
-    case "logout":
+    case "chevrons-left":
       return (
         <svg {...common}>
-          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-          <path d="M16 17l5-5-5-5" />
-          <path d="M21 12H9" />
+          <path d="M11 17l-5-5 5-5" />
+          <path d="M18 17l-5-5 5-5" />
+        </svg>
+      );
+    case "chevrons-right":
+      return (
+        <svg {...common}>
+          <path d="M13 17l5-5-5-5" />
+          <path d="M6 17l5-5-5-5" />
         </svg>
       );
     default:
@@ -109,7 +116,7 @@ export function Sidebar() {
     }
   }, []);
 
-  const toggle = () => {
+  const toggle = useCallback(() => {
     setCollapsed((c) => {
       const next = !c;
       try {
@@ -119,9 +126,10 @@ export function Sidebar() {
       }
       return next;
     });
-  };
+  }, []);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (collapsed) return;
     e.preventDefault();
     setDragging(true);
     const startX = e.clientX;
@@ -148,7 +156,7 @@ export function Sidebar() {
     };
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-  }, [width]);
+  }, [width, collapsed]);
 
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
@@ -157,19 +165,26 @@ export function Sidebar() {
     <aside
       ref={sidebarRef}
       className={`ql-sidebar${collapsed ? " collapsed" : ""}`}
-      style={{ width, flexBasis: width }}
+      style={{ width: collapsed ? COLLAPSED_WIDTH : width, flexBasis: collapsed ? COLLAPSED_WIDTH : width }}
     >
-      <div className="ql-brand">
-        <span className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
-        {!collapsed && <span>QuantLab</span>}
+      {/* Brand + Collapse toggle (top row) */}
+      <div className="ql-sidebar-top">
+        <div className="ql-brand">
+          <span className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
+          {!collapsed && <span>QuantLab</span>}
+        </div>
+        <button className="ql-collapse-toggle" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"} aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}>
+          <Icon name={collapsed ? "chevrons-right" : "chevrons-left"} size={16} />
+        </button>
       </div>
 
+      {/* Nav items */}
       {NAV.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           className={`ql-nav-item${isActive(item.href) ? " active" : ""}`}
-          title={item.label}
+          title={collapsed ? item.label : undefined}
         >
           <span className="ic">
             <Icon name={item.icon} />
@@ -179,14 +194,6 @@ export function Sidebar() {
       ))}
 
       <div className="ql-sidebar-spacer" />
-
-      <button className="ql-collapse-btn" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"}>
-        <span className="ic">
-          <Icon name={collapsed ? "logout" : "logout"} />
-        </span>
-        {!collapsed && <span>Colapsar</span>}
-        {collapsed && <span style={{ fontSize: 16 }}>»</span>}
-      </button>
 
       {/* Resize handle */}
       {!collapsed && (
