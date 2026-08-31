@@ -111,12 +111,16 @@
 .ql-collapse-btn:hover { background: rgba(255, 255, 255, 0.04); color: var(--ql-ink); }
 .ql-sidebar.collapsed .ql-collapse-btn span { display: none; }
 
+.ql-sidebar-resize:hover { opacity: 0.3 !important; }
+
 /* ===== Área principal ===== */
 .ql-dash-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 24px;
+  gap: 20px;
 }
 .ql-dash-topbar {
   display: flex;

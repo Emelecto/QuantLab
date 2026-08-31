@@ -60,7 +60,7 @@ export function TournamentCard({
         href={`/app/tournaments/${tournament.id}`}
         className="block ql-perspective flex flex-1 flex-col"
       >
-        <CardBody className="flex-1 flex flex-col gap-3">
+        <CardBody className="flex-1 flex flex-col gap-4 p-6">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-[15px] font-semibold text-ink leading-tight">
               {tournament.name}
@@ -90,7 +90,7 @@ export function TournamentCard({
             )}
           </div>
 
-          <div className="mt-auto pt-2 flex items-end justify-between">
+          <div className="mt-auto pt-2 mb-2 flex items-end justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-wider text-muted">
                 Premio
@@ -116,7 +116,7 @@ export function TournamentCard({
           </div>
         </CardBody>
 
-        <CardFooter className="justify-between">
+        <CardFooter className="justify-between px-6 py-4">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted">
               Métrica

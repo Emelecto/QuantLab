@@ -3,7 +3,7 @@ import "@/components/learn/learn.css";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ display: "flex", minHeight: "100vh", gap: 24 }}>
       <Sidebar />
       <div className="ql-dash-main">
         {children}

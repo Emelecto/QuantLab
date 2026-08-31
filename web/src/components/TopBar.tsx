@@ -8,16 +8,6 @@ import { useAuth } from "@/lib/useAuth";
 import { getBalance } from "@/lib/tokens";
 import { useCountUp } from "@/hooks/useCountUp";
 
-const PUBLIC_NAV = [
-  { href: "/learn", label: "Aprende" },
-  { href: "/library", label: "Biblioteca" },
-  { href: "/app/tournaments", label: "Torneos" },
-  { href: "/app/marketplace", label: "Mercado" },
-  { href: "/leaderboard", label: "Ranking" },
-  { href: "/pricing", label: "Precios" },
-  { href: "/app/api-keys", label: "API" },
-] as const;
-
 export function TopBar() {
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -65,67 +55,6 @@ export function TopBar() {
           QuantLab
         </Link>
 
-        {user ? (
-          // Sesión iniciada: navegación de app autenticada.
-          <nav className="hidden items-center gap-5 md:flex">
-            <Link
-              href="/learn"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Aprende
-            </Link>
-            <Link
-              href="/library"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Biblioteca
-            </Link>
-            <Link
-              href="/app"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/app/tournaments"
-              data-tour="tournaments-link"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Torneos
-            </Link>
-            <Link
-              href="/app/marketplace"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Mercado
-            </Link>
-            <Link
-              href="/app/rankings"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              Rankings
-            </Link>
-            <Link
-              href="/app/api-keys"
-              className="text-sm text-muted transition-colors hover:text-ink"
-            >
-              API
-            </Link>
-          </nav>
-        ) : (
-          <nav className="hidden items-center gap-6 md:flex">
-            {PUBLIC_NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-sm text-muted transition-colors hover:text-ink"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-
         <div className="ml-auto flex items-center gap-3">
           {user && (
             <>
@@ -169,16 +98,15 @@ export function TopBar() {
                   <path d="M9 8h6" />
                 </svg>
               </Link>
+              <button
+                onClick={handleSignOut}
+                className="text-sm font-medium text-muted transition-colors hover:text-ink"
+              >
+                Cerrar sesión
+              </button>
             </>
           )}
-          {user ? (
-            <button
-              onClick={handleSignOut}
-              className="text-sm font-medium text-muted transition-colors hover:text-ink"
-            >
-              Cerrar sesión
-            </button>
-          ) : (
+          {!user && (
             <>
               <Link
                 href="/login"
