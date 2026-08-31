@@ -7,6 +7,7 @@ import "./dashboard.css";
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },
+  { href: "/app/strategies/new", label: "Crear estrategia", icon: "plus" },
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
   { href: "/app/learn", label: "Aprende", icon: "book" },
@@ -74,6 +75,12 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
         <svg {...common}>
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
+        </svg>
+      );
+    case "plus":
+      return (
+        <svg {...common}>
+          <path d="M12 5v14M5 12h14" />
         </svg>
       );
     case "chevrons-left":

@@ -265,16 +265,7 @@ export function DashboardHome() {
   return (
     <main className="ql-dash-content ql-dashboard" aria-busy={loading}>
       <header className="ql-dashboard-header">
-        <div>
-          <p className="ql-dashboard-eyebrow">QUANTLAB / OPERACIÓN</p>
-          <h1>Hola, {name}</h1>
-          <p className="ql-dashboard-lede">
-            Actividad de tu sesión, Supabase y el worker en una sola vista.
-          </p>
-        </div>
-        <p className="ql-dashboard-source-note">
-          QP son puntos virtuales, no dinero.
-        </p>
+        <h1>Hola, {name}</h1>
       </header>
 
       {loading && (
