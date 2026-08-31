@@ -58,33 +58,21 @@ export async function GET(request: NextRequest) {
   endpoint.searchParams.set("interval", "1d");
   endpoint.searchParams.set("limit", String(range.limit));
 
-  // Reintento simple: Vercel puede tener latencia variable hacia Binance
-  async function fetchWithRetry(url: URL, attempts = 2, timeoutMs = 15_000) {
-    let lastErr: Error | null = null;
-    for (let i = 0; i < attempts; i++) {
-      try {
-        const response = await fetch(url, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(timeoutMs),
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok) {
-          throw new Error(`Binance respondió ${response.status}`);
-        }
-        return response;
-      } catch (e) {
-        lastErr = e instanceof Error ? e : new Error(String(e));
-        if (i < attempts - 1) {
-          // pequeño backoff
-          await new Promise((r) => setTimeout(r, 500 * (i + 1)));
-        }
-      }
-    }
-    throw lastErr;
-  }
-
   try {
-    const response = await fetchWithRetry(endpoint);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(endpoint, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Binance respondió ${response.status}`);
+    }
 
     const payload: unknown = await response.json();
     if (!Array.isArray(payload)) {
