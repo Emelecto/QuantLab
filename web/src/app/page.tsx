@@ -45,7 +45,7 @@ const FEATURES = [
   },
   {
     title: "Datos reales multi-fuente",
-    text: "Binance + Bybit + Yahoo Finance. Sin API key, sin simulación.",
+    text: "Binance + Bybit + Yahoo Finance. Fuente visible en cada consulta.",
     visual: "datasources",
   },
   {
@@ -73,49 +73,55 @@ const FEATURES = [
 export default function Home() {
   return (
     <div className="flex flex-col">
-      {/* HERO (A1: demo en vivo) — sin kicker, sin gradient text (craft-floor) */}
+      {/* HERO — composición editorial con demo de mercado verificable */}
       <section className="relative overflow-hidden border-b border-line">
-        {/* Aurora animada: blobs blancos/grises sutiles que derivan */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div
-            className="ql-aurora-blob ql-aurora-1 left-[8%] top-[-30%] h-[26rem] w-[36rem]"
+            className="ql-aurora-blob ql-aurora-1 left-[-8%] top-[-30%] h-[28rem] w-[40rem]"
             style={{ background: "rgba(248,250,252,0.06)" }}
           />
           <div
-            className="ql-aurora-blob ql-aurora-2 right-[4%] top-[-20%] h-[22rem] w-[30rem]"
-            style={{ background: "rgba(203,213,225,0.05)" }}
+            className="ql-aurora-blob ql-aurora-2 right-[-8%] top-[-15%] h-[28rem] w-[34rem]"
+            style={{ background: "rgba(16,185,129,0.08)" }}
           />
           <div
-            className="ql-aurora-blob ql-aurora-3 left-[38%] top-[10%] h-[18rem] w-[26rem]"
+            className="ql-aurora-blob ql-aurora-3 left-[36%] top-[26%] h-[20rem] w-[28rem]"
             style={{ background: "rgba(148,163,184,0.04)" }}
           />
         </div>
-        <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <h1 className="max-w-3xl text-4xl leading-[1.08] font-semibold tracking-tight text-ink md:text-[56px]">
-                Comunidad de trading{" "}
-                <span className="text-accent">cuantitativo.</span>
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-16 sm:py-20 lg:py-24">
+          <div className="grid items-start gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-14">
+            <div className="max-w-xl pt-1 lg:py-8">
+              <p className="metric text-[10px] font-medium uppercase tracking-[0.2em] text-accent-2">
+                Investigación cuantitativa colaborativa
+              </p>
+              <h1 className="mt-5 max-w-3xl text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-ink md:text-5xl lg:text-[58px]">
+                Investiga antes de{" "}
+                <span className="text-accent">poner capital en riesgo.</span>
               </h1>
-              <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-                Pon a prueba tus ideas de trading contra las de toda la comunidad.
-                Backtests con datos reales, torneos semanales y un ranking donde gana
-                quien mejor estrategias construye.
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-muted md:text-lg">
+                Convierte una hipótesis en evidencia reproducible. Diseña tu modelo,
+                valida fuera de muestra y compáralo con una comunidad que prefiere
+                resultados auditables a narrativas.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Link href="/register" className={buttonClasses("primary", "lg")}>
-                  Crea tu estrategia
-                </Link>
-                <Link
-                  href="/community"
-                  className={buttonClasses("secondary", "lg")}
-                >
+                <AuthAwareCTA
+                  loggedOutLabel="Crea tu estrategia"
+                  loggedOutHref="/register"
+                  loggedInLabel="Ir al dashboard"
+                  loggedInHref="/app"
+                  size="lg"
+                  className="shadow-[0_10px_30px_rgba(248,250,252,0.16)]"
+                />
+                <Link href="/community" className={buttonClasses("secondary", "lg")}>
                   Explora la comunidad
                 </Link>
               </div>
+              <p className="mt-7 max-w-md text-sm leading-relaxed text-muted/90">
+                Backtests, validación OOS y colaboración en un solo entorno de investigación.
+              </p>
             </div>
 
-            {/* Demo en vivo: equity curve animada estilo TradingView con métricas flotantes */}
             <HeroChart />
           </div>
         </div>
@@ -172,7 +178,7 @@ export default function Home() {
       <section className="border-b border-line bg-surface/40">
         <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink md:text-3xl">
-            Datos reales, sin simulación
+            Datos verificables, fuente visible
           </h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="ql-glass ql-elev-1 rounded-xl p-5">
