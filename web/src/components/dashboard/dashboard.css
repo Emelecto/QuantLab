@@ -43,7 +43,11 @@
   font-size: 17px;
   color: var(--ql-ink);
   white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
+.ql-brand:hover { opacity: 0.8; }
 .ql-brand .brand-mark { flex-shrink: 0; }
 
 .ql-collapse-toggle {

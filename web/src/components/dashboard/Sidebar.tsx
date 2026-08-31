@@ -184,10 +184,10 @@ export function Sidebar() {
     >
       {/* Brand + Collapse toggle (top row) */}
       <div className="ql-sidebar-top">
-        <div className="ql-brand">
+        <Link href="/" className="ql-brand" title="Volver al landing">
           <span className="ql-glow-box inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
           {!collapsed && <span>QuantLab</span>}
-        </div>
+        </Link>
         <button className="ql-collapse-toggle" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"} aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}>
           <Icon name={collapsed ? "chevrons-right" : "chevrons-left"} size={16} />
         </button>
