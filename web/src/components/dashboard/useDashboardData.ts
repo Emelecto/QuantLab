@@ -20,6 +20,7 @@ import { listTournaments } from "@/lib/tournaments";
 import type { Tournament } from "@/lib/tournaments";
 
 export type DashboardSourceState = "loading" | "ready" | "error";
+export type DashboardStrategy = MyStrategy;
 export type SubmissionLoadState =
   | "loading"
   | "ready"

@@ -281,6 +281,14 @@
 }
 .ql-dashboard-retry:hover { opacity: 0.85; }
 
+/* Section subtitle */
+.ql-dashboard-section-subtitle {
+  font-size: 12px;
+  color: var(--ql-muted);
+  margin: 0 0 12px;
+  opacity: 0.7;
+}
+
 /* Section header */
 .ql-dashboard-section-header {
   display: flex;

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/useAuth";
 import {
   useDashboardData,
   type DashboardSourceState,
+  type DashboardStrategy,
   type DashboardTournament,
 } from "./useDashboardData";
 import "./dashboard.css";
@@ -216,6 +217,46 @@ function SubmissionStatus({ tournament }: { tournament: DashboardTournament }) {
   );
 }
 
+function limitedStrategies(
+  strategies: DashboardStrategy[],
+  lastRunAt: (s: DashboardStrategy) => string,
+  sharpe: (s: DashboardStrategy) => string | null,
+  maxDd: (s: DashboardStrategy) => string | null,
+): ReactNode {
+  return strategies.map((strategy) => {
+    const lastRunAtValue = lastRunAt(strategy);
+    const sharpeValue = sharpe(strategy);
+    const maxDdValue = maxDd(strategy);
+
+    return (
+      <article key={strategy.id} className="ql-dashboard-strategy ql-dashboard-card ql-glass ql-elev-1">
+        <div className="ql-dashboard-card-header">
+          <span className="ql-dashboard-kind metric">{strategy.symbol}</span>
+          {strategy.status && (
+            <StatusBadge label={`Estrategia: ${readableStatus(strategy.status)}`} tone={toneForStatus(strategy.status)} />
+          )}
+        </div>
+        <h3>{strategy.title}</h3>
+        <p className="ql-dashboard-card-meta">{strategy.asset_type} · {strategy.timeframe}</p>
+        <div className="ql-dashboard-run">
+          <span>Última ejecución</span>
+          {lastRunAtValue ? <strong>{lastRunAtValue}</strong> : <strong>Sin ejecuciones registradas</strong>}
+          {strategy.last_run_status && (
+            <StatusBadge label={readableStatus(strategy.last_run_status)} tone={toneForStatus(strategy.last_run_status)} />
+          )}
+        </div>
+        {(sharpeValue || maxDdValue) && (
+          <dl className="ql-dashboard-facts">
+            {sharpeValue && <div><dt>Sharpe OOS</dt><dd className="metric">{sharpeValue}</dd></div>}
+            {maxDdValue && <div><dt>Max DD</dt><dd className="metric">{maxDdValue}</dd></div>}
+          </dl>
+        )}
+        <Link href={`/app/strategies/${strategy.id}`} className="ql-dashboard-action ql-btn-secondary">Ver estrategia</Link>
+      </article>
+    );
+  });
+}
+
 export function DashboardHome() {
   const { user } = useAuth();
   const {
@@ -407,15 +448,23 @@ export function DashboardHome() {
 
       <section aria-labelledby="dashboard-torneos">
         <SectionHeader
-          title="Torneos disponibles"
-          description="Competiciones abiertas y el estado real de tu envío."
+          title="Competencias"
+          description="Torneos abiertos y el estado de tus envíos."
           action={
-            <Link
-              href="/app/tournaments"
-              className="ql-dashboard-action ql-btn-secondary"
-            >
-              Ver todos
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                href="/app/tournaments/guide"
+                className="ql-dashboard-action ql-btn-secondary"
+              >
+                Guía
+              </Link>
+              <Link
+                href="/app/tournaments"
+                className="ql-dashboard-action ql-btn-secondary"
+              >
+                Ver todos
+              </Link>
+            </div>
           }
         />
         {sources.tournaments === "loading" ? (
@@ -539,13 +588,13 @@ export function DashboardHome() {
       <section aria-labelledby="dashboard-estrategias">
         <SectionHeader
           title="Mis estrategias"
-          description="Cada tarjeta muestra la última ejecución persistida, si existe."
+          description=""
           action={
             <Link
-              href="/app/strategies/new"
-              className="ql-dashboard-action ql-btn-primary"
+              href="/app/strategies"
+              className="ql-dashboard-action ql-btn-secondary"
             >
-              Crear estrategia
+              Ver todas
             </Link>
           }
         />
@@ -573,70 +622,24 @@ export function DashboardHome() {
             Crea una estrategia y ejecuta un backtest para verla resumida aquí.
           </DashboardState>
         ) : (
-          <div className="ql-dashboard-card-grid ql-dashboard-card-grid--strategies">
-            {strategies.map((strategy) => {
-              const lastRunAt = formatDateTime(strategy.last_run_at);
-              const sharpe = formatDecimal(strategy.last_sharpe_oos, 2);
-              const maxDd = formatPercent(strategy.last_maxdd);
-
-              return (
-                <article
-                  key={strategy.id}
-                  className="ql-dashboard-strategy ql-dashboard-card ql-glass ql-elev-1"
-                >
-                  <div className="ql-dashboard-card-header">
-                    <span className="ql-dashboard-kind metric">{strategy.symbol}</span>
-                    {strategy.status && (
-                      <StatusBadge
-                        label={`Estrategia: ${readableStatus(strategy.status)}`}
-                        tone={toneForStatus(strategy.status)}
-                      />
-                    )}
-                  </div>
-                  <h3>{strategy.title}</h3>
-                  <p className="ql-dashboard-card-meta">
-                    {strategy.asset_type} · {strategy.timeframe}
-                  </p>
-                  <div className="ql-dashboard-run">
-                    <span>Última ejecución</span>
-                    {strategy.last_run_at ? (
-                      <strong>{lastRunAt ?? "Fecha no disponible"}</strong>
-                    ) : (
-                      <strong>Sin ejecuciones registradas</strong>
-                    )}
-                    {strategy.last_run_status && (
-                      <StatusBadge
-                        label={readableStatus(strategy.last_run_status)}
-                        tone={toneForStatus(strategy.last_run_status)}
-                      />
-                    )}
-                  </div>
-                  {(sharpe || maxDd) && (
-                    <dl className="ql-dashboard-facts">
-                      {sharpe && (
-                        <div>
-                          <dt>Sharpe OOS</dt>
-                          <dd className="metric">{sharpe}</dd>
-                        </div>
-                      )}
-                      {maxDd && (
-                        <div>
-                          <dt>Max DD</dt>
-                          <dd className="metric">{maxDd}</dd>
-                        </div>
-                      )}
-                    </dl>
-                  )}
-                  <Link
-                    href={`/app/strategies/${strategy.id}`}
-                    className="ql-dashboard-action ql-btn-secondary"
-                  >
-                    Ver estrategia
-                  </Link>
-                </article>
-              );
-            })}
-          </div>
+          <>
+            <p className="ql-dashboard-section-subtitle">
+              Las últimas 3 en orden descendente.
+            </p>
+            <div className="ql-dashboard-card-grid ql-dashboard-card-grid--strategies">
+              {limitedStrategies(
+                strategies.slice(0, 3),
+                (s) =>
+                  formatDateTime(s.last_run_at) ?? "Sin ejecuciones",
+                (s) =>
+                  s.last_sharpe_oos != null
+                    ? `${formatDecimal(s.last_sharpe_oos, 2)}`
+                    : null,
+                (s) =>
+                  s.last_maxdd != null ? `${formatPercent(s.last_maxdd)}` : null,
+              )}
+            </div>
+          </>
         )}
       </section>
 

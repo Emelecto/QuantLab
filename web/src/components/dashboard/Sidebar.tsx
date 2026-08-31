@@ -8,7 +8,8 @@ import "./dashboard.css";
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },
-  { href: "/app/strategies/new", label: "Crear estrategia", icon: "plus" },
+  { href: "/app/strategies", label: "Mis estrategias", icon: "code" },
+  { href: "/app/strategies/new", label: "+", icon: "plus" },
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
   { href: "/app/learn", label: "Aprende", icon: "book" },
@@ -106,6 +107,13 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
         <svg {...common}>
           <path d="M13 17l5-5-5-5" />
           <path d="M6 17l5-5-5-5" />
+        </svg>
+      );
+    case "strategies":
+      return (
+        <svg {...common}>
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+          <path d="M14 2v6h6M9 12h6M9 16h6M9 8h1" />
         </svg>
       );
     default:

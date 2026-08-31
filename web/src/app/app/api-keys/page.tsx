@@ -257,35 +257,80 @@ export default function ApiKeysPage() {
             </p>
           </div>
         ) : (
-          <div className="ql-glass mt-4 overflow-hidden rounded-xl">
-            <ul className="divide-y divide-line">
-              {keys.map((k) => (
-                <li key={k.id} className="flex items-center gap-4 px-5 py-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink">{k.name}</p>
-                    <p className="metric text-[11px] text-muted">
-                      Creada {new Date(k.created_at).toLocaleDateString("es-CO")}
-                      {" · "}
-                      {k.revoked_at
-                        ? "Revocada"
-                        : k.last_used_at
-                          ? `Último uso ${new Date(k.last_used_at).toLocaleDateString("es-CO")}`
-                          : "Nunca usada"}
-                    </p>
-                  </div>
-                  {k.revoked_at ? (
-                    <span className="metric text-xs text-muted">revocada</span>
-                  ) : (
-                    <button
-                      onClick={() => revoke(k.id)}
-                      className="rounded-md border border-short/30 px-3 py-1 text-xs font-medium text-short transition-colors hover:bg-short/10"
-                    >
-                      Revocar
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <div className="mt-4">
+            {/* Últimas 3 claves */}
+            <div className="ql-glass overflow-hidden rounded-xl">
+              <ul className="divide-y divide-line">
+                {keys.slice(0, 3).map((k) => (
+                  <li key={k.id} className="flex items-center gap-4 px-5 py-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{k.name}</p>
+                      <p className="metric text-[11px] text-muted">
+                        Creada {new Date(k.created_at).toLocaleDateString("es-CO")}
+                        {" · "}
+                        {k.revoked_at
+                          ? "Revocada"
+                          : k.last_used_at
+                            ? `Último uso ${new Date(k.last_used_at).toLocaleDateString("es-CO")}`
+                            : "Nunca usada"}
+                      </p>
+                    </div>
+                    {k.revoked_at ? (
+                      <span className="metric text-xs text-muted">revocada</span>
+                    ) : (
+                      <button
+                        onClick={() => revoke(k.id)}
+                        className="rounded-md border border-short/30 px-3 py-1 text-xs font-medium text-short transition-colors hover:bg-short/10"
+                      >
+                        Revocar
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Dropdown para ver todas */}
+            {keys.length > 3 && (
+              <details className="mt-2 group">
+                <summary className="flex items-center justify-center gap-2 cursor-pointer select-none rounded-lg px-4 py-2 text-sm font-medium text-muted hover:bg-line/30 transition-colors">
+                  <span>Ver todas las claves ({keys.length})</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-open:rotate-180">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </summary>
+                <div className="ql-glass mt-2 overflow-hidden rounded-xl">
+                  <ul className="divide-y divide-line">
+                    {keys.slice(3).map((k) => (
+                      <li key={k.id} className="flex items-center gap-4 px-5 py-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-ink">{k.name}</p>
+                          <p className="metric text-[11px] text-muted">
+                            Creada {new Date(k.created_at).toLocaleDateString("es-CO")}
+                            {" · "}
+                            {k.revoked_at
+                              ? "Revocada"
+                              : k.last_used_at
+                                ? `Último uso ${new Date(k.last_used_at).toLocaleDateString("es-CO")}`
+                                : "Nunca usada"}
+                          </p>
+                        </div>
+                        {k.revoked_at ? (
+                          <span className="metric text-xs text-muted">revocada</span>
+                        ) : (
+                          <button
+                            onClick={() => revoke(k.id)}
+                            className="rounded-md border border-short/30 px-3 py-1 text-xs font-medium text-short transition-colors hover:bg-short/10"
+                          >
+                            Revocar
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </details>
+            )}
           </div>
         )}
 
