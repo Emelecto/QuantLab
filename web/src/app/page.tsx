@@ -107,10 +107,10 @@ export default function Home() {
                         Crea tu estrategia
                       </Link>
                       <Link
-                        href="/community"
+                        href="/demo"
                         className={buttonClasses("secondary", "lg")}
                       >
-                        Explora la comunidad
+                        Pruébalo sin registro
                       </Link>
                     </div>
                   </div>

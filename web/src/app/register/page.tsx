@@ -1,15 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { buttonClasses } from "@/components/ui/Button";
 import { AuthShell, Field, inputClasses } from "@/components/ui/Form";
 import { PasswordField } from "@/components/ui/PasswordField";
+import { trackReferral } from "@/lib/referrals";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +19,13 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Capturar código de referido de la URL
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) setReferralCode(ref);
+  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -84,6 +93,14 @@ export default function RegisterPage() {
 
       // Sesión presente => confirmación de email desactivada: entramos directo.
       if (data.session) {
+        // Trackear referido si existe
+        if (referralCode) {
+          try {
+            await trackReferral(referralCode);
+          } catch (e) {
+            console.warn("No se pudo trackear referido:", e);
+          }
+        }
         router.push("/app");
         router.refresh();
         return;
@@ -225,5 +242,13 @@ export default function RegisterPage() {
         </p>
       </form>
     </AuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="text-muted text-center py-10">Cargando...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }

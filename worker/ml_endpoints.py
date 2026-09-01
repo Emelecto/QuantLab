@@ -15,7 +15,7 @@ import io
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, Header, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from auth import require_user
@@ -95,12 +95,12 @@ def _validar_csv(df: pd.DataFrame) -> pd.DataFrame:
 @router.post("/datasets/{dataset_id}/predictions")
 async def submit_predictions(
     dataset_id: str,
+    request: Request,
     file: UploadFile | None = None,
     body: PredictionsUpload | None = None,
-    authorization: str | None = Header(None),
 ):
     try:
-        user_id = require_user(authorization)
+        user_id = require_user(request)
         from tournaments import get_supabase
         sb = get_supabase()
 
@@ -171,8 +171,8 @@ async def submit_predictions(
 # Mi envío
 # ---------------------------------------------------------------------------
 @router.get("/predictions/mine")
-def my_prediction(dataset_id: str, authorization: str | None = Header(None)):
-    user_id = require_user(authorization)
+def my_prediction(dataset_id: str, request: Request):
+    user_id = require_user(request)
     from tournaments import get_supabase
     sb = get_supabase()
     res = sb.table("prediction_submissions").select(

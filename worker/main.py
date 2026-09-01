@@ -26,6 +26,10 @@ from comments import router as comments_router
 from social import router as social_router
 from moderation import router as moderation_router
 from ml_endpoints import router as ml_router
+from notifications import router as notifications_router
+from referrals import router as referrals_router
+from badges import router as badges_router
+from admin import router as admin_router
 
 app = FastAPI(
     title="QuantLab Worker API",
@@ -174,6 +178,10 @@ app.include_router(comments_router)
 app.include_router(social_router)
 app.include_router(moderation_router)
 app.include_router(ml_router)
+app.include_router(notifications_router)
+app.include_router(referrals_router)
+app.include_router(badges_router)
+app.include_router(admin_router)
 
 # Timeframes soportados por la fuente de datos (Binance / yfinance).
 _ALLOWED_TIMEFRAMES = {

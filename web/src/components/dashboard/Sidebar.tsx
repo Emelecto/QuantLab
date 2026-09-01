@@ -4,7 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBalance } from "@/lib/tokens";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import "./dashboard.css";
+
+const ADMIN_USER_IDS = ["661b5d30-be6c-4b92-af69-ff084a65b461"];
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },
@@ -16,6 +20,8 @@ const NAV = [
   { href: "/app/library", label: "Datasets", icon: "database" },
   { href: "/app/api-keys", label: "API Keys", icon: "key" },
   { href: "/app/profile", label: "Perfil", icon: "user" },
+  { href: "/app/profile/referrals", label: "Referidos", icon: "gift" },
+  { href: "/app/profile/badges", label: "Logros", icon: "star" },
 ] as const;
 
 const COLLAPSE_KEY = "ql:sidebar-collapsed";
@@ -23,6 +29,10 @@ const WIDTH_KEY = "ql:sidebar-width";
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 360;
 const COLLAPSED_WIDTH = 72;
+
+const ADMIN_NAV = [
+  { href: "/app/admin", label: "Admin", icon: "shield" },
+] as const;
 
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const common = {
@@ -116,6 +126,27 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M14 2v6h6M9 12h6M9 16h6M9 8h1" />
         </svg>
       );
+    case "gift":
+      return (
+        <svg {...common}>
+          <path d="M12 6V22M12 6H8a2 2 0 010-4h4a2 2 0 014 0h-4M12 6H16a2 2 0 000-4h-4a2 2 0 00-4 0h4" />
+          <path d="M5 12h14v4H5z" />
+          <path d="M12 12v10" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg {...common}>
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...common}>
+          <path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -127,6 +158,7 @@ export function Sidebar() {
   const [width, setWidth] = useState(248);
   const [dragging, setDragging] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const widthRef = useRef(width);
 
@@ -148,6 +180,22 @@ export function Sidebar() {
       }
     });
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  // Verificar si el usuario es admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user && ADMIN_USER_IDS.includes(data.user.id)) {
+          setIsAdmin(true);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    checkAdmin();
   }, []);
 
   useEffect(() => {
@@ -229,13 +277,31 @@ export function Sidebar() {
             </span>
           )}
         </Link>
-        <button className="ql-collapse-toggle" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"} aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}>
-          <Icon name={collapsed ? "chevrons-right" : "chevrons-left"} size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          {!collapsed && <NotificationBell />}
+          <button className="ql-collapse-toggle" type="button" onClick={toggle} title={collapsed ? "Expandir" : "Colapsar"} aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}>
+            <Icon name={collapsed ? "chevrons-right" : "chevrons-left"} size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Nav items */}
       {NAV.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`ql-nav-item${isActive(item.href) ? " active" : ""}`}
+          title={collapsed ? item.label : undefined}
+        >
+          <span className="ic">
+            <Icon name={item.icon} />
+          </span>
+          {!collapsed && <span>{item.label}</span>}
+        </Link>
+      ))}
+
+      {/* Admin nav (solo para admins) */}
+      {isAdmin && ADMIN_NAV.map((item) => (
         <Link
           key={item.href}
           href={item.href}

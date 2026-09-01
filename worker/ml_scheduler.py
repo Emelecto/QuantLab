@@ -106,6 +106,18 @@ def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
         for sub in pending.data:
             try:
                 ml_persist.puntuar_submission_en_bd(sub["id"])
+                # Notificar al usuario que su submission fue evaluada
+                try:
+                    from notifications import notify_user
+                    notify_user(
+                        user_id=sub["user_id"],
+                        type="submission_scored",
+                        title="Tu submission fue evaluada",
+                        body=f"Recibiste un score en el torneo ML. Revisa el ranking.",
+                        link="/app/tournaments",
+                    )
+                except Exception:
+                    pass
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"Score falló para submission {sub['id']}: {e}")
         # Cerrar ronda y repartir QP

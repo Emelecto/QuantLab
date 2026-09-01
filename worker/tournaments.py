@@ -189,7 +189,37 @@ def tournament_submit(body: SubmitBody, request: Request):
     except Exception:  # noqa: BLE001
         pass
 
+    # Verificar badge de primera submission
+    _check_first_submission_badge(uid)
+
     return {"id": sid, "status": "pending"}
+
+
+def _check_first_submission_badge(user_id: str) -> None:
+    """Verifica y otorga el badge de primera submission."""
+    try:
+        from badges import award_badge
+        award_badge(user_id, "first_submission")
+    except Exception:
+        pass
+
+
+def _check_referral_badges(user_id: str) -> None:
+    """Verifica y otorga badges por cantidad de referidos."""
+    try:
+        sb = get_supabase()
+        refs = sb.table("referrals").select("id").eq("referrer_id", user_id).execute()
+        total = len(refs.data or [])
+        
+        from badges import award_badge
+        if total >= 1:
+            award_badge(user_id, "first_referral")
+        if total >= 5:
+            award_badge(user_id, "five_referrals")
+        if total >= 10:
+            award_badge(user_id, "ten_referrals")
+    except Exception:
+        pass
 
 
 @router.get("/tournament/{tournament_id}/leaderboard")

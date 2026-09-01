@@ -19,9 +19,16 @@ import { NextResponse, type NextRequest } from "next/server";
  * respuesta mediante `setAll`, de modo que el navegador (y los Server
  * Components) siempre ven una sesión fresca.
  *
- * No redirige a propósito: la protección de rutas la hace `AuthGuard` en el
- * cliente. Aquí solo mantenemos la cookie viva.
+ * También protege la ruta /app/admin: solo usuarios con user_id en la lista
+ * de admins pueden acceder. Los demás son redirigidos a /app.
+ *
+ * No redirige a propósito en /app: la protección de rutas la hace `AuthGuard`
+ * en el cliente. Aquí solo mantenemos la cookie viva.
  */
+
+// IDs de usuarios admin (puedes agregar más)
+const ADMIN_USER_IDS = ["661b5d30-be6c-4b92-af69-ff084a65b461"];
+
 export async function proxy(request: NextRequest) {
   // Respuesta que iremos reemplazando si Supabase decide setear cookies.
   let supabaseResponse = NextResponse.next({ request });
@@ -58,7 +65,15 @@ export async function proxy(request: NextRequest) {
   });
 
   // IMPORTANTE: no quitar ni mover. Este await es el que dispara el refresh.
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Proteger ruta /app/admin: solo admins
+  const { pathname } = request.nextUrl;
+  if (pathname === "/app/admin" || pathname.startsWith("/app/admin/")) {
+    if (!user || !ADMIN_USER_IDS.includes(user.id)) {
+      return NextResponse.redirect(new URL("/app", request.url));
+    }
+  }
 
   return supabaseResponse;
 }
