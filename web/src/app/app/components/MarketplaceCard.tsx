@@ -103,9 +103,9 @@ export function MarketplaceCard({ strategy }: { strategy: MarketplaceStrategy })
               </Badge>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <p className="metric text-[10px] uppercase tracking-wider text-muted">Precio</p>
-            <p className="metric text-accent ql-glow-text text-sm font-semibold">
+            <p className="metric text-accent ql-glow-text text-sm font-semibold whitespace-nowrap">
               {strategy.price_qp}/sem
             </p>
           </div>

@@ -13,7 +13,7 @@ const ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"];
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },
   { href: "/app/strategies", label: "Mis estrategias", icon: "code" },
-  { href: "/app/strategies/new", label: "+", icon: "plus" },
+  { href: "/app/strategies/new", label: "", icon: "plus" },
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
   { href: "/app/learn", label: "Aprende", icon: "book" },
@@ -147,6 +147,12 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case "arrow-left":
+      return (
+        <svg {...common}>
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -258,6 +264,15 @@ export function Sidebar() {
   const isActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
 
+  // Determine if we should show the back arrow (not on the main dashboard)
+  const showBackArrow = pathname !== "/app";
+
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      window.history.back();
+    }
+  }, []);
+
   return (
     <aside
       ref={sidebarRef}
@@ -284,6 +299,20 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Back arrow button */}
+      {showBackArrow && (
+        <button
+          type="button"
+          className="ql-back-button"
+          onClick={handleBack}
+          title="Volver atrás"
+          aria-label="Volver atrás"
+        >
+          <Icon name="arrow-left" size={16} />
+          {!collapsed && <span>Volver atrás</span>}
+        </button>
+      )}
 
       {/* Nav items */}
       {NAV.map((item) => (

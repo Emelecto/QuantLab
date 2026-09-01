@@ -128,6 +128,42 @@
 
 .ql-sidebar-spacer { flex: 1; }
 
+/* Back arrow button */
+.ql-back-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 9px;
+  color: var(--ql-muted);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  margin-top: 4px;
+}
+.ql-sidebar.collapsed .ql-back-button {
+  justify-content: center;
+  padding: 10px;
+}
+.ql-back-button:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ql-ink);
+}
+.ql-back-button svg {
+  flex-shrink: 0;
+}
+.ql-sidebar.collapsed .ql-back-button span {
+  display: none;
+}
+
 .ql-sidebar-resize {
   touch-action: none;
 }
@@ -689,6 +725,21 @@
     text-decoration: none;
   }
   .ql-dash-bottomnav a:hover { background: rgba(255, 255, 255, 0.04); }
-  .ql-dash-bottomnav a.on { color: var(--ql-accent); }
+    .ql-dash-bottomnav a.on { color: var(--ql-accent); }
 
-}
+    .ql-back-nav-button {
+      color: var(--ql-muted);
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .ql-back-nav-button:hover { background: rgba(255, 255, 255, 0.04); }
+    .ql-back-nav-button svg { width: 18px; height: 18px; }
+
+  }

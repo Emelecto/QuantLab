@@ -27,9 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ml", tags=["ml-tournaments"])
 
 
-class PredictionsUpload(BaseModel):
-    """Forma alternativa a subir archivo: JSON con las filas."""
-    rows: list[dict]  # [{"id": "...", "prediction": 0.42}, ...]
+# (PredictionsUpload class removed — JSON body is now parsed directly via request.json())
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +81,9 @@ def download_dataset(dataset_id: str, kind: str = "train"):
 # ---------------------------------------------------------------------------
 def _validar_csv(df: pd.DataFrame) -> pd.DataFrame:
     """Valida columnas, rangos y NaN. Lanza HTTPException si algo falla."""
+    # Normalizar nombres de columnas a minúsculas para evitar errores de casing
+    df.columns = [col.strip().lower() for col in df.columns]
+    
     if "id" not in df.columns or "prediction" not in df.columns:
         raise HTTPException(422, "el CSV debe tener columnas 'id' y 'prediction'")
     if df["prediction"].isna().any():
@@ -97,7 +98,6 @@ async def submit_predictions(
     dataset_id: str,
     request: Request,
     file: UploadFile | None = None,
-    body: PredictionsUpload | None = None,
 ):
     try:
         user_id = require_user(request)
@@ -118,13 +118,18 @@ async def submit_predictions(
                 df = pd.read_csv(io.BytesIO(content))
             except Exception as e:
                 raise HTTPException(422, f"CSV inválido: {e}")
-        elif body is not None:
+        else:
+            # Intentar leer JSON del body
             try:
-                df = pd.DataFrame(body.rows)
+                json_body = await request.json()
+                rows = json_body.get("rows")
+                if not rows or not isinstance(rows, list):
+                    raise HTTPException(422, "envía un archivo CSV o un body JSON con 'rows'")
+                df = pd.DataFrame(rows)
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(422, f"Datos de predicciones inválidos: {e}")
-        else:
-            raise HTTPException(422, "envía un archivo CSV o un body JSON con 'rows'")
         df = _validar_csv(df)
 
         # ¿Envío previo? → reemplazar (UNIQUE dataset_id,user_id)

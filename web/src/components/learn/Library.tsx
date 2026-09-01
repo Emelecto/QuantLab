@@ -58,7 +58,9 @@ export function Library() {
             <p className="lib-blurb">{d.blurb}</p>
             <div className="lib-meta">{d.dateRange} · {d.frequency}</div>
             <div className="lib-card-actions">
-              <Link href={`/app/library/${d.id}`} className="btn-primary">Ver datasets</Link>
+              <Link href={`/app/library/${d.id}`} className="ql-btn-primary h-9 rounded-md px-3 text-[13px] active:scale-[0.96]">
+                Ver dataset
+              </Link>
             </div>
           </div>
         ))}

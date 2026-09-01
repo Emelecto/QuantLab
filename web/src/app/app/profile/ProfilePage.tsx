@@ -50,10 +50,10 @@ function StatTile({
           : "text-ink";
   return (
     <div className="ql-glass ql-elev-1 rounded-xl px-4 py-4 text-center">
-      <div className="metric text-[11px] uppercase tracking-wide text-muted">
+      <div className="text-[11px] uppercase tracking-wide text-muted">
         {label}
       </div>
-      <div className={`metric mt-1.5 text-2xl font-semibold ${toneClass}`}>
+      <div className={`mt-1.5 text-2xl font-semibold ${toneClass}`}>
         {value == null || value === "--" ? (
           "--"
         ) : (
