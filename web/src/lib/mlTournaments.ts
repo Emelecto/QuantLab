@@ -47,6 +47,7 @@ export interface MlSubmission {
   plagio_flag: boolean | null;
   submitted_at: string | null;
   scored_at: string | null;
+  eval_error?: string | null;
 }
 
 export interface MlLeaderboardEntry {
@@ -131,6 +132,20 @@ export async function myPrediction(
   try {
     const res = await call<{ submission?: MlSubmission | null }>(
       `/ml/predictions/mine?dataset_id=${encodeURIComponent(datasetId)}`,
+    );
+    return res?.submission ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Estado de una submission propia (para polling). */
+export async function getSubmission(
+  submissionId: string,
+): Promise<MlSubmission | null> {
+  try {
+    const res = await call<{ submission?: MlSubmission | null }>(
+      `/ml/submissions/${encodeURIComponent(submissionId)}`,
     );
     return res?.submission ?? null;
   } catch {

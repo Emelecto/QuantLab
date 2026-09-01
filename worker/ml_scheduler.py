@@ -76,23 +76,24 @@ def create_ml_round(supabase_client, mode: str = "sintetico", now: datetime | No
 
 
 def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
-    """Evalúa submissions de rondas ML cuyo cierre ya pasó.
+    """Evalúa submissions de rondas ML.
 
-    Por cada dataset live con closes_at en el pasado y submissions pendientes:
-    puntúa, rankea y reparte QP.
+    - Rondas ABIERTAS: evalúa submissions pendientes, construye meta-modelo
+      comunitario progresivo y actualiza scores (sin repartir QP).
+    - Rondas CERRADAS: evalúa, rankea y reparte QP.
     """
     now = now or datetime.now(timezone.utc)
     live_ds = (
         supabase_client.table("ml_datasets")
-        .select("id,tournament_id,round_number,closes_at")
+        .select("id,tournament_id,round_number,closes_at,status")
         .eq("kind", "live")
-        .eq("status", "ready")
+        .in_("status", ["ready", "scored"])
         .execute()
     )
     evaluados = 0
     for ds in live_ds.data or []:
-        if ds.get("closes_at") and ds["closes_at"] > now.isoformat():
-            continue  # ronda aún abierta
+        cerrada = ds.get("closes_at") and ds["closes_at"] <= now.isoformat()
+        # Solo procesar rondas cerradas o abiertas con submissions pendientes
         pending = (
             supabase_client.table("prediction_submissions")
             .select("id")
@@ -102,11 +103,16 @@ def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
         )
         if not pending.data:
             continue
+
         import ml_persist
+        import scoring_ml as sc
+        import numpy as np
+        import pandas as pd
+
+        # 1. Evaluar submissions pendientes (score individual)
         for sub in pending.data:
             try:
                 ml_persist.puntuar_submission_en_bd(sub["id"])
-                # Notificar al usuario que su submission fue evaluada
                 try:
                     from notifications import notify_user
                     notify_user(
@@ -118,13 +124,69 @@ def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
                     )
                 except Exception:
                     pass
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.warning(f"Score falló para submission {sub['id']}: {e}")
-        # Cerrar ronda y repartir QP
-        _distribute_ml_qp(supabase_client, ds["id"])
-        supabase_client.table("ml_datasets").update({"status": "scored"}).eq(
-            "id", ds["id"]
-        ).execute()
+
+        # 2. Construir meta-modelo comunitario con submissions válidas
+        preds_df = ml_persist.cargar_predicciones_validas(supabase_client, ds["id"])
+        meta = None
+        if not preds_df.empty:
+            score_rows = (
+                supabase_client.table("prediction_submissions")
+                .select("id,score")
+                .eq("dataset_id", ds["id"])
+                .eq("is_valid", True)
+                .execute()
+            )
+            score_map = {r["id"]: (r.get("score") or 0) for r in (score_rows.data or [])}
+            cols_validas = [c for c in preds_df.columns if score_map.get(c, 0) > 0]
+            if cols_validas:
+                s = np.asarray([score_map[c] for c in cols_validas], dtype=float)
+                e = np.exp(s - s.max())
+                pesos = pd.Series(e / e.sum(), index=cols_validas)
+                meta = sc.stake_weight(preds_df[cols_validas], pesos)
+
+        # 3. Re-puntuar con meta-modelo (actualiza meta_corr)
+        subs_validas = (
+            supabase_client.table("prediction_submissions")
+            .select("id")
+            .eq("dataset_id", ds["id"])
+            .eq("is_valid", True)
+            .execute()
+        )
+        for sub in (subs_validas.data or []):
+            try:
+                ml_persist.puntuar_submission_en_bd(sub["id"], meta_modelo=meta)
+            except Exception as e:
+                logger.warning(f"Re-score falló para {sub['id']}: {e}")
+
+        # 4. Persistir meta-modelo en consensus_signals
+        if meta is not None and len(meta) > 0:
+            try:
+                ds_meta = (
+                    supabase_client.table("ml_datasets")
+                    .select("tournament_id,round_number")
+                    .eq("id", ds["id"])
+                    .execute()
+                )
+                if ds_meta.data:
+                    info = ds_meta.data[0]
+                    supabase_client.table("consensus_signals").upsert({
+                        "tournament_id": info.get("tournament_id"),
+                        "round_number": info.get("round_number"),
+                        "dataset_id": ds["id"],
+                        "signal_json": meta.to_dict(),
+                    }, on_conflict="tournament_id,round_number").execute()
+            except Exception as e:
+                logger.warning(f"No se pudo guardar consensus_signals: {e}")
+
+        # 5. Si la ronda cerró: repartir QP y marcar como scored
+        if cerrada:
+            _distribute_ml_qp(supabase_client, ds["id"])
+            supabase_client.table("ml_datasets").update({"status": "scored"}).eq(
+                "id", ds["id"]
+            ).execute()
+
         evaluados += 1
     return evaluados
 

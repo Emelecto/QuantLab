@@ -10,6 +10,7 @@ import {
   downloadDatasetUrl,
   submitPredictions,
   myPrediction,
+  getSubmission,
   mlLeaderboard,
   parsePredictionsCsv,
   mlModeLabel,
@@ -515,6 +516,7 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
   const [enviando, setEnviando] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [mine, setMine] = useState<MlSubmission | null>(null);
+  const [pollingId, setPollingId] = useState<string | null>(null);
 
   const datasetId = liveDataset?.id ?? null;
 
@@ -526,6 +528,49 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
   useEffect(() => {
     void recargarMio();
   }, [recargarMio]);
+
+  // Polling de estado cuando hay una submission en procesamiento
+  useEffect(() => {
+    if (!pollingId) return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const s = await getSubmission(pollingId);
+        if (!alive || !s) return;
+        if (s.status === "scored" || s.status === "error" || s.status === "disqualified") {
+          setPollingId(null);
+          setMine({
+            id: s.id,
+            row_count: s.row_count,
+            status: s.status,
+            score: s.score,
+            corr_mean: s.corr_mean,
+            fnc_mean: s.fnc_mean,
+            consistencia: s.consistencia,
+            meta_corr: s.meta_corr,
+            is_valid: s.is_valid,
+            plagio_flag: s.plagio_flag,
+            submitted_at: s.submitted_at,
+            scored_at: s.scored_at,
+          });
+          if (s.status === "error") {
+            setFeedback({ type: "err", msg: `Error al evaluar: ${s.eval_error || "error desconocido"}` });
+          } else if (s.status === "disqualified") {
+            setFeedback({ type: "err", msg: "Tu submission fue descalificada (datos inválidos o insuficientes)." });
+          } else {
+            setFeedback({ type: "ok", msg: `¡Evaluación completa! Score: ${s.score?.toFixed(4) ?? "—"}` });
+          }
+        }
+      } catch {
+        // Silencioso: reintentará
+      }
+    };
+    const interval = setInterval(poll, 3000);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
+  }, [pollingId]);
 
   const cargarArchivo = useCallback(async (file: File) => {
     setFeedback(null);
@@ -555,9 +600,10 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
     try {
       const res = await submitPredictions(datasetId, rows);
       if (res.status === "processing") {
+        setPollingId(res.id);
         setFeedback({
           type: "ok",
-          msg: "Recibimos tus predicciones. Se están procesando... Los resultados aparecerán en el ranking en unos minutos.",
+          msg: "Recibimos tus predicciones. Evaluando... Te avisaremos cuando esté listo.",
         });
       } else {
         setFeedback({
@@ -566,7 +612,6 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
         });
       }
       setRows(null);
-      await recargarMio();
     } catch (e: any) {
       const code = e?.code;
       let msg = e?.message || "Error al enviar las predicciones.";
