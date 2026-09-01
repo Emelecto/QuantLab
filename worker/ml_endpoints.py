@@ -157,14 +157,26 @@ async def submit_predictions(
             raise HTTPException(502, f"No fue posible guardar el envío: {e}")
 
         # Upload pesado en background para no exceder timeout de Render
+        # Usamos run_in_executor porque el cliente Supabase es síncrono
+        # y bloquearía el event loop de FastAPI si lo usamos directo en async
         import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+        _executor = ThreadPoolExecutor(max_workers=2)
+
         async def _upload_background():
+            loop = asyncio.get_event_loop()
             try:
-                store.upload_parquet(df, path)
-                sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
+                await loop.run_in_executor(_executor, store.upload_parquet, df, path)
+                await loop.run_in_executor(
+                    _executor,
+                    lambda: sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
+                )
             except Exception as e:
                 logger.exception("Error en upload background de predicciones")
-                sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
+                await loop.run_in_executor(
+                    _executor,
+                    lambda: sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
+                )
 
         asyncio.create_task(_upload_background())
 

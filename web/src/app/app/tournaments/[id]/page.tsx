@@ -554,14 +554,30 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
     setFeedback(null);
     try {
       const res = await submitPredictions(datasetId, rows);
-      setFeedback({
-        type: "ok",
-        msg: `¡Envío recibido! ${res.row_count.toLocaleString()} filas · estado ${res.status}.`,
-      });
+      if (res.status === "processing") {
+        setFeedback({
+          type: "ok",
+          msg: "Recibimos tus predicciones. Se están procesando... Los resultados aparecerán en el ranking en unos minutos.",
+        });
+      } else {
+        setFeedback({
+          type: "ok",
+          msg: `¡Envío recibido! ${res.row_count.toLocaleString()} filas · estado ${res.status}.`,
+        });
+      }
       setRows(null);
       await recargarMio();
     } catch (e: any) {
-      setFeedback({ type: "err", msg: e?.message || "Error al enviar las predicciones." });
+      const code = e?.code;
+      let msg = e?.message || "Error al enviar las predicciones.";
+      if (code === "WORKER_UNAVAILABLE") {
+        msg = "El servidor de predicciones no está disponible temporalmente. Reintentá en unos minutos.";
+      } else if (code === "WORKER_TIMEOUT") {
+        msg = "El envío tardó demasiado. Probá con un archivo más chico o reintentá.";
+      } else if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        msg = "Sin conexión al server. Verificá tu internet.";
+      }
+      setFeedback({ type: "err", msg });
     } finally {
       setEnviando(false);
     }

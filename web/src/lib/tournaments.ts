@@ -221,7 +221,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const cacheBust = `${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
   const res = await fetch(`${workerUrl}${path}${cacheBust}`, { ...init, headers });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(json.error || `HTTP ${res.status}`) as Error & { code?: string };
+    if (res.status === 502 || res.status === 503) err.code = "WORKER_UNAVAILABLE";
+    else if (res.status === 504) err.code = "WORKER_TIMEOUT";
+    throw err;
+  }
   return json as T;
 }
 
