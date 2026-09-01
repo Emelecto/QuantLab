@@ -98,7 +98,7 @@ function useMiniChart(
     } as Partial<LineSeriesOptions>);
     marker.setData([
           { time: splitTime, value: Math.min(...stratData.map((p) => p.value)) * 0.98 },
-          { time: splitTime, value: Math.max(...stratData.map((p) => p.value)) * 1.02 },
+          { time: (splitTime + 1) as UTCTimestamp, value: Math.max(...stratData.map((p) => p.value)) * 1.02 },
         ]);
 
     if (crashAfterSplit) {

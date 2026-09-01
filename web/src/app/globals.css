@@ -465,3 +465,33 @@ p {
     animation: none;
   }
 }
+
+/* ===== QuantLab Hero — Glass Terminal v2 ===== */
+
+.hero-scene {
+  perspective: 1200px;
+}
+
+.hero-scene .ql-glass {
+  transition: transform 200ms ease;
+}
+
+.hero-scene .ql-elev-1:hover {
+  transform: translateY(-2px);
+}
+
+/* Texto de datos decorativo del hero */
+.hero-data-text {
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.15);
+  word-break: break-all;
+}
+
+/* Hero section: asegura que el contenido no desborde */
+.hero-section {
+  isolation: isolate;
+}
+
+/* Mejora de contraste para el nav del hero */
+.hero-section nav a {
+  text-decoration: none;
+}

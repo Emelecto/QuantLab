@@ -12,8 +12,6 @@ const ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"];
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },
-  { href: "/app/strategies", label: "Mis estrategias", icon: "code" },
-  { href: "/app/strategies/new", label: "", icon: "plus" },
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
   { href: "/app/learn", label: "Aprende", icon: "book" },
@@ -310,7 +308,6 @@ export function Sidebar() {
           aria-label="Volver atrás"
         >
           <Icon name="arrow-left" size={16} />
-          {!collapsed && <span>Volver atrás</span>}
         </button>
       )}
 

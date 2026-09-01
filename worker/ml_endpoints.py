@@ -111,7 +111,7 @@ async def submit_predictions(
         if ds.data[0]["status"] not in ("ready", "building"):
             raise HTTPException(409, f"ronda en estado {ds.data[0]['status']}")
 
-        # Parsear entrada
+        # Parsear entrada (ligero) — el upload pesado va en background
         if file is not None:
             content = await file.read()
             try:
@@ -119,7 +119,6 @@ async def submit_predictions(
             except Exception as e:
                 raise HTTPException(422, f"CSV inválido: {e}")
         else:
-            # Intentar leer JSON del body
             try:
                 json_body = await request.json()
                 rows = json_body.get("rows")
@@ -132,25 +131,18 @@ async def submit_predictions(
                 raise HTTPException(422, f"Datos de predicciones inválidos: {e}")
         df = _validar_csv(df)
 
-        # ¿Envío previo? → reemplazar (UNIQUE dataset_id,user_id)
+        # Crear submission en DB primero (status "processing") para devolver ID inmediato
         prev = sb.table("prediction_submissions").select("id").eq(
             "dataset_id", dataset_id
         ).eq("user_id", user_id).execute()
         path = f"submissions/{dataset_id[:8]}/{user_id}.csv"
-        
-        try:
-            store.upload_parquet(df, path)
-        except Exception as e:
-            logger.exception("Error al subir predicciones a Storage")
-            raise HTTPException(502, f"No fue posible almacenar las predicciones: {e}")
-
         payload = {
             "dataset_id": dataset_id,
             "user_id": user_id,
             "file_name": file.filename if file else "inline.json",
             "row_count": len(df),
             "file_path": path,
-            "status": "pending",
+            "status": "processing",
             "submitted_at": "now()",
         }
         try:
@@ -164,7 +156,19 @@ async def submit_predictions(
             logger.exception("Error al guardar submission en DB")
             raise HTTPException(502, f"No fue posible guardar el envío: {e}")
 
-        return {"id": sub_id, "row_count": len(df), "status": "pending"}
+        # Upload pesado en background para no exceder timeout de Render
+        import asyncio
+        async def _upload_background():
+            try:
+                store.upload_parquet(df, path)
+                sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
+            except Exception as e:
+                logger.exception("Error en upload background de predicciones")
+                sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
+
+        asyncio.create_task(_upload_background())
+
+        return {"id": sub_id, "row_count": len(df), "status": "processing"}
     except HTTPException:
         raise
     except Exception as e:
