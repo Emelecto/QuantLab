@@ -8,7 +8,7 @@ import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import "./dashboard.css";
 
-const ADMIN_USER_IDS = ["661b5d30-be6c-4b92-af69-ff084a65b461"];
+const ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"];
 
 const NAV = [
   { href: "/app", label: "Inicio", icon: "home" },

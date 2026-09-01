@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["admin"])
 
 # ID de admin (Emilio) — se puede extender a una lista
-ADMIN_USER_IDS = ["661b5d30-be6c-4b92-af69-ff084a65b461"]
+ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"]
 
 
 # ---------------------------------------------------------------------------
