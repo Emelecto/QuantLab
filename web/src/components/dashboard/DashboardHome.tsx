@@ -211,7 +211,7 @@ function DashboardHome() {
 
       {/* Bento Grid */}
       <div className="ql-bento-grid">
-        {/* Competencias — col-span-1 (ancho), fila 1 */}
+        {/* Row 1: Competencias + Ranking */}
         <Card className="ql-bento-competencias">
           <CardHeaderWithIcon
             icon={
@@ -239,7 +239,6 @@ function DashboardHome() {
               <div className="ql-competencias-list">
                 {myTournaments.map((t) => {
                   const deadline = formatDateTime(t.deadline);
-                  const isEnding = t.deadline && new Date(t.deadline) > new Date();
                   return (
                     <Link
                       key={t.id}
@@ -255,7 +254,7 @@ function DashboardHome() {
                       </div>
                       <div className="ql-competencia-status ending">
                         <span>{deadline}</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -274,7 +273,7 @@ function DashboardHome() {
           )}
         </Card>
 
-        {/* Ranking — col-span-1, row-span-2 (columna derecha vertical) */}
+        {/* Ranking — spans both rows */}
         <Card className="ql-bento-ranking">
           <div className="ql-ranking-header">
             <CardHeaderWithIcon
@@ -340,8 +339,8 @@ function DashboardHome() {
                         <img
                           src={(entry as QPRankingEntry).avatar_url!}
                           alt=""
-                          width={28}
-                          height={28}
+                          width={20}
+                          height={20}
                         />
                       ) : (
                         <span className="ql-ranking-avatar-fallback">
@@ -377,9 +376,8 @@ function DashboardHome() {
           </div>
         </Card>
 
-        {/* Bottom left: Estrategias + Aprendizaje */}
+        {/* Row 2: Estrategias + Aprendizaje */}
         <div className="ql-bento-bottom-left">
-          {/* Estrategias */}
           <Card className="ql-bento-estrategias">
             <CardHeaderWithIcon
               icon={
@@ -428,7 +426,6 @@ function DashboardHome() {
             </div>
           </Card>
 
-          {/* Aprendizaje */}
           <Card className="ql-bento-aprendizaje">
             <CardHeaderWithIcon
               icon={
@@ -443,7 +440,7 @@ function DashboardHome() {
             <div className="ql-aprendizaje-body">
               <div className="ql-aprendizaje-progress">
                 <div className="ql-aprendizaje-ring">
-                  <svg viewBox="0 0 100 100" width="100" height="100">
+                  <svg viewBox="0 0 100 100" width="60" height="60">
                     <circle
                       cx="50"
                       cy="50"
