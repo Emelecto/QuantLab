@@ -156,45 +156,27 @@ async def submit_predictions(
             logger.exception("Error al guardar submission en DB")
             raise HTTPException(502, f"No fue posible guardar el envío: {e}")
 
-        # Upload pesado + evaluación en background para no exceder timeout de Render
+        # Upload pesado en background (solo guardar, sin evaluación pesada)
         import asyncio
         from concurrent.futures import ThreadPoolExecutor
         _executor = ThreadPoolExecutor(max_workers=2)
 
-        async def _upload_and_evaluate():
+        async def _upload_background():
             loop = asyncio.get_event_loop()
             try:
-                # 1. Subir parquet a Storage
                 await loop.run_in_executor(_executor, store.upload_parquet, df, path)
-                # 2. Marcar como pending (lista para evaluar)
                 await loop.run_in_executor(
                     _executor,
                     lambda: sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
                 )
-                # 3. Evaluar inmediatamente (no esperar cierre de ronda)
-                try:
-                    import ml_persist
-                    await loop.run_in_executor(
-                        _executor,
-                        lambda: ml_persist.puntuar_submission_en_bd(sub_id)
-                    )
-                except Exception as e:
-                    logger.exception(f"Evaluación inmediata falló para {sub_id}: {e}")
-                    await loop.run_in_executor(
-                        _executor,
-                        lambda: sb.table("prediction_submissions").update({
-                            "status": "error",
-                            "eval_error": str(e)[:500],
-                        }).eq("id", sub_id).execute()
-                    )
             except Exception as e:
-                logger.exception("Error en upload/evaluación background de predicciones")
+                logger.exception("Error en upload background de predicciones")
                 await loop.run_in_executor(
                     _executor,
                     lambda: sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
                 )
 
-        asyncio.create_task(_upload_and_evaluate())
+        asyncio.create_task(_upload_background())
 
         return {"id": sub_id, "row_count": len(df), "status": "processing"}
     except HTTPException:
@@ -202,6 +184,30 @@ async def submit_predictions(
     except Exception as e:
         logger.exception("Error inesperado en submit_predictions")
         raise HTTPException(500, f"Error interno del servidor: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Evaluar submission bajo demanda (llamado desde el frontend vía polling)
+# ---------------------------------------------------------------------------
+@router.post("/submissions/{submission_id}/evaluate")
+def evaluate_submission(submission_id: str, request: Request):
+    """Evalúa una submission pending bajo demanda (timeout-safe)."""
+    user_id = require_user(request)
+    from tournaments import get_supabase
+    sb = get_supabase()
+    sub = sb.table("prediction_submissions").select("id,user_id,status").eq("id", submission_id).eq("user_id", user_id).execute()
+    if not sub.data:
+        raise HTTPException(404, "submission no encontrada")
+    if sub.data[0]["status"] != "pending":
+        raise HTTPException(409, f"submission en estado {sub.data[0]['status']}, no se puede evaluar")
+    import ml_persist
+    try:
+        ml_persist.puntuar_submission_en_bd(submission_id)
+        return {"status": "scored"}
+    except Exception as e:
+        logger.exception(f"Evaluación falló para {submission_id}")
+        sb.table("prediction_submissions").update({"status": "error", "eval_error": str(e)[:500]}).eq("id", submission_id).execute()
+        raise HTTPException(500, f"Error al evaluar: {e}")
 
 
 # ---------------------------------------------------------------------------

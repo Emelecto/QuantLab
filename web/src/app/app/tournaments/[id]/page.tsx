@@ -23,6 +23,7 @@ import type {
 } from "@/lib/mlTournaments";
 import { useAuth } from "@/lib/useAuth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { call } from "@/lib/tournaments";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 
@@ -537,6 +538,14 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
       try {
         const s = await getSubmission(pollingId);
         if (!alive || !s) return;
+        if (s.status === "pending") {
+          // Disparar evaluación bajo demanda
+          try {
+            await call(`/ml/submissions/${pollingId}/evaluate`, { method: "POST" });
+          } catch {
+            // Error manejado abajo con el estado
+          }
+        }
         if (s.status === "scored" || s.status === "error" || s.status === "disqualified") {
           setPollingId(null);
           setMine({

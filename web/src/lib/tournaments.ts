@@ -202,7 +202,7 @@ function preflight(): string {
   return WORKER;
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let workerUrl: string;
   try {
     workerUrl = preflight();
