@@ -118,8 +118,8 @@ export async function downloadDatasetUrl(
 export async function submitPredictions(
   datasetId: string,
   rows: MlPredictionRow[],
-): Promise<{ id: string; row_count: number; status: string }> {
-  return call<{ id: string; row_count: number; status: string }>(
+): Promise<{ id: string; row_count: number; status: string; submission?: MlSubmission }> {
+  return call<{ id: string; row_count: number; status: string; submission?: MlSubmission }>(
     `/ml/datasets/${datasetId}/predictions`,
     { method: "POST", body: JSON.stringify({ rows }) },
   );

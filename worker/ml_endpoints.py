@@ -100,6 +100,8 @@ async def submit_predictions(
     file: UploadFile | None = None,
 ):
     try:
+        import csv
+        import io
         user_id = require_user(request)
         from tournaments import get_supabase
         sb = get_supabase()
@@ -111,27 +113,41 @@ async def submit_predictions(
         if ds.data[0]["status"] not in ("ready", "building"):
             raise HTTPException(409, f"ronda en estado {ds.data[0]['status']}")
 
-        # Parsear entrada (ligero) — el upload pesado va en background
+        # Parsear entrada
         if file is not None:
             content = await file.read()
             try:
-                df = pd.read_csv(io.BytesIO(content))
-            except Exception as e:
-                raise HTTPException(422, f"CSV inválido: {e}")
+                csv_text = content.decode("utf-8")
+            except Exception:
+                raise HTTPException(422, "archivo no es UTF-8 válido")
         else:
             try:
                 json_body = await request.json()
                 rows = json_body.get("rows")
                 if not rows or not isinstance(rows, list):
                     raise HTTPException(422, "envía un archivo CSV o un body JSON con 'rows'")
-                df = pd.DataFrame(rows)
+                # Construir CSV en memoria
+                buf = io.StringIO()
+                w = csv.writer(buf)
+                w.writerow(["id", "prediction"])
+                for r in rows:
+                    w.writerow([r.get("id"), r.get("prediction")])
+                csv_text = buf.getvalue()
             except HTTPException:
                 raise
             except Exception as e:
                 raise HTTPException(422, f"Datos de predicciones inválidos: {e}")
-        df = _validar_csv(df)
 
-        # Crear submission en DB primero (status "processing") para devolver ID inmediato
+        # Validar CSV parseando una muestra
+        try:
+            df_check = pd.read_csv(io.BytesIO(csv_text.encode("utf-8")))
+            df_check = _validar_csv(df_check)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(422, f"CSV inválido: {e}")
+
+        # Crear submission en DB (status "processing")
         prev = sb.table("prediction_submissions").select("id").eq(
             "dataset_id", dataset_id
         ).eq("user_id", user_id).execute()
@@ -140,7 +156,7 @@ async def submit_predictions(
             "dataset_id": dataset_id,
             "user_id": user_id,
             "file_name": file.filename if file else "inline.json",
-            "row_count": len(df),
+            "row_count": len(df_check),
             "file_path": path,
             "status": "processing",
             "submitted_at": "now()",
@@ -156,29 +172,31 @@ async def submit_predictions(
             logger.exception("Error al guardar submission en DB")
             raise HTTPException(502, f"No fue posible guardar el envío: {e}")
 
-        # Upload pesado en background (solo guardar, sin evaluación pesada)
-        import asyncio
-        from concurrent.futures import ThreadPoolExecutor
-        _executor = ThreadPoolExecutor(max_workers=2)
+        # Upload síncrono (CSV directo, sin parquet — más rápido)
+        try:
+            store.upload_csv(csv_text, path)
+            sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
+        except Exception as e:
+            logger.exception("Error en upload de predicciones")
+            sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
+            raise HTTPException(502, f"No fue posible guardar el archivo: {e}")
 
-        async def _upload_background():
-            loop = asyncio.get_event_loop()
-            try:
-                await loop.run_in_executor(_executor, store.upload_parquet, df, path)
-                await loop.run_in_executor(
-                    _executor,
-                    lambda: sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
-                )
-            except Exception as e:
-                logger.exception("Error en upload background de predicciones")
-                await loop.run_in_executor(
-                    _executor,
-                    lambda: sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
-                )
+        # Evaluar inmediatamente
+        try:
+            import ml_persist
+            ml_persist.puntuar_submission_en_bd(sub_id)
+        except Exception as e:
+            logger.exception(f"Evaluación falló para {sub_id}: {e}")
+            sb.table("prediction_submissions").update({
+                "status": "error",
+                "eval_error": str(e)[:500],
+            }).eq("id", sub_id).execute()
 
-        asyncio.create_task(_upload_background())
-
-        return {"id": sub_id, "row_count": len(df), "status": "processing"}
+        # Devolver resultado final (siempre 200, el frontend lee el status)
+        res = sb.table("prediction_submissions").select(
+            "id,row_count,status,score,corr_mean,fnc_mean,consistencia,meta_corr,is_valid,plagio_flag,submitted_at,scored_at,eval_error"
+        ).eq("id", sub_id).execute()
+        return {"submission": res.data[0] if res.data else {"id": sub_id, "status": "scored"}}
     except HTTPException:
         raise
     except Exception as e:

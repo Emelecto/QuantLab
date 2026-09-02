@@ -6,6 +6,7 @@ aquí y NUNCA se expone al cliente (ver RLS en la migración 0011).
 from __future__ import annotations
 
 import hashlib
+import io
 import logging
 import os
 
@@ -202,20 +203,20 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
 
 
 def _leer_predicciones(sub: dict) -> pd.DataFrame | None:
-    """Lee el CSV de predicciones del usuario desde Storage.
-
-    El endpoint de envío sube el CSV a `tournament-datasets/submissions/<id>.csv`
-    y guarda la ruta en `sub['file_path']`. Si por algún motivo el DataFrame
-    viene embebido en memoria (tests), se usa directamente.
-    """
+    """Lee el CSV de predicciones del usuario desde Storage."""
     if sub.get("_predicciones_df") is not None:
         return sub["_predicciones_df"]
     path = sub.get("file_path")
     if not path:
         return None
     try:
-        return store.download_parquet(path)
-    except Exception as e:  # noqa: BLE001
+        # Intentar CSV primero, luego parquet
+        try:
+            data = store.download_csv(path)
+            return pd.read_csv(io.BytesIO(data))
+        except Exception:
+            return store.download_parquet(path)
+    except Exception as e:
         logger.warning(f"No se pudo leer predicciones desde {path}: {e}")
         return None
 

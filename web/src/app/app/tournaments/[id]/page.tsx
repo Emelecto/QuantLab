@@ -608,16 +608,36 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
     setFeedback(null);
     try {
       const res = await submitPredictions(datasetId, rows);
-      if (res.status === "processing") {
+      // El worker ahora devuelve el resultado completo en la misma respuesta
+      if (res.submission) {
+        const s = res.submission;
+        setMine({
+          id: s.id,
+          row_count: s.row_count,
+          status: s.status,
+          score: s.score,
+          corr_mean: s.corr_mean,
+          fnc_mean: s.fnc_mean,
+          consistencia: s.consistencia,
+          meta_corr: s.meta_corr,
+          is_valid: s.is_valid,
+          plagio_flag: s.plagio_flag,
+          submitted_at: s.submitted_at,
+          scored_at: s.scored_at,
+        });
+        if (s.status === "error") {
+          setFeedback({ type: "err", msg: `Error al evaluar: ${s.eval_error || "error desconocido"}` });
+        } else if (s.status === "disqualified") {
+          setFeedback({ type: "err", msg: "Tu submission fue descalificada (datos inválidos o insuficientes)." });
+        } else {
+          setFeedback({ type: "ok", msg: `¡Evaluación completa! Score: ${s.score?.toFixed(4) ?? "—"}` });
+        }
+      } else if (res.status === "processing") {
+        // Fallback: si sigue en processing, iniciar polling
         setPollingId(res.id);
         setFeedback({
           type: "ok",
-          msg: "Recibimos tus predicciones. Evaluando... Te avisaremos cuando esté listo.",
-        });
-      } else {
-        setFeedback({
-          type: "ok",
-          msg: `¡Envío recibido! ${res.row_count.toLocaleString()} filas · estado ${res.status}.`,
+          msg: "Recibimos tus predicciones. Evaluando...",
         });
       }
       setRows(null);

@@ -151,10 +151,15 @@ def sb(mock_supabase):
 
 @pytest.fixture
 def stub_storage(monkeypatch):
-    """ml_storage no toca red: guarda/lee parquet en memoria."""
+    """ml_storage no toca red: guarda/lee archivos en memoria."""
     mem = {}
 
-    def up(df, path):
+    def up_csv(csv_text, path):
+        # Almacenar como bytes para simular download_csv real
+        mem[path] = csv_text.encode("utf-8") if isinstance(csv_text, str) else csv_text
+        return path
+
+    def up_parquet(df, path):
         mem[path] = df
         return path
 
@@ -164,7 +169,8 @@ def stub_storage(monkeypatch):
     def url(path):
         return f"https://fake.storage/{path}"
 
-    monkeypatch.setattr(ml_storage, "upload_parquet", up)
+    monkeypatch.setattr(ml_storage, "upload_csv", up_csv)
+    monkeypatch.setattr(ml_storage, "upload_parquet", up_parquet)
     monkeypatch.setattr(ml_storage, "download_parquet", down)
     monkeypatch.setattr(ml_storage, "public_url", url)
     return mem
