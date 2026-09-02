@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { TopBarGate, FooterGate } from "@/components/TopBarGate";
 import { ToastProvider } from "@/components/ui/Toast";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "QuantLab — Crea estrategias de trading que de verdad funcionan",
@@ -30,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-bg text-ink">
         <ToastProvider>

@@ -502,5 +502,3 @@ export async function getProfileTournamentHistory(
     .order("joined_at", { ascending: false });
   return data || [];
 }
-
-export { call };

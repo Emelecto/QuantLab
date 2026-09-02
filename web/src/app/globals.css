@@ -31,8 +31,8 @@
   --color-cyan: var(--ql-accent-2);
   --color-glow: var(--ql-glow);
 
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 * {
@@ -46,7 +46,7 @@ html {
 body {
   background: var(--ql-bg);
   color: var(--ql-ink);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }

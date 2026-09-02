@@ -1,20 +1,25 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { modules } from "@/lib/learn/modules";
+import { useState } from "react";
 import { useAuth } from "@/lib/useAuth";
+import { useDashboardData } from "./useDashboardData";
 import {
-  useDashboardData,
-  type DashboardSourceState,
-  type DashboardStrategy,
-  type DashboardTournament,
-} from "./useDashboardData";
+  getQPRanking,
+  getTournamentRanking,
+  type RankingPeriod,
+  type QPRankingEntry,
+  type TournamentRankingEntry,
+} from "@/lib/rankings";
+import "./bento.css";
 import "./dashboard.css";
 
-type StatusTone = "neutral" | "positive" | "negative" | "pending";
-
-type DashboardStateKind = "loading" | "empty" | "error";
+type RankingTab = "qp" | "tournaments";
+const PERIOD_OPTIONS: { value: RankingPeriod; label: string }[] = [
+  { value: "week", label: "Semana" },
+  { value: "month", label: "Mes" },
+  { value: "3months", label: "3 meses" },
+];
 
 const integerFormatter = new Intl.NumberFormat("es-419", {
   maximumFractionDigits: 0,
@@ -26,47 +31,24 @@ function formatNumber(value: number | null): string | null {
     : null;
 }
 
-function formatDecimal(value: number | null, digits = 2): string | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  return new Intl.NumberFormat("es-419", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value);
-}
-
-function formatPercent(value: number | null): string | null {
-  const formatted = formatDecimal(value == null ? null : value * 100, 1);
-  return formatted == null ? null : `${formatted}%`;
-}
-
-function parsePersistedDate(value: string | null): Date | null {
-  if (!value) return null;
-  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? `${value}T12:00:00`
-    : value;
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function formatDate(value: string | null): string | null {
-  const date = parsePersistedDate(value);
-  return date
-    ? new Intl.DateTimeFormat("es-419", { dateStyle: "medium" }).format(date)
-    : null;
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("es-419", { dateStyle: "medium" }).format(d);
 }
 
 function formatDateTime(value: string | null): string | null {
-  const date = parsePersistedDate(value);
-  return date
-    ? new Intl.DateTimeFormat("es-419", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date)
-    : null;
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("es-419", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(d);
 }
 
 function readableStatus(status: string | null): string {
-  const normalized = status?.trim().toLowerCase();
   const labels: Record<string, string> = {
     done: "Completada",
     pending: "Pendiente",
@@ -78,36 +60,16 @@ function readableStatus(status: string | null): string {
     tested: "Probada",
     draft: "Borrador",
   };
-  return normalized ? (labels[normalized] ?? status!.replaceAll("_", " ")) : "Registrado";
+  return status ? (labels[status.toLowerCase()] ?? status) : "Registrado";
 }
 
-function toneForStatus(status: string | null): StatusTone {
-  switch (status?.trim().toLowerCase()) {
-    case "done":
-    case "scored":
-    case "tested":
-      return "positive";
-    case "error":
-    case "disqualified":
-      return "negative";
-    case "pending":
-    case "running":
-    case "scoring":
-      return "pending";
-    default:
-      return "neutral";
-  }
-}
-
-function metricLabel(value: string): string {
-  const labels: Record<string, string> = {
-    deflated_sharpe_oos: "Deflated Sharpe OOS",
-    sharpe_oos: "Sharpe OOS",
-  };
-  return labels[value] ?? value.replaceAll("_", " ");
-}
-
-function StatusBadge({ label, tone = "neutral" }: { label: string; tone?: StatusTone }) {
+function StatusBadge({
+  label,
+  tone = "neutral",
+}: {
+  label: string;
+  tone?: "neutral" | "positive" | "negative" | "pending";
+}) {
   return (
     <span className={`ql-dashboard-status ql-dashboard-status--${tone}`}>
       {label}
@@ -115,591 +77,421 @@ function StatusBadge({ label, tone = "neutral" }: { label: string; tone?: Status
   );
 }
 
-function DashboardState({
-  kind,
-  title,
+function Card({
   children,
-  action,
+  className = "",
 }: {
-  kind: DashboardStateKind;
-  title: string;
-  children: ReactNode;
-  action?: ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
-  const role = kind === "error" ? "alert" : kind === "loading" ? "status" : undefined;
-  return (
-    <div
-      className={`ql-dashboard-state ql-dashboard-state--${kind} ql-glass ql-elev-1`}
-      role={role}
-    >
-      <div>
-        <p className="ql-dashboard-state-title">{title}</p>
-        <p className="ql-dashboard-state-copy">{children}</p>
-      </div>
-      {action}
-    </div>
-  );
+  return <article className={`ql-bento-card ql-glass ql-elev-1 ${className}`}>{children}</article>;
 }
 
-function SummaryCard({
-  label,
-  source,
-  value,
-  detail,
-  emptyValue = "",
-}: {
-  label: string;
-  source: DashboardSourceState;
-  value: string | null;
-  detail: string;
-  emptyValue?: string;
-}) {
-  const displayValue =
-    source === "loading"
-      ? "Cargando"
-      : source === "error"
-        ? "No disponible"
-        : (value ?? emptyValue);
-
-  return (
-    <article className="ql-dashboard-summary ql-glass ql-elev-1">
-      <p className="ql-dashboard-summary-label">{label}</p>
-      <p
-        className={`ql-dashboard-summary-value metric ${
-          source === "loading" ? "ql-dashboard-summary-value--loading" : ""
-        }`}
-      >
-        {displayValue}
-      </p>
-      {detail && <p className="ql-dashboard-summary-detail">{detail}</p>}
-    </article>
-  );
-}
-
-function SectionHeader({
+function CardHeaderWithIcon({
+  icon,
   title,
-  description,
+  subtitle,
+  badge,
   action,
 }: {
+  icon: React.ReactNode;
   title: string;
-  description: string;
-  action?: ReactNode;
+  subtitle?: string;
+  badge?: string;
+  action?: React.ReactNode;
 }) {
   return (
-    <div className="ql-dashboard-section-header">
-      <div>
-        <h2>{title}</h2>
-        <p>{description}</p>
+    <div className="ql-bento-card-header">
+      <div className="ql-bento-card-header-title">
+        <span className="ql-bento-card-icon">{icon}</span>
+        <div className="ql-bento-card-title">
+          <h3>{title}</h3>
+          {subtitle && <p className="ql-bento-card-subtitle">{subtitle}</p>}
+        </div>
       </div>
-      {action}
+      <div className="flex items-center gap-2">
+        {badge && <span className="ql-bento-card-badge">{badge}</span>}
+        {action}
+      </div>
     </div>
   );
 }
 
-function SubmissionStatus({ tournament }: { tournament: DashboardTournament }) {
-  if (tournament.submissionState === "loading") {
-    return <StatusBadge label="Estado de envío: cargando" tone="pending" />;
-  }
-  if (tournament.submissionState === "unavailable") {
-    return <StatusBadge label="Estado de envío no disponible" tone="neutral" />;
-  }
-  if (tournament.submissionState === "round-unavailable") {
-    return <StatusBadge label="Ronda live no disponible" tone="neutral" />;
-  }
-  if (!tournament.submission) {
-    return <StatusBadge label="Sin envío registrado" tone="neutral" />;
-  }
+function SectionLink({ href, label }: { href: string; label: string }) {
   return (
-    <StatusBadge
-      label={`Envío: ${readableStatus(tournament.submission.status)}`}
-      tone={toneForStatus(tournament.submission.status)}
-    />
+    <Link href={href} className="ql-section-link">
+      {label}
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5 12h14M12 5l7 7-7 7" />
+      </svg>
+    </Link>
   );
 }
 
-function limitedStrategies(
-  strategies: DashboardStrategy[],
-  lastRunAt: (s: DashboardStrategy) => string,
-  sharpe: (s: DashboardStrategy) => string | null,
-  maxDd: (s: DashboardStrategy) => string | null,
-): ReactNode {
-  return strategies.map((strategy) => {
-    const lastRunAtValue = lastRunAt(strategy);
-    const sharpeValue = sharpe(strategy);
-    const maxDdValue = maxDd(strategy);
-
-    return (
-      <article key={strategy.id} className="ql-dashboard-strategy ql-dashboard-card ql-glass ql-elev-1">
-        <div className="ql-dashboard-card-header">
-          <span className="ql-dashboard-kind metric">{strategy.symbol}</span>
-          {strategy.status && (
-            <StatusBadge label={`Estrategia: ${readableStatus(strategy.status)}`} tone={toneForStatus(strategy.status)} />
-          )}
-        </div>
-        <h3>{strategy.title}</h3>
-        <p className="ql-dashboard-card-meta">{strategy.asset_type} · {strategy.timeframe}</p>
-        <div className="ql-dashboard-run">
-          <span>Última ejecución</span>
-          {lastRunAtValue ? <strong>{lastRunAtValue}</strong> : <strong>Sin ejecuciones registradas</strong>}
-          {strategy.last_run_status && (
-            <StatusBadge label={readableStatus(strategy.last_run_status)} tone={toneForStatus(strategy.last_run_status)} />
-          )}
-        </div>
-        {(sharpeValue || maxDdValue) && (
-          <dl className="ql-dashboard-facts">
-            {sharpeValue && <div><dt>Sharpe OOS</dt><dd className="metric">{sharpeValue}</dd></div>}
-            {maxDdValue && <div><dt>Max DD</dt><dd className="metric">{maxDdValue}</dd></div>}
-          </dl>
-        )}
-        <Link href={`/app/strategies/${strategy.id}`} className="ql-dashboard-action ql-btn-secondary">Ver estrategia</Link>
-      </article>
-    );
-  });
-}
-
-export function DashboardHome() {
+function DashboardHome() {
   const { user } = useAuth();
-  const {
-    qp,
-    course,
-    ranking,
-    strategies,
-    tournaments,
-    loading,
-    error,
-    sources,
-  } = useDashboardData();
+  const { qp, course, ranking, strategies, tournaments, loading, error, sources } =
+    useDashboardData();
+
+  // Ranking state
+  const [rankingTab, setRankingTab] = useState<RankingTab>("qp");
+  const [period, setPeriod] = useState<RankingPeriod>("month");
+  const [qpRanking, setQpRanking] = useState<QPRankingEntry[]>([]);
+  const [tournamentRanking, setTournamentRanking] = useState<TournamentRankingEntry[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
 
   const fullName = user?.user_metadata?.full_name;
   const name =
     typeof fullName === "string" && fullName.trim()
       ? fullName
-      : (user?.email?.split("@")[0] ?? "Usuario");
+      : user?.email?.split("@")[0] ?? "Usuario";
 
-  const completedModuleIds = new Set(course?.completed_modules ?? []);
-  const completedCount = modules.filter((module) =>
-    completedModuleIds.has(module.def.id),
-  ).length;
-  const totalModules = modules.length;
-  const hasPersistedModules = Array.isArray(course?.completed_modules);
-  const coursePct =
-    hasPersistedModules && totalModules > 0
-      ? Math.round((completedCount / totalModules) * 100)
-      : null;
-  const courseComplete = coursePct === 100;
-  const nextModule = modules.find(
-    (module) => !completedModuleIds.has(module.def.id),
+  const completedModuleIds = new Set<string>(
+    ((course as { completed_modules?: number[] | null })?.completed_modules ?? []).map(String),
   );
-  const courseSummary =
-    coursePct == null ? null : `${coursePct}%`;
-  const courseDetail =
-    course && coursePct != null
-      ? `${completedCount}/${totalModules} módulos guardados`
-      : "El progreso aparece cuando se guarda en la ruta";
-  const rankingValue = ranking ? `#${formatNumber(ranking.rank)}` : null;
-  const rankingDetail = ranking
-    ? `${formatNumber(ranking.qp_earned)} QP acumulados · ${formatNumber(
-        ranking.total,
-      )} perfiles consultados`
-    : "La posición aparece cuando el perfil tiene datos publicados";
+  const totalModules = 5; // Placeholder
+  const completedCount = completedModuleIds.size;
+  const coursePct =
+    totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0;
+
+  // Load ranking
+  const loadRanking = async (tab: RankingTab, p: RankingPeriod) => {
+    setRankingLoading(true);
+    try {
+      if (tab === "qp") {
+        const { entries } = await getQPRanking(p);
+        setQpRanking(entries);
+      } else {
+        const { entries } = await getTournamentRanking(p);
+        setTournamentRanking(entries);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setRankingLoading(false);
+    }
+  };
+
+  const handleTabChange = (tab: RankingTab) => {
+    setRankingTab(tab);
+    loadRanking(tab, period);
+  };
+
+  const handlePeriodChange = (p: RankingPeriod) => {
+    setPeriod(p);
+    loadRanking(rankingTab, p);
+  };
+
+  const rankingEntries = rankingTab === "qp" ? qpRanking : tournamentRanking;
+
+  // Tournament data
+  const myTournaments = tournaments.slice(0, 3);
+  const hasMoreTournaments = tournaments.length > 3;
+
+  // Strategy data
+  const myStrategies = strategies.slice(0, 6);
 
   return (
-    <main className="ql-dash-content ql-dashboard" aria-busy={loading}>
+    <main className="ql-dash-content ql-dashboard-full" aria-busy={loading}>
+      {/* Header */}
       <header className="ql-dashboard-header">
-        <h1>Hola, {name}</h1>
+        <h1>
+          Hola, <span className="ql-gradient-text">{name}</span>
+        </h1>
+        <p className="ql-dashboard-subtitle">
+          {qp != null ? `${formatNumber(qp)} QP disponibles` : "Cargando..."}
+        </p>
       </header>
 
-      {loading && (
-        <div className="ql-dashboard-notice ql-dashboard-notice--loading" role="status">
-          Cargando datos persistidos del dashboard…
-        </div>
-      )}
+      {/* Error */}
       {error && (
         <div className="ql-dashboard-notice ql-dashboard-notice--error" role="alert">
           <span>{error}</span>
-          <button
-            type="button"
-            className="ql-dashboard-retry"
-            onClick={() => window.location.reload()}
-          >
-            Reintentar
-          </button>
         </div>
       )}
 
-      <section aria-labelledby="dashboard-resumen">
-        <SectionHeader title="Resumen" description="" />
-        <div className="ql-dashboard-summary-grid">
-          <SummaryCard
-            label="Saldo disponible"
-            source={sources.qp}
-            value={formatNumber(qp) == null ? null : `${formatNumber(qp)} QP`}
-            detail=""
-            emptyValue=""
-          />
-          <SummaryCard
-            label="Estrategias"
-            source={sources.strategies}
-            value={formatNumber(strategies.length)}
-            detail=""
-            emptyValue=""
-          />
-          <SummaryCard
-            label="Aprendizaje"
-            source={sources.course}
-            value={courseSummary}
-            detail=""
-            emptyValue=""
-          />
-          <SummaryCard
-            label="Posición por QP"
-            source={sources.ranking}
-            value={rankingValue}
-            detail=""
-            emptyValue=""
-          />
-        </div>
-      </section>
-
-      <section aria-labelledby="dashboard-aprendizaje">
-        <SectionHeader title="Aprendizaje" description="" />
-        {sources.course === "loading" ? (
-          <DashboardState kind="loading" title="Cargando progreso guardado">
-            Consultando los módulos completados y la actividad más reciente.
-          </DashboardState>
-        ) : sources.course === "error" ? (
-          <DashboardState kind="error" title="No se pudo cargar el aprendizaje">
-            El progreso guardado no está disponible en este momento.
-          </DashboardState>
-        ) : !course || coursePct == null ? (
-          <DashboardState
-            kind="empty"
-            title="Aún no hay progreso guardado"
-            action={
-              <Link href="/app/learn" className="ql-dashboard-action ql-btn-primary">
-                Empezar la ruta
-              </Link>
+      {/* Bento Grid */}
+      <div className="ql-bento-grid">
+        {/* Competencias — col-span-1 (ancho), fila 1 */}
+        <Card className="ql-bento-competencias">
+          <CardHeaderWithIcon
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4z" />
+                <path d="M17 4h3v2a3 3 0 01-3 3M7 4H4v2a3 3 0 003 3" />
+              </svg>
             }
-          >
-            Completa un módulo en la Ruta Aprendiz para ver aquí tu avance persistido.
-          </DashboardState>
-        ) : (
-          <article className="ql-dashboard-course ql-glass ql-elev-1">
-            <div className="ql-dashboard-course-main">
-              <div>
-                <p className="ql-dashboard-card-kicker">
-                  {courseComplete ? "Ruta completada" : "Siguiente módulo"}
-                </p>
-                <h3>
-                  {courseComplete
-                    ? "Completaste la Ruta Aprendiz"
-                    : (nextModule?.def.title ?? "Progreso actualizado")}
-                </h3>
-                <p>
-                  {courseComplete
-                    ? "Tu avance está guardado y puedes volver a revisar los módulos cuando quieras."
-                    : `${completedCount} de ${totalModules} módulos completados.`}
-                </p>
+            title="Competencias"
+            subtitle="Torneos activos y próximos"
+            badge={myTournaments.length > 0 ? `${myTournaments.length} activas` : undefined}
+            action={<SectionLink href="/app/tournaments" label="Ver todas" />}
+          />
+          <div className="ql-bento-competencias-body">
+            {sources.tournaments === "loading" ? (
+              <div className="ql-bento-empty">Cargando competencias...</div>
+            ) : myTournaments.length === 0 ? (
+              <div className="ql-bento-empty">
+                <p>No estás inscrito en ninguna competencia.</p>
+                <Link href="/app/tournaments" className="ql-btn-primary">
+                  Explorar competencias
+                </Link>
               </div>
-              <div className="ql-dashboard-course-percent metric">{coursePct}%</div>
-            </div>
-            <div
-              className="ql-dashboard-progress"
-              role="progressbar"
-              aria-label="Progreso del curso"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={coursePct}
-            >
-              <span style={{ width: `${coursePct}%` }} />
-            </div>
-            <dl className="ql-dashboard-facts">
-              <div>
-                <dt>Módulos</dt>
-                <dd className="metric">
-                  {completedCount}/{totalModules}
-                </dd>
+            ) : (
+              <div className="ql-competencias-list">
+                {myTournaments.map((t) => {
+                  const deadline = formatDateTime(t.deadline);
+                  const isEnding = t.deadline && new Date(t.deadline) > new Date();
+                  return (
+                    <Link
+                      key={t.id}
+                      href={`/app/tournaments/${t.id}`}
+                      className="ql-competencia-item"
+                    >
+                      <div className="ql-competencia-main">
+                        <h4 className="ql-competencia-name">{t.name}</h4>
+                        <div className="ql-competencia-meta">
+                          {t.symbol && <span className="ql-competencia-symbol">{t.symbol}</span>}
+                          <span>{t.type === "ml" ? "Predicciones" : "Estrategias"}</span>
+                        </div>
+                      </div>
+                      <div className="ql-competencia-status ending">
+                        <span>{deadline}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-              {course.xp != null && (
-                <div>
-                  <dt>XP guardado</dt>
-                  <dd className="metric">{formatNumber(course.xp)} XP</dd>
-                </div>
-              )}
-              {course.streak != null && (
-                <div>
-                  <dt>Racha</dt>
-                  <dd className="metric">{formatNumber(course.streak)} días</dd>
-                </div>
-              )}
-              {formatDate(course.last_active_date) && (
-                <div>
-                  <dt>Última actividad</dt>
-                  <dd>{formatDate(course.last_active_date)}</dd>
-                </div>
-              )}
-            </dl>
-            <Link href="/app/learn" className="ql-dashboard-action ql-btn-primary">
-              {courseComplete ? "Ver la ruta" : "Continuar aprendizaje"}
-            </Link>
-          </article>
-        )}
-      </section>
-
-      <section aria-labelledby="dashboard-torneos">
-        <SectionHeader
-          title="Competencias"
-          description="Torneos abiertos y el estado de tus envíos."
-          action={
-            <div className="flex gap-2">
-              <Link
-                href="/app/tournaments/guide"
-                className="ql-dashboard-action ql-btn-secondary"
-              >
-                Guía
-              </Link>
-              <Link
-                href="/app/tournaments"
-                className="ql-dashboard-action ql-btn-secondary"
-              >
-                Ver todos
-              </Link>
-            </div>
-          }
-        />
-        {sources.tournaments === "loading" ? (
-          <DashboardState kind="loading" title="Cargando torneos abiertos">
-            Consultando las competiciones disponibles en el worker.
-          </DashboardState>
-        ) : sources.tournaments === "error" ? (
-          <DashboardState kind="error" title="No se pudieron cargar los torneos">
-            Las competiciones abiertas no están disponibles en este momento.
-          </DashboardState>
-        ) : tournaments.length === 0 ? (
-          <DashboardState
-            kind="empty"
-            title="No hay torneos abiertos"
-            action={
-              <Link
-                href="/app/tournaments"
-                className="ql-dashboard-action ql-btn-secondary"
-              >
-                Revisar torneos
-              </Link>
-            }
-          >
-            Cuando se publique una competencia abierta aparecerá en esta vista.
-          </DashboardState>
-        ) : (
-          <div className="ql-dashboard-card-grid">
-            {tournaments.map((tournament) => {
-              const deadline = formatDateTime(tournament.deadline);
-              const submission = tournament.submission;
-              const submittedAt = formatDateTime(submission?.submitted_at ?? null);
-              const score = formatDecimal(submission?.score ?? null, 3);
-              const prize = formatNumber(tournament.qp_prize);
-              const participants = formatNumber(tournament.participants);
-
-              return (
-                <article
-                  key={tournament.id}
-                  className="ql-dashboard-tournament ql-dashboard-card ql-glass ql-elev-1"
-                >
-                  <div className="ql-dashboard-card-header">
-                    <span className="ql-dashboard-kind">
-                      {tournament.type === "ml" ? "Predicciones ML" : "Estrategias"}
-                    </span>
-                    <SubmissionStatus tournament={tournament} />
-                  </div>
-                  <h3>{tournament.name}</h3>
-                  <dl className="ql-dashboard-facts">
-                    {tournament.symbol && (
-                      <div>
-                        <dt>Activo</dt>
-                        <dd className="metric">{tournament.symbol}</dd>
-                      </div>
-                    )}
-                    {deadline && (
-                      <div>
-                        <dt>Cierre</dt>
-                        <dd>{deadline}</dd>
-                      </div>
-                    )}
-                    {prize && (
-                      <div>
-                        <dt>Bolsa</dt>
-                        <dd className="metric">{prize} QP</dd>
-                      </div>
-                    )}
-                    {participants && (
-                      <div>
-                        <dt>Participantes</dt>
-                        <dd className="metric">{participants}</dd>
-                      </div>
-                    )}
-                    {tournament.metric_label && (
-                      <div>
-                        <dt>Métrica</dt>
-                        <dd>{metricLabel(tournament.metric_label)}</dd>
-                      </div>
-                    )}
-                  </dl>
-                  {submission && tournament.submissionState === "ready" && (
-                    <dl className="ql-dashboard-submission-facts">
-                      {submission.rank != null && (
-                        <div>
-                          <dt>Posición</dt>
-                          <dd className="metric">#{formatNumber(submission.rank)}</dd>
-                        </div>
-                      )}
-                      {score && (
-                        <div>
-                          <dt>Puntaje</dt>
-                          <dd className="metric">{score}</dd>
-                        </div>
-                      )}
-                      {submission.qp_earned != null && (
-                        <div>
-                          <dt>QP obtenidos</dt>
-                          <dd className="metric">{formatNumber(submission.qp_earned)}</dd>
-                        </div>
-                      )}
-                      {submittedAt && (
-                        <div>
-                          <dt>Enviado</dt>
-                          <dd>{submittedAt}</dd>
-                        </div>
-                      )}
-                    </dl>
-                  )}
-                  <Link
-                    href={`/app/tournaments/${tournament.id}`}
-                    className="ql-dashboard-action ql-btn-secondary"
-                  >
-                    Abrir torneo
-                  </Link>
-                </article>
-              );
-            })}
+            )}
           </div>
-        )}
-      </section>
-
-      <section aria-labelledby="dashboard-estrategias">
-        <SectionHeader
-          title="Mis estrategias"
-          description=""
-          action={
-            <Link
-              href="/app/strategies"
-              className="ql-dashboard-action ql-btn-secondary"
-            >
-              Ver todas
-            </Link>
-          }
-        />
-        {sources.strategies === "loading" ? (
-          <DashboardState kind="loading" title="Cargando estrategias">
-            Consultando tus estrategias y sus últimas corridas.
-          </DashboardState>
-        ) : sources.strategies === "error" ? (
-          <DashboardState kind="error" title="No se pudieron cargar las estrategias">
-            Tus estrategias no están disponibles en este momento.
-          </DashboardState>
-        ) : strategies.length === 0 ? (
-          <DashboardState
-            kind="empty"
-            title="Aún no tienes estrategias"
-            action={
-              <Link
-                href="/app/strategies/new"
-                className="ql-dashboard-action ql-btn-primary"
-              >
-                Crear estrategia
+          {hasMoreTournaments && (
+            <div className="ql-bento-competencias-footer">
+              <Link href="/app/tournaments" className="ql-btn-secondary">
+                Ir a competencias
               </Link>
-            }
-          >
-            Crea una estrategia y ejecuta un backtest para verla resumida aquí.
-          </DashboardState>
-        ) : (
-          <>
-            <p className="ql-dashboard-section-subtitle">
-              Las últimas 3 en orden descendente.
-            </p>
-            <div className="ql-dashboard-card-grid ql-dashboard-card-grid--strategies">
-              {limitedStrategies(
-                strategies.slice(0, 3),
-                (s) =>
-                  formatDateTime(s.last_run_at) ?? "Sin ejecuciones",
-                (s) =>
-                  s.last_sharpe_oos != null
-                    ? `${formatDecimal(s.last_sharpe_oos, 2)}`
-                    : null,
-                (s) =>
-                  s.last_maxdd != null ? `${formatPercent(s.last_maxdd)}` : null,
+            </div>
+          )}
+        </Card>
+
+        {/* Ranking — col-span-1, row-span-2 (columna derecha vertical) */}
+        <Card className="ql-bento-ranking">
+          <div className="ql-ranking-header">
+            <CardHeaderWithIcon
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 20V10M12 20V4M6 20v-6" />
+                </svg>
+              }
+              title="Ranking en la comunidad"
+              subtitle="Top traders esta semana"
+            />
+            <div className="ql-ranking-filters">
+              <div className="ql-ranking-tabs">
+                <button
+                  type="button"
+                  className={`ql-ranking-tab${rankingTab === "qp" ? " active" : ""}`}
+                  onClick={() => handleTabChange("qp")}
+                >
+                  QP
+                </button>
+                <button
+                  type="button"
+                  className={`ql-ranking-tab${rankingTab === "tournaments" ? " active" : ""}`}
+                  onClick={() => handleTabChange("tournaments")}
+                >
+                  Torneos
+                </button>
+              </div>
+              <div className="ql-ranking-period">
+                <select
+                  value={period}
+                  onChange={(e) => handlePeriodChange(e.target.value as RankingPeriod)}
+                  aria-label="Período"
+                >
+                  {PERIOD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="ql-ranking-body">
+            {rankingLoading ? (
+              <div className="ql-bento-empty">Cargando ranking...</div>
+            ) : rankingEntries.length === 0 ? (
+              <div className="ql-bento-empty">
+                No hay datos para este período.
+              </div>
+            ) : (
+              <ol className="ql-ranking-list">
+                {rankingEntries.map((entry) => (
+                  <li
+                    key={entry.user_id}
+                    className={`ql-ranking-item${entry.is_me ? " is-me" : ""}`}
+                  >
+                    <span className={`ql-ranking-pos${entry.rank <= 3 ? " top" : ""}`}>
+                      #{entry.rank}
+                    </span>
+                    <div className="ql-ranking-avatar">
+                      {(entry as QPRankingEntry).avatar_url ? (
+                        <img
+                          src={(entry as QPRankingEntry).avatar_url!}
+                          alt=""
+                          width={28}
+                          height={28}
+                        />
+                      ) : (
+                        <span className="ql-ranking-avatar-fallback">
+                          {entry.username.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="ql-ranking-info">
+                      <span className="ql-ranking-name">
+                        {entry.username}
+                        {entry.is_me && <span className="ql-ranking-me">Tú</span>}
+                      </span>
+                      <span className="ql-ranking-stat">
+                        {rankingTab === "qp" ? (
+                          <>
+                            {formatNumber((entry as QPRankingEntry).qp)}{" "}
+                            <span className="ql-ranking-qp">QP</span>
+                          </>
+                        ) : (
+                          <>
+                            {formatNumber(
+                              (entry as TournamentRankingEntry).tournaments_won,
+                            )}{" "}
+                            ganados
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </Card>
+
+        {/* Bottom left: Estrategias + Aprendizaje */}
+        <div className="ql-bento-bottom-left">
+          {/* Estrategias */}
+          <Card className="ql-bento-estrategias">
+            <CardHeaderWithIcon
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              }
+              title="Estrategias"
+              subtitle="Tus estrategias en backtesting"
+              badge={`${strategies.length} activas`}
+            />
+            <div className="ql-estrategias-body">
+              {sources.strategies === "loading" ? (
+                <div className="ql-bento-empty">Cargando estrategias...</div>
+              ) : myStrategies.length === 0 ? (
+                <div className="ql-bento-empty">
+                  <p>No tienes estrategias aún.</p>
+                  <Link href="/app/strategies/new" className="ql-btn-primary">
+                    Crear estrategia
+                  </Link>
+                </div>
+              ) : (
+                <div className="ql-estrategias-grid">
+                  {myStrategies.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={`/app/strategies/${s.id}`}
+                      className="ql-estrategia-item"
+                    >
+                      <span className="ql-estrategia-symbol">{s.symbol}</span>
+                      <div className="ql-estrategia-info">
+                        <h4>{s.title}</h4>
+                        <span className="ql-estrategia-meta">
+                          {s.asset_type} · {s.timeframe}
+                        </span>
+                      </div>
+                      {s.last_sharpe_oos != null && (
+                        <span className="ql-estrategia-metric">
+                          {s.last_sharpe_oos.toFixed(2)}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
               )}
             </div>
-          </>
-        )}
-      </section>
+          </Card>
 
-      <section aria-labelledby="dashboard-ranking">
-        <SectionHeader
-          title="Ranking"
-          description="Posición calculada desde los QP acumulados persistidos en tu perfil."
-          action={
-            <Link href="/app/rankings" className="ql-dashboard-action ql-btn-secondary">
-              Ver ranking
-            </Link>
-          }
-        />
-        {sources.ranking === "loading" ? (
-          <DashboardState kind="loading" title="Calculando tu posición">
-            Consultando los QP acumulados en los perfiles publicados.
-          </DashboardState>
-        ) : sources.ranking === "error" ? (
-          <DashboardState kind="error" title="No se pudo cargar el ranking">
-            La posición por QP no está disponible en este momento.
-          </DashboardState>
-        ) : !ranking ? (
-          <DashboardState
-            kind="empty"
-            title="Tu perfil aún no tiene una posición disponible"
-            action={
-              <Link href="/app/rankings" className="ql-dashboard-action ql-btn-secondary">
-                Abrir ranking
+          {/* Aprendizaje */}
+          <Card className="ql-bento-aprendizaje">
+            <CardHeaderWithIcon
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                  <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+              }
+              title="Cursos de aprendizaje"
+              subtitle="Continúa donde lo dejaste"
+            />
+            <div className="ql-aprendizaje-body">
+              <div className="ql-aprendizaje-progress">
+                <div className="ql-aprendizaje-ring">
+                  <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      stroke="var(--ql-line)"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      stroke="var(--ql-accent)"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(coursePct / 100) * 264} 264`}
+                      transform="rotate(-90 50 50)"
+                    />
+                  </svg>
+                  <span className="ql-aprendizaje-percent">{coursePct}%</span>
+                </div>
+                <div className="ql-aprendizaje-text">
+                  <p className="ql-aprendizaje-label">Progreso del curso</p>
+                  <p className="ql-aprendizaje-detail">
+                    {completedCount} de {totalModules} módulos
+                  </p>
+                </div>
+              </div>
+              <Link href="/app/learn" className="ql-btn-secondary ql-aprendizaje-cta">
+                Continuar aprendizaje
               </Link>
-            }
-          >
-            La posición aparecerá cuando haya datos de perfil y QP acumulados publicados.
-          </DashboardState>
-        ) : (
-          <article className="ql-dashboard-ranking ql-glass ql-elev-1">
-            <div>
-              <p className="ql-dashboard-card-kicker">Posición actual</p>
-              <p className="ql-dashboard-ranking-value metric">
-                #{formatNumber(ranking.rank)}
-              </p>
-              <p className="ql-dashboard-card-meta">
-                Empates con los mismos QP acumulados comparten posición.
-              </p>
             </div>
-            <dl className="ql-dashboard-facts">
-              <div>
-                <dt>QP acumulados</dt>
-                <dd className="metric">{formatNumber(ranking.qp_earned)} QP</dd>
-              </div>
-              <div>
-                <dt>Perfiles consultados</dt>
-                <dd className="metric">{formatNumber(ranking.total)}</dd>
-              </div>
-            </dl>
-            <Link href="/app/rankings" className="ql-dashboard-action ql-btn-secondary">
-              Ver ranking completo
-            </Link>
-          </article>
-        )}
-      </section>
+          </Card>
+        </div>
+      </div>
     </main>
   );
 }
+
+export { DashboardHome };
