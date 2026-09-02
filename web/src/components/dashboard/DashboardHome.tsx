@@ -217,34 +217,31 @@ function DashboardHome() {
                       className="ql-competencia-mini"
                     >
                       <div className="ql-competencia-mini-header">
-                        <span className="ql-competencia-mini-type">
-                          {t.type === "ml" ? "ML" : "Estrategias"}
-                        </span>
-                        {t.submission && (
-                          <StatusBadge
-                            label={t.submission.status === "done" || t.submission.status === "scored" ? "Evaluada" : "Pendiente"}
-                            tone={
-                              t.submission.status === "done" || t.submission.status === "scored"
-                                ? "positive"
-                                : t.submission.status === "error"
-                                  ? "negative"
-                                  : "pending"
-                            }
-                          />
-                        )}
+                        <div className="ql-competencia-mini-top">
+                          <span className="ql-competencia-mini-type">
+                            {t.type === "ml" ? "ML" : "Estrategias"}
+                          </span>
+                          {t.submission && (
+                            <span className={`ql-competencia-mini-status${t.submission.status === "pending" || t.submission.status === "running" ? " pending" : ""}`}>
+                              {t.submission.status === "done" || t.submission.status === "scored" ? "Evaluada" : "Pendiente"}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="ql-competencia-mini-name">{t.name}</h4>
                       </div>
-                      <h4 className="ql-competencia-mini-name">{t.name}</h4>
-                      <div className="ql-competencia-mini-meta">
-                        {t.symbol && <span className="ql-competencia-mini-symbol">{t.symbol}</span>}
-                        {t.qp_prize != null && (
-                          <span className="ql-competencia-mini-qp">{formatNumber(t.qp_prize)} QP</span>
-                        )}
+                      <div className="ql-competencia-mini-body">
+                        {t.symbol && <span className="ql-competencia-mini-badge">{t.symbol}</span>}
+                        <span className="ql-competencia-mini-badge">{t.asset_type}</span>
                       </div>
-                      {deadline && (
-                        <p className="ql-competencia-mini-date">
+                      <div className="ql-competencia-mini-footer">
+                        <div className="ql-competencia-mini-prize">
+                          <span className="ql-competencia-mini-prize-label">Premio</span>
+                          <span className="ql-competencia-mini-prize-value">{formatNumber(t.qp_prize)} QP</span>
+                        </div>
+                        <span className="ql-competencia-mini-countdown">
                           {isEnding ? "Termina: " : "Inicia: "}{deadline}
-                        </p>
-                      )}
+                        </span>
+                      </div>
                     </Link>
                   );
                 })}

@@ -158,36 +158,42 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding-right: 3px;
+  padding-right: 4px;
 }
 
 .ql-competencias-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 .ql-competencia-mini {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.025);
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition: background 0.15s, border-color 0.15s;
-  min-height: 120px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  min-height: 180px;
 }
 .ql-competencia-mini:hover {
   background: rgba(255, 255, 255, 0.05);
-  border-color: var(--ql-line);
+  border-color: rgba(248, 250, 252, 0.15);
+  transform: translateY(-2px);
 }
 .ql-competencia-mini-header {
+  padding: 12px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ql-competencia-mini-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
 }
 .ql-competencia-mini-type {
   font-size: 9px;
@@ -196,35 +202,73 @@
   letter-spacing: 0.06em;
   color: var(--ql-accent);
 }
+.ql-competencia-mini-status {
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--ql-long);
+  white-space: nowrap;
+}
+.ql-competencia-mini-status.pending {
+  background: rgba(255, 183, 3, 0.15);
+  color: #fbbf24;
+}
 .ql-competencia-mini-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.ql-competencia-mini-meta {
+.ql-competencia-mini-body {
+  padding: 0 14px;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ql-competencia-mini-badge {
+  font-size: 8px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
   color: var(--ql-muted);
 }
-.ql-competencia-mini-symbol {
-  font-weight: 600;
+.ql-competencia-mini-footer {
+  padding: 10px 14px;
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+.ql-competencia-mini-prize {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ql-competencia-mini-prize-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ql-muted);
+}
+.ql-competencia-mini-prize-value {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--ql-accent);
 }
-.ql-competencia-mini-qp {
-  font-weight: 500;
-}
-.ql-competencia-mini-date {
-  font-size: 9px;
+.ql-competencia-mini-countdown {
+  font-size: 10px;
   color: var(--ql-muted);
-  margin: 0;
-  margin-top: auto;
+  text-align: right;
 }
 
 .ql-bento-competencias-footer {
