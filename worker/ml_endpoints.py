@@ -147,19 +147,20 @@ async def submit_predictions(
         except Exception as e:
             raise HTTPException(422, f"CSV inválido: {e}")
 
-        # Crear submission en DB (status "processing")
+        # Crear submission en DB (status "pending": el CHECK real solo admite
+        # pending/scoring/scored/disqualified; NUNCA "processing"/"error").
         prev = sb.table("prediction_submissions").select("id").eq(
             "dataset_id", dataset_id
         ).eq("user_id", user_id).execute()
+        # La ruta del CSV es determinista (dataset_id[:8] + user_id); no se
+        # guarda en una columna (p.ej. file_path) que el esquema real no tiene.
         path = f"submissions/{dataset_id[:8]}/{user_id}.csv"
         payload = {
             "dataset_id": dataset_id,
             "user_id": user_id,
             "file_name": file.filename if file else "inline.json",
             "row_count": len(df_check),
-            "file_path": path,
-            "status": "processing",
-            "submitted_at": "now()",
+            "status": "pending",
         }
         try:
             if prev.data:
@@ -178,25 +179,24 @@ async def submit_predictions(
             sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
         except Exception as e:
             logger.exception("Error en upload de predicciones")
-            sb.table("prediction_submissions").update({"status": "error"}).eq("id", sub_id).execute()
+            sb.table("prediction_submissions").update({"status": "disqualified"}).eq("id", sub_id).execute()
             raise HTTPException(502, f"No fue posible guardar el archivo: {e}")
 
-        # Evaluar inmediatamente
+        # Evaluar inmediatamente (best-effort). Si falla NO hacemos 500: dejamos
+        # la submission en `pending` para que el frontend reintente vía
+        # /ml/submissions/{id}/evaluate (el esquema real no tiene status error).
         try:
             import ml_persist
             ml_persist.puntuar_submission_en_bd(sub_id)
         except Exception as e:
             logger.exception(f"Evaluación falló para {sub_id}: {e}")
-            sb.table("prediction_submissions").update({
-                "status": "error",
-                "eval_error": str(e)[:500],
-            }).eq("id", sub_id).execute()
 
-        # Devolver resultado final (siempre 200, el frontend lee el status)
+        # Devolver resultado final (siempre 200, el frontend lee el status;
+        # si quedó en pending, el polling de /ml/submissions/{id} completará)
         res = sb.table("prediction_submissions").select(
-            "id,row_count,status,score,corr_mean,fnc_mean,consistencia,meta_corr,is_valid,plagio_flag,submitted_at,scored_at,eval_error"
+            "id,row_count,status,score,corr_mean,fnc_mean,consistencia,meta_corr,is_valid,plagio_flag,submitted_at,scored_at"
         ).eq("id", sub_id).execute()
-        return {"submission": res.data[0] if res.data else {"id": sub_id, "status": "scored"}}
+        return {"submission": res.data[0] if res.data else {"id": sub_id, "status": "pending"}}
     except HTTPException:
         raise
     except Exception as e:
@@ -224,7 +224,7 @@ def evaluate_submission(submission_id: str, request: Request):
         return {"status": "scored"}
     except Exception as e:
         logger.exception(f"Evaluación falló para {submission_id}")
-        sb.table("prediction_submissions").update({"status": "error", "eval_error": str(e)[:500]}).eq("id", submission_id).execute()
+        sb.table("prediction_submissions").update({"status": "pending"}).eq("id", submission_id).execute()
         raise HTTPException(500, f"Error al evaluar: {e}")
 
 
@@ -239,7 +239,7 @@ def get_submission(submission_id: str, request: Request):
     sb = get_supabase()
     res = sb.table("prediction_submissions").select(
         "id,dataset_id,row_count,status,score,corr_mean,fnc_mean,consistencia,"
-        "meta_corr,is_valid,plagio_flag,submitted_at,scored_at,eval_error"
+        "meta_corr,is_valid,plagio_flag,submitted_at,scored_at"
     ).eq("id", submission_id).eq("user_id", user_id).execute()
     if not res.data:
         raise HTTPException(404, "submission no encontrada")

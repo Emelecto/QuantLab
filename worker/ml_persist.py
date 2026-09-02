@@ -141,7 +141,7 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
     sub = sub.data[0]
 
     ds = supabase.table("ml_datasets").select("id,feature_cols").eq("id", sub["dataset_id"]).execute()
-    feat_cols = ds.data[0]["feature_cols"] if ds.data else []
+    feat_cols = (ds.data[0].get("feature_cols") or []) if ds.data else []
 
     # Descargar el CSV de predicciones del usuario desde Storage (o leer del campo).
     preds = _leer_predicciones(sub)
@@ -152,11 +152,21 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
         return {"status": "disqualified", "motivo": "sin predicciones"}
 
     # Holdout privado (incluye features para el FNC)
+    # OJO: PostgREST capa a 1000 filas por query (db-max-rows). Sin paginar,
+    # solo se puntuaban ~1000 filas del holdout -> n_eras ~2 -> todas las
+    # submissions quedaban is_valid=false. Se pagina con offset+limit.
     cols = "row_id,target,era" + ("," + ",".join(feat_cols) if feat_cols else "")
-    targets = supabase.table("dataset_targets").select(cols).eq(
-        "dataset_id", sub["dataset_id"]
-    ).execute()
-    tdf = pd.DataFrame(targets.data)
+    targets = []
+    _off = 0
+    while True:
+        _page = supabase.table("dataset_targets").select(cols).eq(
+            "dataset_id", sub["dataset_id"]
+        ).offset(_off).limit(1000).execute()
+        targets.extend(_page.data or [])
+        if len(_page.data or []) < 1000:
+            break
+        _off += len(_page.data or [])
+    tdf = pd.DataFrame(targets)
     merged = preds.merge(tdf, left_on="id", right_on="row_id", how="inner")
     if len(merged) == 0:
         supabase.table("prediction_submissions").update({
@@ -203,10 +213,18 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
 
 
 def _leer_predicciones(sub: dict) -> pd.DataFrame | None:
-    """Lee el CSV de predicciones del usuario desde Storage."""
+    """Lee el CSV de predicciones del usuario desde Storage.
+
+    La ruta es determinista: `submissions/{dataset_id[:8]}/{user_id}.csv`.
+    El esquema real de `prediction_submissions` NO tiene columna `file_path`,
+    así que la reconstruimos desde dataset_id + user_id (ambos presentes en la
+    fila). Si por compatibilidad la fila trae `file_path`, se prefiere.
+    """
     if sub.get("_predicciones_df") is not None:
         return sub["_predicciones_df"]
     path = sub.get("file_path")
+    if not path:
+        path = f"submissions/{str(sub.get('dataset_id',''))[:8]}/{sub.get('user_id')}.csv"
     if not path:
         return None
     try:
@@ -229,7 +247,7 @@ def cargar_predicciones_validas(supabase, dataset_id) -> pd.DataFrame:
     """
     subs = (
         supabase.table("prediction_submissions")
-        .select("id,file_path,status,is_valid,plagio_flag")
+        .select("id,dataset_id,user_id,status,is_valid,plagio_flag")
         .eq("dataset_id", dataset_id)
         .eq("is_valid", True)
         .execute()

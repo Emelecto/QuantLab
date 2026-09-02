@@ -264,9 +264,35 @@ function MlTournamentDetail({
     [datasets],
   );
 
-  /** Dataset objetivo para enviar predicciones: live + ready. */
+  /**
+   * Dataset objetivo para enviar predicciones: el live de la ronda MÁS reciente
+   * que esté abierto (status ready) y no haya cerrado (closes_at en el futuro).
+   * Antes se tomaba el primer live de la lista (ronda 1, ya cerrada), lo que
+   * hacía fallar el envío/intento de evaluación. Usa el de mayor round_number.
+   */
+  const nowMs = Date.now();
   const liveReady = useMemo(
-    () => datasets.find((d) => d.kind === "live" && d.status === "ready") ?? null,
+    () =>
+      datasets
+        .filter((d) => d.kind === "live" && d.status === "ready")
+        .sort(
+          (a, b) =>
+            (b.round_number ?? 0) - (a.round_number ?? 0) ||
+            (b.closes_at ?? "").localeCompare(a.closes_at ?? ""),
+        )
+        .find(
+          (d) =>
+            !d.closes_at || new Date(d.closes_at).getTime() > nowMs,
+        ) ??
+      // Fallback: si ninguna ronda está "abierta por fecha", tomar la más reciente.
+      datasets
+        .filter((d) => d.kind === "live" && d.status === "ready")
+        .sort(
+          (a, b) =>
+            (b.round_number ?? 0) - (a.round_number ?? 0) ||
+            (b.closes_at ?? "").localeCompare(a.closes_at ?? ""),
+        )[0] ??
+      null,
     [datasets],
   );
   /** Para el ranking sirve cualquier live (aunque la ronda ya esté cerrada). */
@@ -625,8 +651,10 @@ function TabEnviar({ liveDataset }: { liveDataset: MlDataset | null }) {
           submitted_at: s.submitted_at,
           scored_at: s.scored_at,
         });
-        if (s.status === "error") {
-          setFeedback({ type: "err", msg: `Error al evaluar: ${s.eval_error || "error desconocido"}` });
+        if (s.status === "pending" || s.status === "processing" || s.status === "scoring") {
+          // Aún evaluando: activar el polling hasta estado terminal.
+          setPollingId(s.id);
+          setFeedback({ type: "ok", msg: "Recibimos tus predicciones. Evaluando..." });
         } else if (s.status === "disqualified") {
           setFeedback({ type: "err", msg: "Tu submission fue descalificada (datos inválidos o insuficientes)." });
         } else {

@@ -35,6 +35,7 @@ class _Table:
         self._filters = []
         self._order = None
         self._limit = None
+        self._offset = None
         self._pk = None
         if self._name == "ml_datasets":
             self._pk = ("tournament_id", "round_number", "kind")
@@ -99,6 +100,10 @@ class _Table:
         self._limit = n
         return self
 
+    def offset(self, n):
+        self._offset = n
+        return self
+
     def _matches(self, row):
         for op, col, val in self._filters:
             if op == "eq" and row.get(col) != val:
@@ -118,6 +123,8 @@ class _Table:
         if self._order:
             col, desc = self._order
             out = sorted(out, key=lambda r: r.get(col) or 0, reverse=desc)
+        if self._offset:
+            out = out[self._offset:]
         if self._limit:
             out = out[: self._limit]
         return out
