@@ -20,7 +20,12 @@ COPY . .
 
 EXPOSE 8000
 
-# Uvicorn detrás de gunicorn (workers=2, suficiente para el motor single-thread de backtest).
-# Usamos shell form (sh -c) para que $PORT se expanda con la variable de entorno
-# que inyecta Render/Vercel (sin llaves para evitar el error '${PORT' no válido).
-CMD sh -c "gunicorn main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 300"
+# Uvicorn detrás de gunicorn: UN solo worker.
+# motivo: el plan free/starter de Render topea a 512MB RAM. El stack de ML
+# (pandas/scipy/FastAPI) pesa ~157MB por proceso; con 2 workers (~314MB
+# residentes solo al arrancar) no quedaba margen y el scoring de submissions
+# ML (42k filas) disparaba OOM -> server_failed -> reinicios. Un worker
+# single-thread es suficiente (GIL; el motor de backtest ya es single-thread).
+# Usamos shell form (sh -c) para que $PORT se expanda con la variable de
+# entorno que inyecta Render/Vercel (sin llaves para evitar el error '${PORT').
+CMD sh -c "gunicorn main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT:-8000} --workers 1 --timeout 300"
