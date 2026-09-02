@@ -201,17 +201,7 @@ function DashboardHome() {
   const myStrategies = strategies.slice(0, 6);
 
   return (
-    <main className="ql-dash-content ql-dashboard-full" aria-busy={loading}>
-      {/* Header */}
-      <header className="ql-dashboard-header">
-        <h1>
-          Hola, <span className="ql-gradient-text">{name}</span>
-        </h1>
-        <p className="ql-dashboard-subtitle">
-          {qp != null ? `${formatNumber(qp)} QP disponibles` : "Cargando..."}
-        </p>
-      </header>
-
+    <main className="ql-dash-content" aria-busy={loading}>
       {/* Error */}
       {error && (
         <div className="ql-dashboard-notice ql-dashboard-notice--error" role="alert">

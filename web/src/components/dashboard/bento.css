@@ -2,12 +2,10 @@
 .ql-bento-grid {
   display: grid;
   grid-template-columns: 1.6fr 0.8fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto auto;
   gap: 16px;
   width: 100%;
   max-width: 100%;
-  flex: 1;
-  min-height: 0;
 }
 
 .ql-bento-bottom-left {
@@ -22,10 +20,10 @@
 }
 
 .ql-bento-card {
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   border-radius: 12px;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
   min-height: 0;
@@ -51,16 +49,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: rgba(248, 250, 252, 0.06);
   color: var(--ql-accent);
   flex-shrink: 0;
 }
 .ql-bento-card-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 .ql-bento-card-title {
   display: flex;
@@ -68,7 +66,7 @@
   gap: 2px;
 }
 .ql-bento-card-title h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -110,7 +108,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   color: var(--ql-muted);
   font-size: 13px;
@@ -121,7 +119,8 @@
   grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
-  min-height: 300px;
+  min-height: 200px;
+  max-height: 45vh;
 }
 .ql-bento-competencias-body {
   flex: 1;
@@ -129,7 +128,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding-right: 4px;
 }
 
@@ -143,7 +142,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid transparent;
@@ -160,10 +159,10 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .ql-competencia-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -175,7 +174,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ql-muted);
 }
 .ql-competencia-symbol {
@@ -183,7 +182,7 @@
   color: var(--ql-accent);
 }
 .ql-competencia-date {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ql-muted);
   white-space: nowrap;
 }
@@ -205,7 +204,7 @@
 .ql-bento-competencias-footer {
   display: flex;
   justify-content: flex-end;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--ql-line);
   margin-top: auto;
 }
@@ -215,17 +214,18 @@
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
-  min-height: 500px;
+  min-height: 300px;
+  max-height: 80vh;
 }
 .ql-ranking-header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 .ql-ranking-filters {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .ql-ranking-tabs {
@@ -236,9 +236,9 @@
   padding: 3px;
 }
 .ql-ranking-tab {
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--ql-muted);
   background: none;
@@ -252,12 +252,12 @@
   font-weight: 600;
 }
 .ql-ranking-period select {
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--ql-line);
   color: var(--ql-ink);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
 }
 
@@ -359,9 +359,8 @@
 }
 
 .ql-bento-estrategias {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-  min-height: 250px;
+  min-height: 200px;
+  max-height: 35vh;
 }
 .ql-estrategias-body {
   flex: 1;
@@ -372,13 +371,13 @@
 .ql-estrategias-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 .ql-estrategia-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
+  gap: 4px;
+  padding: 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid transparent;
@@ -391,7 +390,7 @@
   border-color: var(--ql-line);
 }
 .ql-estrategia-symbol {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -402,7 +401,7 @@
   min-width: 0;
 }
 .ql-estrategia-info h4 {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -411,20 +410,19 @@
   text-overflow: ellipsis;
 }
 .ql-estrategia-meta {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--ql-muted);
 }
 .ql-estrategia-metric {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ql-long);
 }
 
 .ql-bento-aprendizaje {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-  min-height: 250px;
+  min-height: 200px;
+  max-height: 35vh;
 }
 .ql-aprendizaje-body {
   flex: 1;
@@ -432,17 +430,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
 }
 .ql-aprendizaje-progress {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 .ql-aprendizaje-ring {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
 }
 .ql-aprendizaje-percent {
   position: absolute;
@@ -451,22 +449,22 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--ql-accent);
 }
 .ql-aprendizaje-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 .ql-aprendizaje-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ql-ink);
 }
 .ql-aprendizaje-detail {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ql-muted);
 }
 .ql-aprendizaje-cta {
@@ -479,8 +477,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: 8px;
   background: var(--ql-accent);
@@ -498,8 +496,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 500;
   border-radius: 8px;
   background: var(--ql-surface);
@@ -515,12 +513,6 @@
   border-color: rgba(248, 250, 252, 0.18);
 }
 
-.ql-dashboard-full {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
 .ql-dashboard-header {
   display: flex;
   flex-direction: column;
@@ -557,6 +549,7 @@
   .ql-bento-ranking {
     grid-column: 1 / 2;
     grid-row: auto;
+    max-height: none;
   }
   .ql-bento-bottom-left {
     flex-direction: column;
