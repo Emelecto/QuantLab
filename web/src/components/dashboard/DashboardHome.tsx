@@ -31,13 +31,6 @@ function formatNumber(value: number | null): string | null {
     : null;
 }
 
-function formatDate(value: string | null): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat("es-419", { dateStyle: "medium" }).format(d);
-}
-
 function formatDateTime(value: string | null): string | null {
   if (!value) return null;
   const d = new Date(value);
@@ -46,21 +39,6 @@ function formatDateTime(value: string | null): string | null {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(d);
-}
-
-function readableStatus(status: string | null): string {
-  const labels: Record<string, string> = {
-    done: "Completada",
-    pending: "Pendiente",
-    running: "En ejecución",
-    error: "Con error",
-    scoring: "En evaluación",
-    scored: "Evaluada",
-    disqualified: "Descalificada",
-    tested: "Probada",
-    draft: "Borrador",
-  };
-  return status ? (labels[status.toLowerCase()] ?? status) : "Registrado";
 }
 
 function StatusBadge({
@@ -142,7 +120,6 @@ function DashboardHome() {
   const { qp, course, ranking, strategies, tournaments, loading, error, sources } =
     useDashboardData();
 
-  // Ranking state
   const [rankingTab, setRankingTab] = useState<RankingTab>("qp");
   const [period, setPeriod] = useState<RankingPeriod>("month");
   const [qpRanking, setQpRanking] = useState<QPRankingEntry[]>([]);
@@ -158,12 +135,11 @@ function DashboardHome() {
   const completedModuleIds = new Set<string>(
     ((course as { completed_modules?: number[] | null })?.completed_modules ?? []).map(String),
   );
-  const totalModules = 5; // Placeholder
+  const totalModules = 5;
   const completedCount = completedModuleIds.size;
   const coursePct =
     totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0;
 
-  // Load ranking
   const loadRanking = async (tab: RankingTab, p: RankingPeriod) => {
     setRankingLoading(true);
     try {
@@ -192,26 +168,20 @@ function DashboardHome() {
   };
 
   const rankingEntries = rankingTab === "qp" ? qpRanking : tournamentRanking;
-
-  // Tournament data
-  const myTournaments = tournaments.slice(0, 3);
-  const hasMoreTournaments = tournaments.length > 3;
-
-  // Strategy data
+  const myTournaments = tournaments.slice(0, 6);
+  const hasMoreTournaments = tournaments.length > 6;
   const myStrategies = strategies.slice(0, 6);
 
   return (
     <main className="ql-dash-content" aria-busy={loading}>
-      {/* Error */}
       {error && (
         <div className="ql-dashboard-notice ql-dashboard-notice--error" role="alert">
           <span>{error}</span>
         </div>
       )}
 
-      {/* Bento Grid */}
       <div className="ql-bento-grid">
-        {/* Row 1: Competencias + Ranking */}
+        {/* Competencias — fila 1 izquierda */}
         <Card className="ql-bento-competencias">
           <CardHeaderWithIcon
             icon={
@@ -236,28 +206,45 @@ function DashboardHome() {
                 </Link>
               </div>
             ) : (
-              <div className="ql-competencias-list">
+              <div className="ql-competencias-grid">
                 {myTournaments.map((t) => {
                   const deadline = formatDateTime(t.deadline);
+                  const isEnding = t.deadline && new Date(t.deadline) > new Date();
                   return (
                     <Link
                       key={t.id}
                       href={`/app/tournaments/${t.id}`}
-                      className="ql-competencia-item"
+                      className="ql-competencia-mini"
                     >
-                      <div className="ql-competencia-main">
-                        <h4 className="ql-competencia-name">{t.name}</h4>
-                        <div className="ql-competencia-meta">
-                          {t.symbol && <span className="ql-competencia-symbol">{t.symbol}</span>}
-                          <span>{t.type === "ml" ? "Predicciones" : "Estrategias"}</span>
-                        </div>
+                      <div className="ql-competencia-mini-header">
+                        <span className="ql-competencia-mini-type">
+                          {t.type === "ml" ? "ML" : "Estrategias"}
+                        </span>
+                        {t.submission && (
+                          <StatusBadge
+                            label={t.submission.status === "done" || t.submission.status === "scored" ? "Evaluada" : "Pendiente"}
+                            tone={
+                              t.submission.status === "done" || t.submission.status === "scored"
+                                ? "positive"
+                                : t.submission.status === "error"
+                                  ? "negative"
+                                  : "pending"
+                            }
+                          />
+                        )}
                       </div>
-                      <div className="ql-competencia-status ending">
-                        <span>{deadline}</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
+                      <h4 className="ql-competencia-mini-name">{t.name}</h4>
+                      <div className="ql-competencia-mini-meta">
+                        {t.symbol && <span className="ql-competencia-mini-symbol">{t.symbol}</span>}
+                        {t.qp_prize != null && (
+                          <span className="ql-competencia-mini-qp">{formatNumber(t.qp_prize)} QP</span>
+                        )}
                       </div>
+                      {deadline && (
+                        <p className="ql-competencia-mini-date">
+                          {isEnding ? "Termina: " : "Inicia: "}{deadline}
+                        </p>
+                      )}
                     </Link>
                   );
                 })}
@@ -273,7 +260,7 @@ function DashboardHome() {
           )}
         </Card>
 
-        {/* Ranking — spans both rows */}
+        {/* Ranking — columna derecha, ambas filas */}
         <Card className="ql-bento-ranking">
           <div className="ql-ranking-header">
             <CardHeaderWithIcon
@@ -376,7 +363,7 @@ function DashboardHome() {
           </div>
         </Card>
 
-        {/* Row 2: Estrategias + Aprendizaje */}
+        {/* Estrategias + Aprendizaje — fila 2 */}
         <div className="ql-bento-bottom-left">
           <Card className="ql-bento-estrategias">
             <CardHeaderWithIcon
