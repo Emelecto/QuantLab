@@ -169,14 +169,15 @@
 .ql-competencia-mini {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px;
+  gap: 6px;
+  padding: 14px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid transparent;
   text-decoration: none;
   color: inherit;
   transition: background 0.15s, border-color 0.15s;
+  min-height: 120px;
 }
 .ql-competencia-mini:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -189,14 +190,14 @@
   gap: 4px;
 }
 .ql-competencia-mini-type {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ql-accent);
 }
 .ql-competencia-mini-name {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -208,8 +209,8 @@
 .ql-competencia-mini-meta {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 9px;
+  gap: 6px;
+  font-size: 10px;
   color: var(--ql-muted);
 }
 .ql-competencia-mini-symbol {
@@ -220,9 +221,10 @@
   font-weight: 500;
 }
 .ql-competencia-mini-date {
-  font-size: 8px;
+  font-size: 9px;
   color: var(--ql-muted);
   margin: 0;
+  margin-top: auto;
 }
 
 .ql-bento-competencias-footer {
