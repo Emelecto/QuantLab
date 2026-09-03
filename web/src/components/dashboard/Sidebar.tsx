@@ -452,7 +452,7 @@ export function Sidebar() {
           onMouseDown={onMouseDown}
           className="ql-sidebar-resize"
           style={{
-            position: "absolute",
+            position: "absolute" as const,
             top: 0,
             right: 0,
             width: 8,
@@ -464,7 +464,7 @@ export function Sidebar() {
             transition: "opacity 0.15s",
           }}
         />
-      ))}
+      )}
     </aside>
   );
 }
