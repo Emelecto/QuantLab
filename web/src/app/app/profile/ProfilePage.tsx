@@ -86,6 +86,10 @@ export function ProfilePage() {
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameSuccess, setUsernameSuccess] = useState<string | null>(null);
 
+  // Ref para el input de archivo del avatar (DEBE declararse antes de cualquier
+  // early return; si no, React lanza error #310 "más hooks de los esperados").
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!user) {
       setBalanceLoading(false);
@@ -190,8 +194,6 @@ export function ProfilePage() {
   const tournamentsEntered = progress.tournamentsEntered.length;
 
   // --- Handlers: avatar upload ---
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleAvatarClick = () => {
     // Hover/inline edit: abrir selector de archivo
     fileInputRef.current?.click();
