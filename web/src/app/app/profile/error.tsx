@@ -20,8 +20,9 @@ export default function ProfileError({
       <h2 className="text-lg font-semibold text-ink">
         No se pudo cargar tu perfil
       </h2>
-      <p className="text-sm text-muted">
-        Ocurrió un error inesperado. Intenta recargar.
+      <p className="text-sm text-muted">{String(error?.message || error)}</p>
+      <p className="text-xs text-muted break-all max-w-lg">
+        {String(error?.stack || "").split("\n").slice(0, 6).join("\n")}
       </p>
       <div className="flex items-center gap-3">
         <button
