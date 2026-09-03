@@ -15,7 +15,7 @@ import {
  * Anclado sobre su ícono, con tarjeta redondeada, badge de categoría,
  * botón de cerrar, título, descripción corta y CTA opcional.
  */
-export function NotificationPopover() {
+export function NotificationPopover({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -134,7 +134,7 @@ export function NotificationPopover() {
             <path d="M13.73 21a2 2 0 01-3.46 0" />
           </svg>
         </span>
-        <span className="ql-nav-label">Notificaciones</span>
+        <span className="ql-nav-label">{!collapsed && "Notificaciones"}</span>
         {unread > 0 && (
           <span className="ql-notif-badge">{unread > 9 ? "9+" : unread}</span>
         )}

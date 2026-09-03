@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBalance } from "@/lib/tokens";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { QuantLabLogo } from "@/components/dashboard/QuantLabLogo";
+import { Avatar } from "@/components/ui/Avatar";
 import { NotificationPopover } from "@/components/dashboard/NotificationPopover";
 import "./dashboard.css";
 
@@ -128,7 +128,7 @@ export function Icon({ name, size = 18 }: { name: string; size?: number }) {
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51-1z" />
         </svg>
       );
     case "youtube":
@@ -175,6 +175,11 @@ export function Sidebar() {
     email?: string;
     user_metadata?: { full_name?: string; name?: string; avatar_url?: string };
   } | null>(null);
+  const [profile, setProfile] = useState<{
+    username?: string | null;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  } | null>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const widthRef = useRef(width);
 
@@ -198,7 +203,6 @@ export function Sidebar() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  // Cargar usuario
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -216,6 +220,28 @@ export function Sidebar() {
     };
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    const loadProfile = async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = await supabase
+          .from("profiles")
+          .select("username, display_name, avatar_url")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (active && data) setProfile(data);
+      } catch {
+        /* ignore */
+      }
+    };
+    loadProfile();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (collapsed) return;
@@ -286,18 +312,13 @@ export function Sidebar() {
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
 
   const displayName =
+    profile?.display_name ||
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
     "Trader";
 
-  const initials = displayName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase();
+  const avatarSrc = profile?.avatar_url || user?.user_metadata?.avatar_url;
 
   return (
     <aside
@@ -311,14 +332,14 @@ export function Sidebar() {
       {/* Glow vertical sutil en borde izquierdo */}
       <div className="ql-sidebar-glow" />
 
-      {/* Top row: Logo + Usuario (izquierda) | QP (derecha) */}
+      {/* Top row: Avatar + Usuario (izquierda) | QP (derecha) */}
       <div className="ql-sidebar-top">
         <Link href="/app/profile" className="ql-user-block" title="Perfil">
-          <QuantLabLogo size={28} />
+          <Avatar src={avatarSrc} name={displayName} size={collapsed ? 32 : 36} />
           {!collapsed && (
             <div className="ql-user-info">
               <span className="ql-user-name">{displayName}</span>
-              <span className="ql-user-initials">{initials}</span>
+              <span className="ql-user-username">@{profile?.username || displayName.toLowerCase()}</span>
             </div>
           )}
         </Link>
@@ -386,7 +407,7 @@ export function Sidebar() {
       {/* Bottom section */}
       <div className="ql-sidebar-bottom">
         {/* Notificaciones (popover condicional) */}
-        <NotificationPopover />
+        <NotificationPopover collapsed={collapsed} />
 
         {/* Configuración */}
         <Link href="/app/profile/settings" className="ql-nav-item" title="Configuración">
@@ -414,7 +435,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — siempre visible */}
       <button
         className="ql-collapse-toggle"
         type="button"
@@ -443,7 +464,7 @@ export function Sidebar() {
             transition: "opacity 0.15s",
           }}
         />
-      )}
+      ))}
     </aside>
   );
 }

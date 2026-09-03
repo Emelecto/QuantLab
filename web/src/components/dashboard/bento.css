@@ -159,6 +159,7 @@
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+  flex: 1;
 }
 
 .ql-competencias-grid {
@@ -177,6 +178,7 @@
   color: inherit;
   transition: background 0.15s, border-color 0.15s, transform 0.15s;
   min-height: 180px;
+  flex: 1;
 }
 .ql-competencia-mini:hover {
   background: rgba(255, 255, 255, 0.05);

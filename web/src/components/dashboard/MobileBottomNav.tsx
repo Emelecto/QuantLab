@@ -19,7 +19,7 @@ export function MobileBottomNav() {
   const showBackArrow = pathname !== "/app";
 
   const handleBack = useCallback(() => {
-    if (window.history.length > 1) {
+    if (typeof window !== "undefined" && window.history.length > 1) {
       window.history.back();
     }
   }, []);

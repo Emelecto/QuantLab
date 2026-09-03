@@ -88,6 +88,13 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.ql-user-username {
+  font-size: 11px;
+  color: var(--ql-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ql-sidebar.collapsed .ql-user-info {
   display: none;
 }
