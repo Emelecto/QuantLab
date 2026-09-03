@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { useDashboardData } from "./useDashboardData";
+import { modules as courseModules } from "@/lib/learn/modules";
 import {
   getQPRanking,
   getTournamentRanking,
@@ -133,12 +134,12 @@ function DashboardHome() {
       : user?.email?.split("@")[0] ?? "Usuario";
 
   const completedModuleIds = new Set<string>(
-    ((course as { completed_modules?: number[] | null })?.completed_modules ?? []).map(String),
-  );
-  const totalModules = 5;
-  const completedCount = completedModuleIds.size;
-  const coursePct =
-    totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0;
+      ((course as { completed_modules?: number[] | null })?.completed_modules ?? []).map(String),
+    );
+    const totalModules = courseModules.length;
+    const completedCount = completedModuleIds.size;
+    const coursePct =
+      totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0;
 
   const loadRanking = async (tab: RankingTab, p: RankingPeriod) => {
     setRankingLoading(true);

@@ -98,31 +98,44 @@ export function ProfilePage() {
       .finally(() => setBalanceLoading(false));
   }, [user]);
 
-  // Cargar perfil completo (username + display_name + avatar_url + username_updated_at)
+  // Cargar perfil (username + display_name + avatar_url). username_updated_at
+  // es opcional: la migración 0020 puede no estar aplicada aún en prod, así que
+  // no dependemos de esa columna para no romper la query.
   useEffect(() => {
     if (!user) return;
+    let active = true;
     setProfileLoading(true);
     const loadProfile = async () => {
       try {
         const supabase = createBrowserSupabaseClient();
         const { data, error } = await supabase
           .from("profiles")
-          .select("username, display_name, avatar_url, username_updated_at")
+          .select("username, display_name, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
+        if (!active) return;
         if (error) {
-          setUsernameError(null);
+          // No es crítico: no cargamos el username, la UI sigue funcionando.
+          setProfile((p) => p ?? { username: null, display_name: null, avatar_url: null, username_updated_at: null });
         } else if (data) {
-          setProfile(data);
+          setProfile({
+            username: data.username ?? null,
+            display_name: data.display_name ?? null,
+            avatar_url: data.avatar_url ?? null,
+            username_updated_at: (data as any).username_updated_at ?? null,
+          });
           setUsernameInput(data.username ?? "");
         }
       } catch {
-        // ignore
+        /* ignore */
       } finally {
-        setProfileLoading(false);
+        if (active) setProfileLoading(false);
       }
     };
     loadProfile();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   if (authLoading) {

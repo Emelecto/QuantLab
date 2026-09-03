@@ -35,7 +35,7 @@ export function CourseHome() {
               return (
                 <Link
                   key={m.def.id}
-                  href={`/learn/${m.def.id}`}
+                  href={`/app/learn/${m.def.id}`}
                   className={`module-card ${isDone ? "done" : ""} ${isLocked ? "locked" : ""} ${isStar ? "star" : ""}`}
                 >
                   <div className="module-num">{isStar ? "🏆" : m.def.id}</div>
@@ -56,9 +56,9 @@ export function CourseHome() {
 
       <div className="resume-bar">
         {allDone ? (
-          <Link className="btn-primary" href="/learn/14">Ver mi debut en el torneo</Link>
+          <Link className="btn-primary" href="/app/learn/14">Ver mi debut en el torneo</Link>
         ) : (
-          <Link className="btn-primary" href={`/learn/${nextModule.def.id}`}>
+          <Link className="btn-primary" href={`/app/learn/${nextModule.def.id}`}>
             {done === 0 ? "Empieza el Módulo 1" : `Retoma: Módulo ${nextModule.def.id}`}
           </Link>
         )}

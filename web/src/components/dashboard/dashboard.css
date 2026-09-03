@@ -175,7 +175,10 @@
 .ql-nav-item.active {
   background: linear-gradient(135deg, rgba(248, 250, 252, 0.08), rgba(248, 250, 252, 0.025));
   color: var(--ql-ink);
-  box-shadow: inset 3px 0 0 var(--ql-accent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.ql-nav-item.active .ic {
+  color: var(--ql-accent);
 }
 .ql-nav-label {
   flex: 1;
@@ -363,8 +366,7 @@
   padding: 10px 0 4px;
 }
 .ql-social-row.collapsed {
-  flex-direction: column;
-  gap: 6px;
+  display: none;
 }
 .ql-social-icon {
   display: flex;

@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import { ProfilePage } from "./ProfilePage";
 
+// Evita el prerender estático: la página depende de la sesión (Supabase auth)
+// en el navegador. El prerender estático de Next 16 + client components con
+// estado async puede producir un error de hidratación ("This page couldn't
+// load"). Se fuerza render dinámico bajo demanda.
+export const dynamic = "force-dynamic";
+
 export default function ProfileRoute() {
   return (
     <Suspense
