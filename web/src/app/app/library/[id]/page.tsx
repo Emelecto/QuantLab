@@ -44,7 +44,9 @@ function buildSearch(symbol: string, source: "binance" | "yahoo", interval: stri
 async function fetchRows(symbol: string, source: "binance" | "yahoo", interval: string, limit: number): Promise<{ rows: Row[]; error?: string }> {
   try {
     const params = new URLSearchParams({ symbol, source, interval, limit: String(limit) });
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const base =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
     const url = `${base}/api/datasets?${params.toString()}`;
     const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (!resp.ok) {
