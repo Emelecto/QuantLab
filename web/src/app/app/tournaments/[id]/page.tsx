@@ -504,6 +504,26 @@ function TabDatos({ datasets }: { datasets: MlDataset[] }) {
         </div>
       )}
 
+      {/* Nota: cómo leer los .parquet */}
+      <div className="ql-glass ql-elev-1 rounded-xl border-l-2 border-[#a78bfa]/50 p-5">
+        <h3 className="text-sm font-semibold text-ink">
+          Los archivos <span className="font-mono text-[#c4b5fd]">.parquet</span> no se abren en un editor de texto
+        </h3>
+        <p className="mt-2 text-sm text-muted">
+          <span className="font-mono text-ink">train.parquet</span> y{" "}
+                    <span className="font-mono text-ink">validation.parquet</span> son archivos de datos{" "}
+                    <strong className="text-ink">comprimidos en columnas</strong>, no texto plano. Si los abres con
+                    el Bloc de Notas (o un editor de texto) verás símbolos ilegibles — eso es el formato binario
+                    del parquet, no un archivo corrupto ni un error.
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          <strong className="text-ink">Lo correcto:</strong> cárgalos en Python con pandas (
+          <span className="font-mono text-ink">pd.read_parquet(...)</span>) o ábrelos con un visor de
+          parquet (VS Code + extensión, o Tad). El notebook de abajo te enseña el flujo completo
+          hasta generar tu <span className="font-mono text-ink">predictions.csv</span>.
+        </p>
+      </div>
+
       {/* Punto 4: notebook de ejemplo */}
       <div className="ql-glass ql-elev-1 rounded-xl p-5">
         <h3 className="text-sm font-semibold text-ink">¿Primera vez?</h3>
