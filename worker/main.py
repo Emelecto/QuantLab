@@ -15,7 +15,7 @@ import logging
 import os
 import re
 
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -454,11 +454,15 @@ async def scheduler_run(
 @app.post("/scheduler/evaluate")
 async def scheduler_evaluate(
     x_scheduler_key: str | None = Header(None),
-) -> dict:
-    """Evalua rondas ML vencidas (ligero). NO genera datasets.
+    sync: bool = Query(False, description="Si true, ejecuta el scoring SINCRONO dentro del request (no background). Necesario en Render plan free donde los background tasks no persisten."), ) -> dict:
+    """Evalua/puntua submissions ML en estado pending.
 
     La generacion de datasets se hace en GitHub Actions (mayor RAM, no se duerme)
     y se sube a Supabase Storage. Este endpoint solo puntua submissions pendientes.
+
+    En Render plan FREE los background tasks (asyncio.create_task) se pierden al
+    terminar el request. Usa ?sync=true para forzar ejecucion sincrona: el request
+    dura el scoring (max ~120s timeout) y garantiza que se ejecute.
     """
     expected = os.environ.get("SCHEDULER_KEY")
     if not expected:
@@ -493,16 +497,36 @@ async def scheduler_evaluate(
         loop = asyncio.get_event_loop()
         try:
             evaluated = await loop.run_in_executor(
-                None, lambda: evaluate_ml_rounds(sb, now)
+                None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
             )
-            logger.info(f"Evaluacion ML completada: {evaluated} rondas.")
+            logger.info(f"Evaluacion ML completada: {evaluated} submissions.")
         except Exception:  # noqa: BLE001
             logger.exception("Error en la evaluacion ML (background)")
+
+    if sync:
+        loop = asyncio.get_event_loop()
+        try:
+            evaluated = await loop.run_in_executor(
+                None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
+            )
+            return {
+                "status": "ok",
+                "mode": "sync",
+                "evaluated": evaluated,
+                "message": "Scoring ML ejecutado sincronamente.",
+            }
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Error en evaluacion ML (sync)")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Error en el scoring ML (sync)", "detail": str(e)[:300]},
+            )
 
     asyncio.create_task(_run_eval())
     return {
         "status": "ok",
-        "message": "Evaluacion encolada en background.",
+        "mode": "background",
+        "message": "Evaluacion encolada en background. Usa ?sync=true en plan free de Render.",
     }
 
 
