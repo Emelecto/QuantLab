@@ -44,9 +44,18 @@ function buildSearch(symbol: string, source: "binance" | "yahoo", interval: stri
 async function fetchRows(symbol: string, source: "binance" | "yahoo", interval: string, limit: number): Promise<{ rows: Row[]; error?: string }> {
   try {
     const params = new URLSearchParams({ symbol, source, interval, limit: String(limit) });
-    const base =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    // Construir URL absoluta del propio API route para que el fetch server-to-server
+    // funcione en dev (localhost) y prod (Vercel). NEXT_PUBLIC_BASE_URL debe estar
+    // configurada en prod; como fallback, el route es server-only y accesible vía
+    // localhost en dev.
+    let base: string;
+    if (process.env.NEXT_PUBLIC_BASE_URL) {
+      base = process.env.NEXT_PUBLIC_BASE_URL;
+    } else if (process.env.VERCEL_URL) {
+      base = `https://${process.env.VERCEL_URL}`;
+    } else {
+      base = "http://localhost:3000";
+    }
     const url = `${base}/api/datasets?${params.toString()}`;
     const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (!resp.ok) {
