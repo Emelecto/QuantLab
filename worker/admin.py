@@ -64,7 +64,7 @@ def admin_stats(request: Request):
         wau = (
             sb.table("profiles")
             .select("id", count="exact")
-            .gte("last_active_at", seven_days_ago.isoformat())
+            .gte("last_active_date", seven_days_ago.date().isoformat())
             .execute().count or 0
         )
 
@@ -72,7 +72,7 @@ def admin_stats(request: Request):
         mau = (
             sb.table("profiles")
             .select("id", count="exact")
-            .gte("last_active_at", thirty_days_ago.isoformat())
+            .gte("last_active_date", thirty_days_ago.date().isoformat())
             .execute().count or 0
         )
 

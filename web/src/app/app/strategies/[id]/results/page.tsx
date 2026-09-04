@@ -98,7 +98,7 @@ export default function ResultsPage() {
       }
       const res = await publishStrategy({
         title: `${c.symbol} · ${c.timeframe}`,
-        description: `Estrategia ${c.asset_type} en ${c.symbol} (${c.timeframe}). Sharpe OOS ${m.sharpe_oos.toFixed(2)}.`,
+        description: `Estrategia ${c.asset_type} en ${c.symbol} (${c.timeframe}). Sharpe OOS ${m.sharpe_oos?.toFixed(2) ?? "n/d"}.`,
         asset_type: c.asset_type,
         symbol: c.symbol,
         timeframe: c.timeframe,
@@ -135,9 +135,9 @@ export default function ResultsPage() {
       "",
       run!.report ?? "",
       "",
-      `Sharpe OOS: ${m.sharpe_oos.toFixed(2)} · Deflated: ${m.deflated_sharpe_oos.toFixed(2)}`,
-      `Max DD: ${(m.maxdd * 100).toFixed(1)}% · Win rate: ${(m.winrate * 100).toFixed(0)}%`,
-      `Retorno total: ${(m.ret_total * 100).toFixed(1)}%`,
+      `Sharpe OOS: ${m.sharpe_oos?.toFixed(2) ?? "n/d"} · Deflated: ${m.deflated_sharpe_oos?.toFixed(2) ?? "n/d"}`,
+      `Max DD: ${m.maxdd != null ? (m.maxdd * 100).toFixed(1) : "n/d"}% · Win rate: ${m.winrate != null ? (m.winrate * 100).toFixed(0) : "n/d"}%`,
+      `Retorno total: ${m.ret_total != null ? (m.ret_total * 100).toFixed(1) : "n/d"}%`,
     ].join("\n");
     const blob = new Blob([txt], { type: "text/markdown" });
     const a = document.createElement("a");
@@ -224,14 +224,14 @@ export default function ResultsPage() {
         )}
 
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          <Metric label="Sharpe OOS" value={m.sharpe_oos.toFixed(2)} tone={m.sharpe_oos >= 0 ? "long" : "short"} />
-          <Metric label="Deflated Sharpe OOS" value={m.deflated_sharpe_oos.toFixed(2)} tone={m.deflated_sharpe_oos >= 0 ? "long" : "short"} />
-          <Metric label="Sortino" value={m.sortino.toFixed(2)} />
-          <Metric label="Max Drawdown" value={`${(m.maxdd * 100).toFixed(1)}%`} tone="short" />
-          <Metric label="Win Rate" value={`${(m.winrate * 100).toFixed(0)}%`} />
-          <Metric label="Trades" value={String(m.n_trades)} />
-          <Metric label="Retorno total" value={`${(m.ret_total * 100).toFixed(1)}%`} tone={m.ret_total >= 0 ? "long" : "short"} />
-          <Metric label="Volatilidad" value={`${(m.vol * 100).toFixed(1)}%`} />
+          <Metric label="Sharpe OOS" value={m.sharpe_oos?.toFixed(2) ?? "—"} tone={m.sharpe_oos >= 0 ? "long" : "short"} />
+          <Metric label="Deflated Sharpe OOS" value={m.deflated_sharpe_oos?.toFixed(2) ?? "—"} tone={m.deflated_sharpe_oos >= 0 ? "long" : "short"} />
+          <Metric label="Sortino" value={m.sortino?.toFixed(2) ?? "—"} />
+          <Metric label="Max Drawdown" value={`${m.maxdd != null ? (m.maxdd * 100).toFixed(1) : "—"}%`} tone="short" />
+          <Metric label="Win Rate" value={`${m.winrate != null ? (m.winrate * 100).toFixed(0) : "—"}%`} />
+          <Metric label="Trades" value={m.n_trades != null ? String(m.n_trades) : "—"} />
+          <Metric label="Retorno total" value={`${m.ret_total != null ? (m.ret_total * 100).toFixed(1) : "—"}%`} tone={m.ret_total >= 0 ? "long" : "short"} />
+          <Metric label="Volatilidad" value={`${m.vol != null ? (m.vol * 100).toFixed(1) : "—"}%`} />
         </div>
 
         <div className="ql-glass ql-elev-2 mt-8 rounded-xl p-6">

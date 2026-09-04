@@ -58,19 +58,49 @@ function normalizeLimit(limit: string | null): number {
   return Math.max(100, Math.min(1000, n));
 }
 
+// Mirrors regionales de Binance. `api.binance.com` es geobloqueada con
+// HTTP 451 desde algunos datacenters ( Vercel Edge ); probamos el mirror US.
+const BINANCE_HOSTS: Record<string, string> = {
+  "api.binance.com": "https://api.binance.com/api/v3/klines",
+  "api.binance.us": "https://api.binance.us/api/v3/klines",
+};
+const BINANCE_HOST_KEYS = Object.keys(BINANCE_HOSTS);
+
 async function fetchBinance(symbol: string, interval: Interval, limit: number): Promise<Row[]> {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol.toUpperCase())}&interval=${interval}&limit=${limit}`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!resp.ok) throw new Error(`Binance ${resp.status}`);
-  const data: unknown[][] = await resp.json();
-  return data.map((k) => ({
-    date: new Date(k[0] as number).toISOString(),
-    open: parseFloat(k[1] as string),
-    high: parseFloat(k[2] as string),
-    low: parseFloat(k[3] as string),
-    close: parseFloat(k[4] as string),
-    volume: parseFloat(k[5] as string),
-  }));
+  const params = `symbol=${encodeURIComponent(symbol.toUpperCase())}&interval=${interval}&limit=${limit}`;
+  const errors: string[] = [];
+  for (const hostKey of BINANCE_HOST_KEYS) {
+    const url = `${BINANCE_HOSTS[hostKey]}?${params}`;
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) {
+        const detail = `Binance ${resp.status}`;
+        if (resp.status === 451 && hostKey !== BINANCE_HOST_KEYS[BINANCE_HOST_KEYS.length - 1]) {
+          // 451 = geobloqueo; probamos el siguiente mirror.
+          errors.push(`binance: ${detail} (${hostKey})`);
+          continue;
+        }
+        throw new Error(detail);
+      }
+      const data: unknown[][] = await resp.json();
+      if (!Array.isArray(data)) throw new Error("Binance: respuesta inesperada");
+      return data.map((k) => ({
+        date: new Date(k[0] as number).toISOString(),
+        open: parseFloat(k[1] as string),
+        high: parseFloat(k[2] as string),
+        low: parseFloat(k[3] as string),
+        close: parseFloat(k[4] as string),
+        volume: parseFloat(k[5] as string),
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "error";
+      if (hostKey === BINANCE_HOST_KEYS[BINANCE_HOST_KEYS.length - 1]) {
+        throw new Error(`binance: ${msg}`);
+      }
+      errors.push(`binance: ${msg} (${hostKey})`);
+    }
+  }
+  throw new Error(`binance: todos los mirrors fallaron [${errors.join("; ")}]`);
 }
 
 async function fetchYahoo(symbol: string, interval: Interval, limit: number): Promise<Row[]> {

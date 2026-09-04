@@ -30,6 +30,7 @@ from notifications import router as notifications_router
 from referrals import router as referrals_router
 from badges import router as badges_router
 from admin import router as admin_router
+import ml_persist  # scoring programado de submissions ML (evaluate_ml_rounds)
 
 app = FastAPI(
     title="QuantLab Worker API",
@@ -424,26 +425,20 @@ async def scheduler_run(
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"generate_weekly_signals falló: {e}")
 
-            # Rondas ML
+            # Rondas ML: puntuar submissions pendientes.
+            # (la GENERACIÓN de datasets la hace GitHub Actions en ubuntu-latest,
+            #  con 7GB de RAM; aquí solo servimos + puntuamos. create_ml_round no
+            #  existe en este worker, por lo que no se crea nada aquí.)
             ml_evaluated = 0
-            ml_created = None
             try:
                 ml_evaluated = await loop.run_in_executor(
-                    None, lambda: evaluate_ml_rounds(sb, now)
-                )
-                ml_created = await loop.run_in_executor(
-                    None,
-                    lambda: create_ml_round(
-                        sb, mode="sintetico", now=now, round_days=4,
-                        n_activos=600, n_eras=350, n_features=50,
-                        n_features_utiles=12, ic_objetivo=0.06, seed=42,
-                    ),
+                    None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
                 )
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"Scheduler ML falló (evaluate/create): {e}")
+                logger.warning(f"Scheduler ML falló (evaluate): {e}")
             logger.info(
                 f"Scheduler completado: created={created_id}, "
-                f"ml_created={ml_created is not None}"
+                f"ml_evaluated={ml_evaluated}"
             )
         except Exception:
             logger.exception("Error en el scheduler (background)")

@@ -395,7 +395,7 @@ function DashboardHome() {
                   {myStrategies.map((s) => (
                     <Link
                       key={s.id}
-                      href={`/app/strategies/${s.id}`}
+                      href={`/app/strategies/${s.id}/results`}
                       className="ql-estrategia-item"
                     >
                       <span className="ql-estrategia-symbol">{s.symbol}</span>

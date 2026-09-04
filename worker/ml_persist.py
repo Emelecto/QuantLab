@@ -265,3 +265,61 @@ def cargar_predicciones_validas(supabase, dataset_id) -> pd.DataFrame:
     if not series:
         return pd.DataFrame()
     return pd.concat(series, axis=1)
+
+
+# ---------------------------------------------------------------------------
+# Scoring programado de submissions pendientes (cron / scheduler)
+# ---------------------------------------------------------------------------
+def evaluate_ml_rounds(supabase, now=None) -> int:
+    """Puntúa TODAS las submissions ML en estado `pending` que aún no han
+    sido evaluadas.
+
+    Llamado desde el scheduler (`main.py: /scheduler/run`) para asegurar que
+    una submission que quedó en `pending` (el BackgroundTask de FastAPI se fue
+    en background bajo Render free, que mata el request) eventualmente se
+    puntúa. Cada submission se puntua de forma aislada: si una falla no
+    aborta el lote (se loggea y se marca `error`).
+
+    Devuelve la cantidad de submissions puntuadas en esta pasada.
+    """
+    import logging
+    logger_ = logging.getLogger(__name__)
+    # Import tardío para evitar ciclo de importaciones en el arranque del
+    # worker (tournaments.py no importa ml_persist).
+    try:
+        from ml_persist import puntuar_submission_en_bd
+    except Exception:  # pragma: no cover - defensivo
+        from ml_persist import puntuar_submission_en_bd  # noqa: F811
+
+    import typing as _t
+    # La firma pública acepta un cliente supabase; si llega None, lo creamos.
+    if supabase is None:
+        from tournaments import get_supabase
+        supabase = get_supabase()
+
+    subs = (
+        supabase.table("prediction_submissions")
+        .select("id,status,submitted_at")
+        .eq("status", "pending")
+        .order("submitted_at", desc=False)
+        .execute()
+    )
+    rows = subs.data or []
+    scored = 0
+    for r in rows:
+        sid = r.get("id")
+        if not sid:
+            continue
+        try:
+            puntuar_submission_en_bd(sid)
+            scored += 1
+        except Exception:
+            logger_.exception("evaluate_ml_rounds: submission %s falló", sid)
+            try:
+                supabase.table("prediction_submissions").update(
+                    {"status": "error"}
+                ).eq("id", sid).execute()
+            except Exception:
+                pass
+    return scored
+
