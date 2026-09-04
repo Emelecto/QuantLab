@@ -15,9 +15,11 @@ import io
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, UploadFile
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, UploadFile, Query
 from pydantic import BaseModel
 
+import os
 from auth import require_user
 import ml_storage as store
 import ml_persist as persist
@@ -215,11 +217,22 @@ async def submit_predictions(
 # Evaluar submission bajo demanda (llamado desde el frontend vía polling)
 # ---------------------------------------------------------------------------
 @router.post("/submissions/{submission_id}/evaluate")
-def evaluate_submission(submission_id: str, request: Request):
-    """Evalúa una submission pending bajo demanda (timeout-safe)."""
-    user_id = require_user(request)
+def evaluate_submission(submission_id: str, request: Request, scheduler_key: Optional[str] = Query(None)):
+    """Evalúa una submission pending bajo demanda (timeout-safe).
+
+    Auth: JWT de usuario (Authorization) o ?scheduler_key=<SCHEDULER_KEY> para
+    disparar scoring programado/forzado sin intervención del usuario (cron,
+    admin, etc.). En Render plan free el BackgroundTask no persiste, así que
+    este endpoint ejecuta el scoring SÍNCRONO dentro del request.
+    """
     from tournaments import get_supabase
     sb = get_supabase()
+    # Auth: clave de scheduler (bypass) o usuario normal.
+    _sk = os.environ.get("SCHEDULER_KEY")
+    if scheduler_key and _sk and scheduler_key == _sk:
+        user_id = sb.table("prediction_submissions").select("user_id").eq("id", submission_id).execute().data[0]["user_id"] if True else None
+    else:
+        user_id = require_user(request)
     sub = sb.table("prediction_submissions").select("id,user_id,status").eq("id", submission_id).eq("user_id", user_id).execute()
     if not sub.data:
         raise HTTPException(404, "submission no encontrada")
