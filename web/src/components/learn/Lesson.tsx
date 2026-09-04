@@ -47,7 +47,7 @@ export function Lesson({ moduleId }: { moduleId: number }) {
 
   return (
     <div className="lesson">
-      <Link href="/learn" className="link-back">← Ruta Aprendiz</Link>
+      <Link href="/app/learn" className="link-back">← Ruta Aprendiz</Link>
       <header className="lesson-head">
         <span className="lesson-kicker">Parte: {mod.def.part} · Módulo {mod.def.id}{mod.def.kind === "tournament" ? " · 🏆 Debut" : ""}</span>
         <h1>{mod.def.title}</h1>
@@ -164,7 +164,7 @@ function DatasetExercise({ def, onUsed, used }: { def: string; onUsed: () => voi
           <button className="btn-secondary" onClick={() => { setFav(true); progress.setFavoriteDataset(d.id); onUsed(); }}>{
             fav ? "★ Fijado como favorito" : "☆ Fijar como favorito"
           }</button>
-          <Link className="btn-ghost" href="/library">Ir a la Biblioteca →</Link>
+          <Link className="btn-ghost" href="/app/library">Ir a la Biblioteca →</Link>
         </div>
         {fav && <p className="seam-note">⭐ Costura: este dataset quedó como favorito en tu Biblioteca.</p>}
       </div>

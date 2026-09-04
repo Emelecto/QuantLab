@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
 import { useDashboardData } from "./useDashboardData";
 import { modules as courseModules } from "@/lib/learn/modules";
@@ -172,6 +172,12 @@ function DashboardHome() {
   const myTournaments = tournaments.slice(0, 6);
   const hasMoreTournaments = tournaments.length > 6;
   const myStrategies = strategies.slice(0, 6);
+
+  // Cargar el ranking al montar para que aparezca instantáneamente sin requerir click.
+  useEffect(() => {
+    loadRanking(rankingTab, period);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="ql-dash-content" aria-busy={loading}>

@@ -8,7 +8,7 @@
 /* ---------- Buttons (reusa .ql-btn-* de globals cuando aplica) ---------- */
 .btn-primary {
   background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
-  color: #fff; border: none; padding: 11px 18px; border-radius: 11px;
+  color: #04110d; border: none; padding: 9px 18px; border-radius: 11px;
   font-weight: 600; cursor: pointer; font-size: 14px; transition: transform 0.1s, filter 0.15s;
 }
 .btn-primary:hover { filter: brightness(1.08); }
