@@ -41,29 +41,136 @@ function buildSearch(symbol: string, source: "binance" | "yahoo", interval: stri
   return `/api/datasets/download?${p.toString()}`;
 }
 
+const CRYPTO_SYMBOLS = new Set([
+  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT",
+  "BTCUSD", "ETHUSD", "BNBUSD", "SOLUSD", "XRPUSD", "ADAUSD", "DOGEUSD",
+  "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE",
+]);
+
+function isCrypto(symbol: string): boolean {
+  const s = symbol.toUpperCase().replace(/[^A-Z]/g, "");
+  if (CRYPTO_SYMBOLS.has(symbol.toUpperCase())) return true;
+  if (/^(BTC|ETH|BNB|SOL|XRP|ADA|DOGE|AVAX|MATIC|LINK|UNI|ATOM|LTC|DOT|TRX)/.test(s)) return true;
+  if (/USDT$|USD$/.test(symbol.toUpperCase())) return true;
+  return false;
+}
+
+// Mirrors regionales de Binance. `api.binance.com` es geobloqueada con HTTP 451
+// desde datacenters de Vercel Edge; `api.binance.us` actúa de fallback.
+const BINANCE_HOSTS = [
+  "https://api.binance.com/api/v3/klines",
+  "https://api.binance.us/api/v3/klines",
+];
+
+async function fetchBinanceDirect(symbol: string, interval: string, limit: number): Promise<Row[]> {
+  const params = `symbol=${encodeURIComponent(symbol.toUpperCase())}&interval=${interval}&limit=${limit}`;
+  const errors: string[] = [];
+  for (const host of BINANCE_HOSTS) {
+    const url = `${host}?${params}`;
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) {
+        const detail = `Binance ${resp.status}`;
+        if (resp.status === 451) {
+          errors.push(`${detail} (${host})`);
+          continue; // probar el siguiente mirror
+        }
+        throw new Error(detail);
+      }
+      const data: unknown[][] = await resp.json();
+      if (!Array.isArray(data)) throw new Error("Binance: respuesta inesperada");
+      return data.map((k) => ({
+        date: new Date(k[0] as number).toISOString(),
+        open: parseFloat(k[1] as string),
+        high: parseFloat(k[2] as string),
+        low: parseFloat(k[3] as string),
+        close: parseFloat(k[4] as string),
+        volume: parseFloat(k[5] as string),
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "error";
+      errors.push(`${msg} (${host})`);
+    }
+  }
+  throw new Error(`Binance falló en todos los mirrors [${errors.join("; ")}]`);
+}
+
+async function fetchYahooDirect(symbol: string, interval: string, limit: number): Promise<Row[]> {
+  const yahooInterval = interval === "1w" ? "1wk" : interval === "4h" ? "1h" : interval === "1h" ? "1h" : "1d";
+  const range = interval === "1h" ? "730d" : interval === "4h" ? "730d" : "max";
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${yahooInterval}`;
+  const resp = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+  });
+  if (!resp.ok) throw new Error(`Yahoo ${resp.status}`);
+  const json = (await resp.json()) as {
+    chart?: {
+      result?: Array<{
+        timestamp?: number[];
+        indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null>; volume?: Array<number | null> }> };
+      } | null>;
+    };
+  };
+  const result = json.chart?.result?.[0];
+  if (!result) throw new Error("Yahoo: sin datos");
+  const timestamps: number[] = result.timestamp ?? [];
+  const quote = result?.indicators?.quote?.[0];
+  if (!quote) throw new Error("Yahoo: sin indicadores");
+  const rows: Row[] = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const o = quote.open?.[i];
+    const h = quote.high?.[i];
+    const l = quote.low?.[i];
+    const c = quote.close?.[i];
+    const v = quote.volume?.[i];
+    if (o == null || h == null || l == null || c == null) continue;
+    rows.push({
+      date: new Date(timestamps[i] * 1000).toISOString(),
+      open: o, high: h, low: l, close: c, volume: v ?? 0,
+    });
+  }
+  return rows.slice(-limit);
+}
+
+/**
+ * Fetcha datos OHLCV directamente de la fuente (Binance/Yahoo).
+ *
+ * Se hace el fetch server-side (Next.js server component) SIN pasar por el API
+ * route interno `/api/datasets`, porque un server component en Vercel no puede
+ * hacer fetch a otro serverless function de la misma app (falla con
+ * "fetch failed" / ERR_NAME_NOT_RESOLVED cuando NEXT_PUBLIC_BASE_URL apunta a
+ * localhost). Fetchar directamente a la API pública de datos funciona en dev
+ * y en prod (Vercel).
+ */
 async function fetchRows(symbol: string, source: "binance" | "yahoo", interval: string, limit: number): Promise<{ rows: Row[]; error?: string }> {
   try {
-    const params = new URLSearchParams({ symbol, source, interval, limit: String(limit) });
-    // Construir URL absoluta del propio API route para que el fetch server-to-server
-    // funcione en dev (localhost) y prod (Vercel). NEXT_PUBLIC_BASE_URL debe estar
-    // configurada en prod; como fallback, el route es server-only y accesible vía
-    // localhost en dev.
-    let base: string;
-    if (process.env.NEXT_PUBLIC_BASE_URL) {
-      base = process.env.NEXT_PUBLIC_BASE_URL;
-    } else if (process.env.VERCEL_URL) {
-      base = `https://${process.env.VERCEL_URL}`;
-    } else {
-      base = "http://localhost:3000";
+    const useBinance = source === "binance";
+    const useYahoo = source === "yahoo";
+    const errors: string[] = [];
+    let rows: Row[] = [];
+    let usedSource = "";
+
+    if (useBinance) {
+      try {
+        rows = await fetchBinanceDirect(symbol, interval, limit);
+        usedSource = "binance";
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : "binance error");
+      }
     }
-    const url = `${base}/api/datasets?${params.toString()}`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return { rows: [], error: `HTTP ${resp.status}: ${txt.slice(0, 120)}` };
+    if (usedSource === "" && useYahoo) {
+      try {
+        rows = await fetchYahooDirect(symbol, interval, limit);
+        usedSource = "yahoo";
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : "yahoo error");
+      }
     }
-    const json = await resp.json();
-    return { rows: json.rows ?? [] };
+    if (rows.length === 0) {
+      return { rows: [], error: `No se pudieron obtener datos: ${errors.join("; ") || "sin fuentes disponibles"}` };
+    }
+    return { rows };
   } catch (e) {
     return { rows: [], error: e instanceof Error ? e.message : "Error desconocido" };
   }
