@@ -185,23 +185,18 @@ async def submit_predictions(
             sb.table("prediction_submissions").update({"status": "disqualified"}).eq("id", sub_id).execute()
             raise HTTPException(502, f"No fue posible guardar el archivo: {e}")
 
-        # La evaluación NO se hace aquí en el request: Render (plan free/starter)
-        # corta las requests largas (~30-60s) y el scoring de 42k filas excede ese
-        # límite -> 502 a mitad de la evaluación (GOTCHA 13). En su lugar la
-        # respuesta 200 sale ya con status "pending" y la evaluación corre en un
-        # BackgroundTask (tras responder) y/o vía el polling del frontend contra
-        # /ml/submissions/{id}/evaluate hasta estado terminal (scored/disqualified).
-        def _evaluar(_sid: str):
-            import ml_persist
-            try:
-                ml_persist.puntuar_submission_en_bd(_sid)
-            except Exception:
-                logger.exception(f"Evaluación en background falló para {_sid}")
+        # SCORING SINCRONO (set-and-forget). El plan free/start de Render mata
+        # los BackgroundTask tras responder, así que la evaluacion se corre AQUI
+        # mismo dentro del request: el usuario envia -> se puntua al instante ->
+        # la respuesta ya trae status terminal (scored/disqualified). El scoring
+        # de ~70 eras cabe en el timeout de gunicorn (Dockerfile: --timeout 300).
+        import ml_persist
+        try:
+            ml_persist.puntuar_submission_en_bd(sub_id)
+        except Exception:
+            logger.exception(f"Scoring sincrono falló para {sub_id}")
 
-        background_tasks.add_task(_evaluar, sub_id)
-
-        # Devolver resultado final (siempre 200, el frontend lee el status y
-        # completa la evaluación vía polling de /ml/submissions/{id})
+        # Devolver resultado final (siempre 200, con el status ya terminal)
         res = sb.table("prediction_submissions").select(
             "id,row_count,status,score,corr_mean,fnc_mean,consistencia,meta_corr,is_valid,plagio_flag,submitted_at,scored_at"
         ).eq("id", sub_id).execute()
