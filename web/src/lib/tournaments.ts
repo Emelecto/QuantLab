@@ -219,7 +219,20 @@ export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (token) headers["Authorization"] = `Bearer ${token}`;
   // Anti-cache: timestamp para evitar que el navegador sirva respuestas cacheadas viejas.
   const cacheBust = `${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
-  const res = await fetch(`${workerUrl}${path}${cacheBust}`, { ...init, headers });
+  // El fetch solo rechaza ante fallos de red (worker caído/reiniciándose,
+  // DNS, bloqueadores). Sin este try/catch el navegador muestra el críptico
+  // "Failed to fetch"; lo convertimos en un error accionable con la URL.
+  let res: Response;
+  try {
+    res = await fetch(`${workerUrl}${path}${cacheBust}`, { ...init, headers });
+  } catch {
+    const err = new Error(
+      `No se pudo conectar con el worker en ${workerUrl}${path}. ` +
+        `Reintenta en unos segundos (puede estar reiniciándose) y revisa tu conexión o bloqueadores del navegador.`,
+    ) as Error & { code?: string };
+    err.code = "WORKER_UNREACHABLE";
+    throw err;
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(json.error || `HTTP ${res.status}`) as Error & { code?: string };
