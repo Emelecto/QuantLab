@@ -2,19 +2,27 @@
 
 /* ============================================================
    QuantLab — tema dark quant minimalista / futurista / 3D
+   Palette OKLCH adaptada de iamsajid.com/ui-colors.
+   4-color system (Sajid): bg/text + accent violeta (264)
+   + accent amber (84). Light/dark comparten hue.
    ============================================================ */
 :root {
-  --ql-bg: #0a0c10; /* fondo base (un pelo más oscuro) */
-  --ql-surface: rgba(255, 255, 255, 0.025); /* glass */
-  --ql-surface-solid: #11151c; /* superficie sólida */
-  --ql-line: rgba(255, 255, 255, 0.07); /* borde sutil */
-  --ql-ink: #eef2f7; /* texto principal */
-  --ql-muted: #8b93a7; /* texto muteado */
-  --ql-accent: #f8fafc; /* acento primario: blanco hueso (Vercel-style) */
-  --ql-accent-2: #cbd5e1; /* acento secundario: gris claro cálido */
-  --ql-long: #10b981; /* SOLO long / positivo */
-  --ql-short: #ef4444; /* SOLO short / negativo */
-  --ql-glow: rgba(248, 250, 252, 0.10); /* glow de acento (blanco tenue) */
+  --ql-bg: oklch(0.12 0.022 264);          /* fondo base */
+  --ql-surface: oklch(0.15 0.018 264);     /* glass card */
+  --ql-surface-solid: oklch(0.17 0.018 264);
+  --ql-line: oklch(0.31 0.020 264);        /* borde sutil */
+  --ql-line-muted: oklch(0.24 0.018 264);  /* borde más tenue */
+  --ql-ink: oklch(0.96 0.045 264);         /* texto principal */
+  --ql-muted: oklch(0.74 0.030 264);       /* texto secundario */
+  --ql-highlight: oklch(0.52 0.05 264);    /* highlight/interacción */
+  --ql-accent: oklch(0.93 0.075 264);      /* acento violeta (primary) */
+  --ql-accent-2: oklch(0.76 0.11 264);     /* violeta más fuerte */
+  --ql-tertiary: oklch(0.92 0.12 84);      /* amber personality (secondary) */
+  --ql-long: oklch(0.78 0.12 160);         /* green / positivo */
+  --ql-short: oklch(0.72 0.13 30);         /* red / negativo */
+  --ql-warning: oklch(0.72 0.12 100);      /* warning */
+  --ql-info: oklch(0.72 0.12 260);         /* info */
+  --ql-glow: hsla(224, 64%, 97%, 0.10);    /* glow con alpha real */
 }
 
 @theme inline {
@@ -28,7 +36,7 @@
   --color-short: var(--ql-short);
   --color-accent: var(--ql-accent);
   --color-accent-2: var(--ql-accent-2);
-  --color-cyan: var(--ql-accent-2);
+  --color-cyan: var(--ql-tertiary);
   --color-glow: var(--ql-glow);
 
   --font-sans: var(--font-geist-sans);
@@ -62,9 +70,9 @@ body::before {
   pointer-events: none;
   opacity: 0.5;
   background:
-    radial-gradient(55% 45% at 12% 6%, rgba(248, 250, 252, 0.08), transparent 60%),
-    radial-gradient(50% 45% at 88% 94%, rgba(56, 189, 248, 0.12), transparent 60%),
-    radial-gradient(38% 38% at 72% 22%, rgba(99, 102, 241, 0.10), transparent 60%);
+    radial-gradient(55% 45% at 12% 6%, hsla(224, 96%, 97%, 0.08), transparent 60%),
+    radial-gradient(50% 45% at 88% 94%, hsla(198, 90%, 55%, 0.12), transparent 60%),
+    radial-gradient(38% 38% at 72% 22%, hsla(248, 90%, 60%, 0.10), transparent 60%);
 }
 
 /* ------------------------------------------------------------
@@ -76,31 +84,33 @@ body::before {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--ql-line);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 30px rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 hsla(224, 96%, 97%, 0.06),
+    0 8px 30px hsla(0, 0%, 0%, 0.4);
   border-radius: 12px;
 }
 
 .ql-elev-1 {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px hsla(0, 0%, 0%, 0.35);
 }
 .ql-elev-2 {
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    0 20px 50px hsla(0, 0%, 0%, 0.55),
+    0 4px 12px hsla(224, 90%, 50%, 0.10);
 }
 
-/* tier destacado (Pro) — borde teal + glow */
+/* tier destacado (Pro) — borde acento violeta + glow */
 .ql-tier-featured {
-  border-color: rgba(248, 250, 252, 0.40);
+  border-color: hsla(224, 96%, 97%, 0.40);
   box-shadow:
-    0 0 30px rgba(248, 250, 252, 0.09),
-    0 14px 44px rgba(0, 0, 0, 0.55);
+    0 0 30px hsla(224, 90%, 50%, 0.09),
+    0 14px 44px hsla(0, 0%, 0%, 0.55);
 }
 
 /* glow suave de acento para superficies destacadas (login/register) */
 .ql-glow-soft {
   box-shadow:
-    0 14px 44px rgba(0, 0, 0, 0.55),
-    0 0 26px rgba(248, 250, 252, 0.08);
+    0 14px 44px hsla(0, 0%, 0%, 0.55),
+    0 0 26px hsla(224, 96%, 97%, 0.08);
 }
 
 /* ------------------------------------------------------------
@@ -111,16 +121,16 @@ body::before {
 }
 .ql-tilt {
   transition:
-    transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1),
-    box-shadow 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transform 320ms cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 320ms cubic-bezier(0.25, 0.1, 0.25, 1);
   will-change: transform;
 }
 .ql-tilt:hover {
-  transform: translateY(-6px) rotateX(3deg) rotateY(-2deg);
+  transform: translateY(-6px) rotateX(3deg) rotateY(-2deg) scale(1.008);
   box-shadow:
-    0 0 0 1px rgba(248, 250, 252, 0.12),
-    0 18px 50px rgba(248, 250, 252, 0.06),
-    0 14px 44px rgba(0, 0, 0, 0.55);
+    0 0 0 1px hsla(224, 96%, 97%, 0.12),
+    0 18px 50px hsla(224, 90%, 50%, 0.06),
+    0 14px 44px hsla(0, 0%, 0%, 0.55);
 }
 
 /* ------------------------------------------------------------
@@ -135,7 +145,7 @@ body::before {
 
 /* gradiente de acento para palabras clave */
 .ql-gradient-text {
-  background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
+  background: linear-gradient(135deg, var(--ql-accent), var(--ql-tertiary));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -145,7 +155,7 @@ body::before {
    INPUTS GLASS
    ------------------------------------------------------------ */
 .ql-input {
-  background: rgba(255, 255, 255, 0.03);
+  background: hsla(224, 96%, 97%, 0.03);
   border: 1px solid var(--ql-line);
   color: var(--ql-ink);
   transition:
@@ -169,18 +179,18 @@ body::before {
     box-shadow 160ms ease;
 }
 .ql-row:hover {
-  background: rgba(248, 250, 252, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(248, 250, 252, 0.08);
+  background: hsla(224, 96%, 97%, 0.04);
+  box-shadow: inset 0 0 0 1px hsla(224, 90%, 50%, 0.08);
 }
 
 /* ------------------------------------------------------------
    BOTONES
    ------------------------------------------------------------ */
 .ql-btn-primary {
-  background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
-  color: #04110d;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, var(--ql-accent), var(--ql-tertiary));
+  color: oklch(0.12 0.022 264);
+  border: 1px solid hsla(224, 96%, 97%, 0.12);
+  box-shadow: inset 0 1px 0 hsla(224, 96%, 97%, 0.25);
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -188,8 +198,8 @@ body::before {
 .ql-btn-primary:hover {
   transform: translateY(-1px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 10px 30px rgba(248, 250, 252, 0.20);
+    inset 0 1px 0 hsla(224, 96%, 97%, 0.25),
+    0 10px 30px hsla(224, 90%, 50%, 0.20);
 }
 
 .ql-btn-secondary {
@@ -213,13 +223,13 @@ body::before {
    TIPOGRAFÍA DENSA (métricas)
    ------------------------------------------------------------ */
 .metric {
-  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
 ::selection {
-  background: rgba(248, 250, 252, 0.22);
+  background: hsla(224, 96%, 97%, 0.22);
   color: var(--ql-ink);
 }
 
@@ -228,7 +238,7 @@ body::before {
 select,
 select option,
 select optgroup {
-  background-color: #0d1017;
+  background-color: oklch(0.12 0.022 264);
   color: var(--ql-ink);
 }
 select {
@@ -244,11 +254,11 @@ select {
   background: var(--ql-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2b3547;
+  background: oklch(0.31 0.020 264);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a465c;
+  background: oklch(0.37 0.022 264);
 }
 
 /* ------------------------------------------------------------
@@ -296,12 +306,12 @@ select {
 .ql-skeleton-line {
   height: 12px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: hsla(224, 96%, 97%, 0.05);
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 .ql-skeleton-circle {
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: hsla(224, 96%, 97%, 0.05);
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 .ql-skeleton-card {
@@ -316,7 +326,7 @@ select {
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 .ql-glass-hover:hover {
-  border-color: rgba(248, 250, 252, 0.45);
+  border-color: hsla(224, 96%, 97%, 0.45);
 }
 
 /* Botones con active scale — 0.96 es el estándar táctil correcto */
@@ -373,10 +383,10 @@ body::after {
   inset: 0;
   z-index: -9;
   pointer-events: none;
-  background-image: radial-gradient(rgba(139, 147, 167, 0.14) 1px, transparent 1px);
+  background-image: radial-gradient(oklch(0.74 0.030 264) 1px, transparent 1px);
   background-size: 26px 26px;
-  mask-image: radial-gradient(80% 60% at 50% 0%, rgba(0, 0, 0, 0.5), transparent 75%);
-  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, rgba(0, 0, 0, 0.5), transparent 75%);
+  mask-image: radial-gradient(80% 60% at 50% 0%, oklch(0 0 0), transparent 75%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, oklch(0 0 0), transparent 75%);
 }
 
 /* Tipografía: balance en headings, pretty en párrafos */
@@ -439,7 +449,7 @@ p {
   transition: opacity 300ms ease;
   background: radial-gradient(
     240px circle at var(--spot-x, 50%) var(--spot-y, 50%),
-    rgba(248, 250, 252, 0.06),
+    hsla(224, 96%, 97%, 0.06),
     transparent 65%
   );
   pointer-events: none;
@@ -482,7 +492,7 @@ p {
 
 /* Texto de datos decorativo del hero */
 .hero-data-text {
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.15);
+  text-shadow: 0 0 8px hsla(198, 90%, 55%, 0.15);
   word-break: break-all;
 }
 
@@ -495,3 +505,8 @@ p {
 .hero-section nav a {
   text-decoration: none;
 }
+
+/* ===== Sajid: Fluid typography con clamp() ===== */
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+h2 { font-size: clamp(1.35rem, 3vw, 1.9rem); }
+h3 { font-size: clamp(1.05rem, 2.5vw, 1.3rem); }

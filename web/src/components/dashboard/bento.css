@@ -34,13 +34,13 @@
 .ql-bento-competencias-body::-webkit-scrollbar-thumb,
 .ql-ranking-body::-webkit-scrollbar-thumb,
 .ql-estrategias-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: hsla(224, 96%, 97%, 0.08);
   border-radius: 2px;
 }
 .ql-bento-competencias-body::-webkit-scrollbar-thumb:hover,
 .ql-ranking-body::-webkit-scrollbar-thumb:hover,
 .ql-estrategias-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: hsla(224, 96%, 97%, 0.15);
 }
 
 /* Firefox */
@@ -48,22 +48,30 @@
 .ql-ranking-body,
 .ql-estrategias-body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+  scrollbar-color: hsla(224, 96%, 97%, 0.08) transparent;
 }
 
+/* ===== Sajid: card base con hover accent-only-on-interaction ===== */
 .ql-bento-card {
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   border-radius: 12px;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  /* Sajid easing: cubic-bezier(0.25, 0.1, 0.25, 1) = natural motion */
+  transition: transform 0.24s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.24s cubic-bezier(0.25, 0.1, 0.25, 1),
+    box-shadow 0.24s cubic-bezier(0.25, 0.1, 0.25, 1);
   min-height: 0;
 }
 .ql-bento-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(248, 250, 252, 0.18);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+  /* Sajid hover: subtle lift + accent border (accent ONLY on interaction → no visual noise) */
+  transform: translateY(-3px) scale(1.008);
+  border-color: hsla(224, 96%, 97%, 0.30);
+  box-shadow: 0 14px 40px hsla(0 0% 0% / 0.45);
+}
+.ql-bento-card.active {
+  border-color: hsla(224, 90%, 50%, 0.45);
 }
 
 .ql-bento-card-header {
@@ -84,7 +92,7 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: rgba(248, 250, 252, 0.06);
+  background: hsla(224, 96%, 97%, 0.06);
   color: var(--ql-accent);
   flex-shrink: 0;
 }
@@ -98,7 +106,8 @@
   gap: 1px;
 }
 .ql-bento-card-title h3 {
-  font-size: 12px;
+  /* Sajid: fluid typography con clamp() */
+  font-size: clamp(0.65rem, 1.6vw, 0.8rem);
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -106,7 +115,7 @@
   line-height: 1.2;
 }
 .ql-bento-card-subtitle {
-  font-size: 9px;
+  font-size: clamp(0.52rem, 1.3vw, 0.63rem);
   color: var(--ql-muted);
   margin: 0;
 }
@@ -117,7 +126,7 @@
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(16, 185, 129, 0.15);
+  background: hsla(160, 40%, 50%, 0.15);
   color: var(--ql-long);
 }
 
@@ -171,8 +180,8 @@
   display: flex;
   flex-direction: column;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: hsla(224, 96%, 97%, 0.025);
+  border: 1px solid hsla(224, 96%, 97%, 0.06);
   overflow: hidden;
   text-decoration: none;
   color: inherit;
@@ -181,8 +190,8 @@
   flex: 1;
 }
 .ql-competencia-mini:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(248, 250, 252, 0.15);
+  background: hsla(224, 96%, 97%, 0.05);
+  border-color: hsla(224, 96%, 97%, 0.15);
   transform: translateY(-2px);
 }
 .ql-competencia-mini-header {
@@ -209,16 +218,16 @@
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(16, 185, 129, 0.15);
+  background: hsla(160, 40%, 50%, 0.15);
   color: var(--ql-long);
   white-space: nowrap;
 }
 .ql-competencia-mini-status.pending {
-  background: rgba(255, 183, 3, 0.15);
-  color: #fbbf24;
+  background: hsla(40, 80%, 50%, 0.15);
+  color: oklch(0.78 0.12 60);
 }
 .ql-competencia-mini-name {
-  font-size: 13px;
+  font-size: clamp(0.72rem, 1.6vw, 0.82rem);
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -239,7 +248,7 @@
   font-weight: 500;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: hsla(224, 96%, 97%, 0.05);
   color: var(--ql-muted);
 }
 .ql-competencia-mini-footer {
@@ -248,7 +257,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid hsla(224, 96%, 97%, 0.04);
 }
 .ql-competencia-mini-prize {
   display: flex;
@@ -302,7 +311,7 @@
 .ql-ranking-tabs {
   display: flex;
   gap: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: hsla(224, 96%, 97%, 0.04);
   border-radius: 4px;
   padding: 2px;
 }
@@ -325,7 +334,7 @@
 .ql-ranking-period select {
   padding: 3px 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.04);
+  background: hsla(224, 96%, 97%, 0.04);
   border: 1px solid var(--ql-line);
   color: var(--ql-ink);
   font-size: 9px;
@@ -356,11 +365,11 @@
   transition: background 0.15s;
 }
 .ql-ranking-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: hsla(224, 96%, 97%, 0.03);
 }
 .ql-ranking-item.is-me {
-  background: rgba(248, 250, 252, 0.06);
-  border: 1px solid rgba(248, 250, 252, 0.15);
+  background: hsla(224, 96%, 97%, 0.06);
+  border: 1px solid hsla(224, 96%, 97%, 0.15);
 }
 .ql-ranking-pos {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
@@ -380,7 +389,7 @@
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: hsla(224, 96%, 97%, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,7 +412,7 @@
   gap: 0px;
 }
 .ql-ranking-name {
-  font-size: 11px;
+  font-size: clamp(0.62rem, 1.4vw, 0.72rem);
   font-weight: 500;
   color: var(--ql-ink);
   white-space: nowrap;
@@ -421,7 +430,7 @@
   margin-left: 3px;
 }
 .ql-ranking-stat {
-  font-size: 9px;
+  font-size: clamp(0.55rem, 1.2vw, 0.64rem);
   color: var(--ql-muted);
 }
 .ql-ranking-qp {
@@ -452,14 +461,14 @@
   gap: 2px;
   padding: 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.025);
+  background: hsla(224, 96%, 97%, 0.025);
   border: 1px solid transparent;
   text-decoration: none;
   color: inherit;
   transition: background 0.15s, border-color 0.15s;
 }
 .ql-estrategia-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: hsla(224, 96%, 97%, 0.05);
   border-color: var(--ql-line);
 }
 .ql-estrategia-symbol {
@@ -474,7 +483,7 @@
   min-width: 0;
 }
 .ql-estrategia-info h4 {
-  font-size: 10px;
+  font-size: clamp(0.65rem, 1.5vw, 0.75rem);
   font-weight: 600;
   color: var(--ql-ink);
   margin: 0;
@@ -483,12 +492,12 @@
   text-overflow: ellipsis;
 }
 .ql-estrategia-meta {
-  font-size: 8px;
+  font-size: clamp(0.52rem, 1.3vw, 0.6rem);
   color: var(--ql-muted);
 }
 .ql-estrategia-metric {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 11px;
+  font-size: clamp(0.55rem, 1.3vw, 0.65rem);
   font-weight: 600;
   color: var(--ql-long);
 }
@@ -534,12 +543,12 @@
   gap: 2px;
 }
 .ql-aprendizaje-label {
-  font-size: 11px;
+  font-size: clamp(0.62rem, 1.5vw, 0.72rem);
   font-weight: 600;
   color: var(--ql-ink);
 }
 .ql-aprendizaje-detail {
-  font-size: 9px;
+  font-size: clamp(0.52rem, 1.3vw, 0.6rem);
   color: var(--ql-muted);
 }
 .ql-aprendizaje-cta {
@@ -583,9 +592,9 @@
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .ql-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: hsla(224, 96%, 97%, 0.04);
   color: var(--ql-ink);
-  border-color: rgba(248, 250, 252, 0.18);
+  border-color: hsla(224, 96%, 97%, 0.18);
 }
 
 .ql-dashboard-header {
@@ -596,7 +605,8 @@
   flex-shrink: 0;
 }
 .ql-dashboard-header h1 {
-  font-size: 28px;
+  /* Sajid: fluid typography */
+  font-size: clamp(1.5rem, 3.5vw, 1.9rem);
   font-weight: 700;
   color: var(--ql-ink);
   margin: 0;
@@ -604,12 +614,12 @@
   line-height: 1.15;
 }
 .ql-dashboard-subtitle {
-  font-size: 14px;
+  font-size: clamp(0.75rem, 1.8vw, 0.9rem);
   color: var(--ql-muted);
   margin: 0;
 }
 .ql-gradient-text {
-  background: linear-gradient(135deg, var(--ql-accent), var(--ql-accent-2));
+  background: linear-gradient(135deg, var(--ql-accent), var(--ql-tertiary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
