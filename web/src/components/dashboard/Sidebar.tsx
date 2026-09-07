@@ -400,6 +400,7 @@ export function Sidebar() {
               {!collapsed && <span className="ql-nav-label">{item.label}</span>}
             </Link>
           ))}
+
       </nav>
 
       <div className="ql-sidebar-spacer" />

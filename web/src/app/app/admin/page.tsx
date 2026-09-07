@@ -139,6 +139,37 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Growth — cabinas de contenido (solo admin) */}
+      <div className="ql-glass ql-elev-1 rounded-xl p-5">
+        <h2 className="text-lg font-semibold text-ink mb-1">
+          📣 Growth — cabinas de contenido
+        </h2>
+        <p className="text-xs text-muted mb-3">
+          Solo admin. Contenido educativo, QP siempre virtuales, sin promesas de
+          retornos.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/app/admin/content/instagram"
+            className="rounded-md border border-line px-3 py-2 text-sm text-ink hover:bg-surface transition-colors"
+          >
+            Instagram — cabina
+          </Link>
+          <Link
+            href="/app/admin/content/tiktok"
+            className="rounded-md border border-line px-3 py-2 text-sm text-ink hover:bg-surface transition-colors"
+          >
+            TikTok — cabina
+          </Link>
+          <Link
+            href="/app/admin/content/x"
+            className="rounded-md border border-line px-3 py-2 text-sm text-ink hover:bg-surface transition-colors"
+          >
+            X — cabina
+          </Link>
+        </div>
+      </div>
+
       {/* Métricas principales */}
       {stats && (
         <div>
