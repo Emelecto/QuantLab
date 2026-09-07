@@ -1,0 +1,27 @@
+name: keep-worker-awake
+
+# Ping al worker de Render cada 10 minutos para evitar el cold start
+# del plan free (el worker dormido tarda ~50 s o responde 502 y el
+# dashboard muestra "No se pudo cargar los QP, los torneos").
+# No toca código ni datos: solo GET /health.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health (reintento ante cold start)
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 55 https://quantlab2.onrender.com/health) || code="000"
+            echo "intento $i: HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "worker sin respuesta tras 3 intentos"
+          exit 1
