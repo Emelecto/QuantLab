@@ -13,3 +13,4 @@ pyarrow==17.0.0
 python-dotenv==1.0.1
 PyJWT[cors]==2.9.0
 cryptography==43.0.1
+gunicorn==23.0.0

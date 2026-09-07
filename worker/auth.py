@@ -1,10 +1,16 @@
 # Módulo de autenticación para el worker de QuantLab.
 # Extrae el user_id del JWT de Supabase en el header Authorization.
+#
+# NOTA DE SEGURIDAD: el bypass de tests (TESTING + ALLOW_TEST_AUTH, ver
+# require_user) es SOLO para pytest local. JAMÁS definir TESTING ni
+# ALLOW_TEST_AUTH en Render/producción: cualquier valor activo ahí
+# deshabilitaría la autenticación real.
 
 from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Optional
 
 from fastapi import HTTPException, Request
@@ -20,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 _JWKS_URL: str | None = None
 _JWKS: dict | None = None
+_JWKS_FETCHED_AT: float = 0.0
+_JWKS_TTL_S = 600  # 10 min: el JWKS rota poco; TTL + recarga ante kid desconocido.
 
 
 def _get_jwks_url() -> str:
@@ -38,25 +46,32 @@ def _get_jwks_url() -> str:
     return _JWKS_URL
 
 
-def _fetch_jwks() -> dict:
-    global _JWKS
-    if _JWKS is None:
-        try:
-            api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get(
-                "SUPABASE_ANON_KEY"
-            )
-            headers = {"apikey": api_key} if api_key else {}
-            jwks_url = _get_jwks_url()
-            resp = requests.get(jwks_url, headers=headers, timeout=10)
-            resp.raise_for_status()
-            _JWKS = resp.json()
-            keys = _JWKS.get("keys", [])
-            logger.info(f"JWKS obtenido: {len(keys)} key(s) desde {jwks_url}")
-        except Exception as e:
-            logger.error(f"No se pudo obtener JWKS de Supabase: {e}")
-            # NO cachear el fallo: permitir reintento en la siguiente request
-            # si el error fue transitorio (red, timeout, etc.)
-            return {}
+def _fetch_jwks(*, force: bool = False) -> dict:
+    """Devuelve el JWKS con caché de 10 min; force=True lo recarga (kid desconocido)."""
+    global _JWKS, _JWKS_FETCHED_AT
+    now_mono = time.monotonic()
+    if not force and _JWKS is not None and (now_mono - _JWKS_FETCHED_AT) < _JWKS_TTL_S:
+        return _JWKS
+    try:
+        # El JWKS es público: preferir ANON_KEY y no exponer service_role en red.
+        api_key = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get(
+            "SUPABASE_SERVICE_ROLE_KEY"
+        )
+        headers = {"apikey": api_key} if api_key else {}
+        jwks_url = _get_jwks_url()
+        resp = requests.get(jwks_url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        _JWKS = resp.json()
+        _JWKS_FETCHED_AT = now_mono
+        keys = _JWKS.get("keys", [])
+        logger.info(f"JWKS obtenido: {len(keys)} key(s) desde {jwks_url}")
+    except Exception as e:
+        logger.error(f"No se pudo obtener JWKS de Supabase: {e}")
+        # NO cachear el fallo: permitir reintento en la siguiente request
+        # si el error fue transitorio (red, timeout, etc.)
+        if _JWKS is not None:
+            return _JWKS  # TTL vencido pero hay caché previo: servirlo
+        return {}
     return _JWKS
 
 
@@ -89,9 +104,8 @@ def _verify_jwt(token: str) -> dict | None:
         keys = jwks.get("keys", [])
         key = next((k for k in keys if k.get("kid") == kid), None)
         if not key:
-            global _JWKS
-            _JWKS = None
-            jwks = _fetch_jwks()
+            # kid desconocido: forzar recarga (rotación de claves) aunque el TTL siga vigente
+            jwks = _fetch_jwks(force=True)
             keys = jwks.get("keys", [])
             key = next((k for k in keys if k.get("kid") == kid), None)
         if not key:
@@ -124,15 +138,33 @@ def _verify_jwt(token: str) -> dict | None:
             logger.warning("Firma ES256 inválida")
             return None
 
-        # Decodificar payload y validar exp/aud
+        # Decodificar payload y validar exp/nbf/iat/aud/iss/role (leeway 60s por skew).
         payload = _b64d(parts[1])
         now = int(time.time())
+        _LEEWAY = 60
         if "exp" in payload and payload["exp"] < now:
             logger.warning("JWT expirado")
             return None
+        for _claim in ("nbf", "iat"):
+            if _claim in payload and payload[_claim] is not None:
+                try:
+                    if int(payload[_claim]) > now + _LEEWAY:
+                        logger.warning(f"JWT {_claim} en el futuro")
+                        return None
+                except (TypeError, ValueError):
+                    logger.warning(f"JWT {_claim} inválido")
+                    return None
         if payload.get("aud") != "authenticated":
             logger.warning("JWT audience incorrecto")
             return None
+        if payload.get("role") != "authenticated":
+            logger.warning("JWT role incorrecto")
+            return None
+        _base = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+        if _base:
+            if payload.get("iss") != f"{_base}/auth/v1":
+                logger.warning("JWT issuer incorrecto")
+                return None
         return payload
     except _JWT_EXP_ERR:
         logger.warning("JWT expirado")
@@ -184,6 +216,9 @@ def _user_id_from_api_key(key: str) -> Optional[str]:
     import hashlib
     from datetime import datetime, timezone
 
+    if not isinstance(key, str):
+        logger.warning("api_key con tipo inesperado")
+        return None
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     sb = _get_service_client()
     if not sb:
@@ -216,9 +251,13 @@ def _user_id_from_api_key(key: str) -> Optional[str]:
 
 
 def require_user(request: Request) -> str:
-    """Igual pero lanza HTTPException(401) si no hay token válido."""
-    if os.environ.get("TESTING"):
-        # En tests, devolver un usuario fijo
+    """Igual pero lanza HTTPException(401) si no hay token válido.
+
+    BYPASS SOLO PARA TESTS LOCALES: devuelve un uid fijo únicamente cuando
+    TESTING == "1" **y** ALLOW_TEST_AUTH == "1".
+    JAMÁS definir TESTING ni ALLOW_TEST_AUTH en Render/producción.
+    """
+    if os.environ.get("TESTING") == "1" and os.environ.get("ALLOW_TEST_AUTH") == "1":
         return "00000000-0000-0000-0000-000000000001"
     uid = get_user_id_from_request(request)
     if not uid:

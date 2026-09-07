@@ -1,8 +1,9 @@
-# Tests para el middleware CORS dinámico.
+# Tests para el middleware CORS dinámico (fail-closed / cerrado por defecto).
 # Verifica que:
-#   1. Sin CORS_ORIGINS configurado → refleja el Origin del request + Allow-Credentials.
+#   1. Sin CORS_ORIGINS configurado → NO se refleja ningún Origin (sin
+#      Access-Control-Allow-Origin): el navegador bloquea lecturas cross-origin.
 #   2. Con CORS_ORIGINS configurado → solo refleja Origins de la lista blanca.
-#   3. Preflight OPTIONS responde 200 con los headers correctos.
+#   3. Preflight OPTIONS responde 200 con los headers correctos (cerrado sin lista).
 
 import os
 import pytest
@@ -24,7 +25,7 @@ def _make_app_with_cors(cors_origins_env: str | None):
 
 
 def test_cors_no_env_reflects_origin_and_allows_credentials():
-    """Sin CORS_ORIGINS, cualquier Origin debe ser reflejado con credentials=true."""
+    """Sin CORS_ORIGINS, ningún Origin se refleja (CORS cerrado, fail-closed)."""
     app = _make_app_with_cors("")  # vacío = no configurado
     client = TestClient(app)
     resp = client.options(
@@ -35,8 +36,8 @@ def test_cors_no_env_reflects_origin_and_allows_credentials():
         },
     )
     assert resp.status_code == 200
-    assert resp.headers.get("access-control-allow-origin") == "https://mi-app.vercel.app"
-    assert resp.headers.get("access-control-allow-credentials") == "true"
+    assert resp.headers.get("access-control-allow-origin") is None
+    assert resp.headers.get("access-control-allow-credentials") is None
 
 
 def test_cors_with_env_only_allows_whitelist():
@@ -69,8 +70,8 @@ def test_cors_with_env_only_allows_whitelist():
 
 
 def test_cors_preflight_on_post_endpoint():
-    """Preflight para POST /marketplace/publish debe incluir POST en métodos permitidos."""
-    app = _make_app_with_cors("")  # sin env → abierto
+    """Preflight sin lista blanca: 200 pero SIN reflejar Origin (cerrado)."""
+    app = _make_app_with_cors("")  # sin env → cerrado
     client = TestClient(app)
     resp = client.options(
         "/marketplace/publish",
@@ -81,16 +82,16 @@ def test_cors_preflight_on_post_endpoint():
         },
     )
     assert resp.status_code == 200
-    assert resp.headers.get("access-control-allow-origin") == "https://mi-app.vercel.app"
-    assert resp.headers.get("access-control-allow-credentials") == "true"
+    assert resp.headers.get("access-control-allow-origin") is None
+    assert resp.headers.get("access-control-allow-credentials") is None
     assert "POST" in resp.headers.get("access-control-allow-methods", "")
 
 
 def test_cors_no_origin_header_gets_wildcard():
-    """Sin header Origin, responde con * (modo abierto, sin credentials)."""
+    """Sin header Origin y sin lista, no se emite Allow-Origin (cerrado)."""
     app = _make_app_with_cors("")  # sin env
     client = TestClient(app)
     resp = client.get("/health")
     assert resp.status_code == 200
-    # Sin Origin, el middleware pone "*" (no credentials porque no hay origen que validar).
-    assert resp.headers.get("access-control-allow-origin") == "*"
+    # Cerrado: sin Origin que validar y sin lista blanca → sin Allow-Origin.
+    assert resp.headers.get("access-control-allow-origin") is None

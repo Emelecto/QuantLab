@@ -138,7 +138,7 @@ def test_api_rejects_low_folds():
     from main import app
 
     client = TestClient(app)
-    cfg = _btc_config(folds=1).model_dump()
+    cfg = _btc_config().model_dump()
+    cfg["folds"] = 1  # bajo el mínimo del esquema (ge=2): lo rechaza FastAPI con 422
     resp = client.post("/backtest", json=cfg)
-    assert resp.status_code == 400
-    assert "folds" in resp.json()["error"].lower()
+    assert resp.status_code == 422

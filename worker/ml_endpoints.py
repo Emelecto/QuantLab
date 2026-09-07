@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import io
 import logging
+import uuid
 
 import pandas as pd
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, UploadFile, Query
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, UploadFile, Header
 from pydantic import BaseModel
 
 import os
@@ -27,6 +27,30 @@ import ml_persist as persist
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ml", tags=["ml-tournaments"])
+
+# Tope de CSV aceptado (se rechaza por Content-Length con 413 antes de parsear).
+_MAX_CSV_BYTES = 10 * 1024 * 1024
+
+
+def _rechazar_si_muy_grande(request: Request) -> None:
+    """Rechaza con 413 si Content-Length supera el tope, antes de leer/parsear."""
+    cl = request.headers.get("content-length")
+    if cl is None:
+        return
+    try:
+        if int(cl) > _MAX_CSV_BYTES:
+            raise HTTPException(413, "predicciones demasiado grandes (máx 10MB)")
+    except HTTPException:
+        raise
+    except (TypeError, ValueError):
+        pass
+
+
+def _opaco(status: int, contexto: str) -> HTTPException:
+    """Error 5xx opaco con error_id (el detalle queda solo en el log server-side)."""
+    eid = uuid.uuid4().hex[:8]
+    logger.exception("%s [error_id=%s]", contexto, eid)
+    return HTTPException(status, f"Error interno (ref {eid})")
 
 
 # (PredictionsUpload class removed — JSON body is now parsed directly via request.json())
@@ -116,6 +140,9 @@ async def submit_predictions(
         if ds.data[0]["status"] not in ("ready", "building"):
             raise HTTPException(409, f"ronda en estado {ds.data[0]['status']}")
 
+        # 413 temprano: no leer ni parsear un body gigante.
+        _rechazar_si_muy_grande(request)
+
         # Parsear entrada
         if file is not None:
             content = await file.read()
@@ -172,18 +199,18 @@ async def submit_predictions(
             else:
                 res = sb.table("prediction_submissions").insert(payload).execute()
                 sub_id = res.data[0]["id"]
-        except Exception as e:
-            logger.exception("Error al guardar submission en DB")
-            raise HTTPException(502, f"No fue posible guardar el envío: {e}")
+        except Exception:
+            raise _opaco(502, "Error al guardar submission en DB")
 
-        # Upload síncrono (CSV directo, sin parquet — más rápido)
+        # Upload síncrono al bucket de predicciones (env SUBMISSIONS_BUCKET,
+        # default tournament-datasets; migrable a bucket privado sin cambiar
+        # este endpoint). CSV directo, sin parquet — más rápido.
         try:
             store.upload_csv(csv_text, path)
             sb.table("prediction_submissions").update({"status": "pending"}).eq("id", sub_id).execute()
-        except Exception as e:
-            logger.exception("Error en upload de predicciones")
+        except Exception:
             sb.table("prediction_submissions").update({"status": "disqualified"}).eq("id", sub_id).execute()
-            raise HTTPException(502, f"No fue posible guardar el archivo: {e}")
+            raise _opaco(502, "Error en upload de predicciones")
 
         # SCORING SINCRONO (set-and-forget). El plan free/start de Render mata
         # los BackgroundTask tras responder, así que la evaluacion se corre AQUI
@@ -203,19 +230,22 @@ async def submit_predictions(
         return {"submission": res.data[0] if res.data else {"id": sub_id, "status": "pending"}}
     except HTTPException:
         raise
-    except Exception as e:
-        logger.exception("Error inesperado en submit_predictions")
-        raise HTTPException(500, f"Error interno del servidor: {e}")
+    except Exception:
+        raise _opaco(500, "Error inesperado en submit_predictions")
 
 
 # ---------------------------------------------------------------------------
 # Evaluar submission bajo demanda (llamado desde el frontend vía polling)
 # ---------------------------------------------------------------------------
 @router.post("/submissions/{submission_id}/evaluate")
-def evaluate_submission(submission_id: str, request: Request, scheduler_key: Optional[str] = Query(None)):
+def evaluate_submission(
+    submission_id: str,
+    request: Request,
+    x_scheduler_key: str | None = Header(None),
+):
     """Evalúa una submission pending bajo demanda (timeout-safe).
 
-    Auth: JWT de usuario (Authorization) o ?scheduler_key=<SCHEDULER_KEY> para
+    Auth: JWT de usuario (Authorization) o header X-Scheduler-Key para
     disparar scoring programado/forzado sin intervención del usuario (cron,
     admin, etc.). En Render plan free el BackgroundTask no persiste, así que
     este endpoint ejecuta el scoring SÍNCRONO dentro del request.
@@ -224,8 +254,12 @@ def evaluate_submission(submission_id: str, request: Request, scheduler_key: Opt
     sb = get_supabase()
     # Auth: clave de scheduler (bypass) o usuario normal.
     _sk = os.environ.get("SCHEDULER_KEY")
-    if scheduler_key and _sk and scheduler_key == _sk:
-        user_id = sb.table("prediction_submissions").select("user_id").eq("id", submission_id).execute().data[0]["user_id"] if True else None
+    if _sk and x_scheduler_key and x_scheduler_key == _sk:
+        filas = sb.table("prediction_submissions").select("user_id").eq(
+            "id", submission_id).execute().data or []
+        if not filas:
+            raise HTTPException(404, "submission no encontrada")
+        user_id = filas[0]["user_id"]
     else:
         user_id = require_user(request)
     sub = sb.table("prediction_submissions").select("id,user_id,status").eq("id", submission_id).eq("user_id", user_id).execute()
@@ -237,10 +271,9 @@ def evaluate_submission(submission_id: str, request: Request, scheduler_key: Opt
     try:
         ml_persist.puntuar_submission_en_bd(submission_id)
         return {"status": "scored"}
-    except Exception as e:
-        logger.exception(f"Evaluación falló para {submission_id}")
+    except Exception:
         sb.table("prediction_submissions").update({"status": "pending"}).eq("id", submission_id).execute()
-        raise HTTPException(500, f"Error al evaluar: {e}")
+        raise _opaco(500, f"Evaluación falló para {submission_id}")
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,14 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-BUCKET = "tournament-datasets"
+# Bucket de datasets públicos (train/validation en parquet + URLs públicas).
+# Siempre público: los usuarios descargan train/validation sin autenticación.
+DATASET_BUCKET = os.environ.get("DATASET_BUCKET", "tournament-datasets")
+
+# Bucket de predicciones de usuarios (CSV). Tras aplicar la migración
+# 0023_submissions_privadas.sql, fijar SUBMISSIONS_BUCKET=submissions en Render;
+# mientras tanto comparte el bucket público por compatibilidad.
+SUBMISSIONS_BUCKET = os.environ.get("SUBMISSIONS_BUCKET", "tournament-datasets")
 
 
 def _client():
@@ -28,10 +35,10 @@ def _client():
 
 
 def upload_csv(csv_text: str, path: str) -> str:
-    """Sube un CSV como texto plano al bucket."""
+    """Sube un CSV como texto plano al bucket de predicciones."""
     sb = _client()
     data = csv_text.encode("utf-8")
-    sb.storage.from_(BUCKET).upload(
+    sb.storage.from_(SUBMISSIONS_BUCKET).upload(
         path, data,
         {"content-type": "text/csv", "upsert": "true"},
     )
@@ -39,32 +46,41 @@ def upload_csv(csv_text: str, path: str) -> str:
 
 
 def upload_parquet(df: pd.DataFrame, path: str) -> str:
-    """Sube un DataFrame como parquet y devuelve la ruta en el bucket."""
+    """Sube un DataFrame como parquet al bucket público de datasets."""
     buf = io.BytesIO()
     df.to_parquet(buf, index=False, engine="pyarrow")
     buf.seek(0)
     sb = _client()
-    sb.storage.from_(BUCKET).upload(
+    sb.storage.from_(DATASET_BUCKET).upload(
         path, buf.getvalue(),
         {"content-type": "application/octet-stream", "upsert": "true"},
     )
     return path
 
 
-def download_parquet(path: str) -> pd.DataFrame:
-    """Descarga un parquet del bucket a un DataFrame."""
+def download_parquet(path: str, bucket: str | None = None) -> pd.DataFrame:
+    """Descarga un parquet a un DataFrame (por defecto, bucket de datasets)."""
     sb = _client()
-    data = sb.storage.from_(BUCKET).download(path)
+    data = sb.storage.from_(bucket or DATASET_BUCKET).download(path)
     return pd.read_parquet(io.BytesIO(data), engine="pyarrow")
 
 
 def download_csv(path: str) -> bytes:
-    """Descarga un CSV del bucket como bytes."""
+    """Descarga un CSV de predicciones.
+
+    Prueba el bucket privado primero y cae al de datasets por compatibilidad
+    con envíos anteriores a la migración 0023.
+    """
     sb = _client()
-    return sb.storage.from_(BUCKET).download(path)
+    try:
+        return sb.storage.from_(SUBMISSIONS_BUCKET).download(path)
+    except Exception:
+        if SUBMISSIONS_BUCKET == DATASET_BUCKET:
+            raise
+        return sb.storage.from_(DATASET_BUCKET).download(path)
 
 
 def public_url(path: str) -> str:
-    """URL pública estable del objeto (el bucket es público)."""
+    """URL pública estable del objeto (el bucket de datasets es público)."""
     url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-    return f"{url}/storage/v1/object/public/{BUCKET}/{path}"
+    return f"{url}/storage/v1/object/public/{DATASET_BUCKET}/{path}"

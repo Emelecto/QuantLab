@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 
 from fastapi import APIRouter, HTTPException, Request
 from auth import require_user
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def get_supabase():
 
 
 class CommentBody(BaseModel):
-    body: str
+    body: str = Field(min_length=1, max_length=2000)
 
 
 @router.post("/marketplace/{strategy_id}/comments")

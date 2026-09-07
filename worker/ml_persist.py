@@ -9,6 +9,7 @@ import hashlib
 import io
 import logging
 import os
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -139,6 +140,7 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
     if not sub.data:
         raise ValueError("submission no encontrada")
     sub = sub.data[0]
+    ahora_iso = datetime.now(timezone.utc).isoformat()
 
     ds = supabase.table("ml_datasets").select("id,feature_cols").eq("id", sub["dataset_id"]).execute()
     feat_cols = (ds.data[0].get("feature_cols") or []) if ds.data else []
@@ -148,6 +150,7 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
     if preds is None or len(preds) == 0:
         supabase.table("prediction_submissions").update({
             "status": "disqualified", "is_valid": False,
+            "eval_error": "sin predicciones", "scored_at": ahora_iso,
         }).eq("id", submission_id).execute()
         return {"status": "disqualified", "motivo": "sin predicciones"}
 
@@ -171,11 +174,14 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
     if len(merged) == 0:
         supabase.table("prediction_submissions").update({
             "status": "disqualified", "is_valid": False,
+            "eval_error": "ids de prediccion no coinciden con el dataset",
+            "scored_at": ahora_iso,
         }).eq("id", submission_id).execute()
         return {"status": "disqualified", "motivo": "ids de prediccion no coinciden con el dataset"}
     if len(merged) < sc.MIN_ERAS:
         supabase.table("prediction_submissions").update({
             "status": "disqualified", "is_valid": False,
+            "eval_error": "filas insuficientes", "scored_at": ahora_iso,
         }).eq("id", submission_id).execute()
         return {"status": "disqualified", "motivo": "filas insuficientes"}
 
@@ -207,7 +213,7 @@ def puntuar_submission_en_bd(submission_id: str, meta_modelo=None) -> dict:
         "status": "scored", "is_valid": res["valida"], "plagio_flag": plagio,
         "score": res["score"], "corr_mean": res["corr_mean"], "fnc_mean": res["fnc_mean"],
         "consistencia": res["consistencia"], "meta_corr": res["meta_corr"],
-        "scored_at": "now()",
+        "scored_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", submission_id).execute()
     return res
 
@@ -228,12 +234,12 @@ def _leer_predicciones(sub: dict) -> pd.DataFrame | None:
     if not path:
         return None
     try:
-        # Intentar CSV primero, luego parquet
+        # Intentar CSV primero, luego parquet (ambos en el bucket de predicciones)
         try:
             data = store.download_csv(path)
             return pd.read_csv(io.BytesIO(data))
         except Exception:
-            return store.download_parquet(path)
+            return store.download_parquet(path, bucket=store.SUBMISSIONS_BUCKET)
     except Exception as e:
         logger.warning(f"No se pudo leer predicciones desde {path}: {e}")
         return None
@@ -278,7 +284,9 @@ def evaluate_ml_rounds(supabase, now=None) -> int:
     una submission que quedó en `pending` (el BackgroundTask de FastAPI se fue
     en background bajo Render free, que mata el request) eventualmente se
     puntúa. Cada submission se puntua de forma aislada: si una falla no
-    aborta el lote (se loggea y se marca `error`).
+    aborta el lote (se loggea y se marca `disqualified` con `eval_error`;
+    el CHECK de prediction_submissions solo admite
+    pending/scoring/scored/disqualified, NUNCA 'error').
 
     Devuelve la cantidad de submissions puntuadas en esta pasada.
     """
@@ -313,11 +321,14 @@ def evaluate_ml_rounds(supabase, now=None) -> int:
         try:
             puntuar_submission_en_bd(sid)
             scored += 1
-        except Exception:
+        except Exception as e:
             logger_.exception("evaluate_ml_rounds: submission %s falló", sid)
             try:
+                from datetime import datetime as _dt, timezone as _tz
                 supabase.table("prediction_submissions").update(
-                    {"status": "error"}
+                    {"status": "disqualified", "is_valid": False,
+                     "eval_error": str(e)[:500],
+                     "scored_at": _dt.now(_tz.utc).isoformat()}
                 ).eq("id", sid).execute()
             except Exception:
                 pass

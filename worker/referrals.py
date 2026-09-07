@@ -93,20 +93,34 @@ def get_my_referral_code(request: Request):
     return {"code": code}
 
 
+def _require_service_role(request: Request) -> None:
+    """Valida que la request venga con service_role (comparación timing-safe)."""
+    import hmac
+    import os
+
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(401, "Token requerido")
+
+    token = auth_header[7:].strip()
+    expected = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not expected or not hmac.compare_digest(token, expected):
+        raise HTTPException(403, "Acceso denegado")
+
+
 @router.get("/referrals/validate")
-def validate_referral_code(code: str):
-    """Valida si un código de referido existe y es válido."""
+def validate_referral_code(code: str, request: Request):
+    """Valida si un código de referido existe. Requiere auth.
+
+    Responde SOLO {"valid": bool}: jamás expone referrer_id ni el código,
+    para evitar enumerar códigos y cosechar user_ids ajenos.
+    """
+    require_user(request)
     sb = _get_supabase()
-    
-    res = sb.table("referral_codes").select("user_id,code").eq("code", code).execute()
-    if not res.data:
-        return {"valid": False, "error": "Código no encontrado"}
-    
-    return {
-        "valid": True,
-        "referrer_id": res.data[0]["user_id"],
-        "code": res.data[0]["code"],
-    }
+
+    res = sb.table("referral_codes").select("code").eq("code", code).execute()
+    return {"valid": bool(res.data)}
 
 
 class TrackReferralBody(BaseModel):

@@ -70,16 +70,6 @@ def evaluate_tournaments(supabase_client, engine, now: datetime | None = None) -
     Luego rankea y distribuye QP.
     """
     now = now or datetime.now(timezone.utc)
-    cerrados = (
-        supabase_client.table("tournaments")
-        .select("id,submission_deadline,primary_metric")
-        .eq("status", "closed")
-        .eq("evaluated", False) if False else
-        supabase_client.table("tournaments")
-        .select("id")
-        .eq("status", "closed")
-        .execute()
-    )
     # Nota: no usamos campo 'evaluated'; filtramos por submissions pendientes.
     tournaments = (
         supabase_client.table("tournaments")
@@ -115,6 +105,20 @@ def evaluate_tournaments(supabase_client, engine, now: datetime | None = None) -
                     "status": "disqualified",
                     "eval_error": str(e)[:500],
                 }).eq("id", sub["id"]).execute()
+        # No marcar completed con submissions aún pendientes: si alguna quedó
+        # en pending (fallo parcial del backtest), el torneo pasa a evaluating
+        # y se reintenta en la próxima pasada del cron.
+        restantes = (
+            supabase_client.table("submissions")
+            .select("id")
+            .eq("tournament_id", t["id"])
+            .eq("status", "pending")
+            .execute()
+        )
+        if restantes.data:
+            supabase_client.table("tournaments").update({"status": "evaluating"}).eq("id", t["id"]).execute()
+            evaluated += 1
+            continue
         evaluated += 1
         distribute_qp(supabase_client, t["id"])
         supabase_client.table("tournaments").update({"status": "completed"}).eq("id", t["id"]).execute()
@@ -230,6 +234,12 @@ def distribute_qp(supabase_client, tournament_id: str):
 
     Premio base: 1° = 200 QP, 2° = 100 QP, 3° = 50 QP. Resto con score>0 = 10 QP.
     Solo submissions con integrity_label = High y primary_score > 0.
+
+    Decisión sobre el stake del perdedor: es COSTO DE ENTRADA, no se reembolsa.
+    El stake ya quedó registrado en el ledger como `tournament_entry` (débito)
+    al inscribirse (ver tournaments.py); solo se devuelve al reemplazar la
+    submission (`tournament_refund`). Los premios se acreditan ENCIMA vía
+    _credit_qp, sin devolver el stake ni a ganadores ni a perdedores.
     """
     subs = (
         supabase_client.table("submissions")

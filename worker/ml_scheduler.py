@@ -96,7 +96,7 @@ def evaluate_ml_rounds(supabase_client, now: datetime | None = None) -> int:
         # Solo procesar rondas cerradas o abiertas con submissions pendientes
         pending = (
             supabase_client.table("prediction_submissions")
-            .select("id")
+            .select("id,user_id")
             .eq("dataset_id", ds["id"])
             .eq("status", "pending")
             .execute()

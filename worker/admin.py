@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,8 +18,29 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="", tags=["admin"])
 
-# ID de admin (Emilio) — se puede extender a una lista
-ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"]
+# IDs de admin. Configurable vía env ADMIN_USER_IDS (coma-separado);
+# por defecto el UUID del admin actual (Emilio).
+_DEFAULT_ADMIN_ID = "2ca7b197-86f5-4605-9789-266bf8a0df01"
+ADMIN_USER_IDS = [
+    s.strip()
+    for s in os.environ.get("ADMIN_USER_IDS", _DEFAULT_ADMIN_ID).split(",")
+    if s.strip()
+]
+
+
+def _get_admin_ids() -> list[str]:
+    """Lee ADMIN_USER_IDS del entorno en cada llamada (permite rotar sin restart)."""
+    raw = os.environ.get("ADMIN_USER_IDS", "").strip()
+    if not raw:
+        return ADMIN_USER_IDS
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+def _opaque_500(exc: Exception, contexto: str) -> HTTPException:
+    """500 opaco: el detalle va al log; al cliente solo un error_id."""
+    error_id = uuid.uuid4().hex[:12]
+    logger.exception(f"Error en {contexto} [error_id={error_id}]: {exc}")
+    return HTTPException(500, f"Error interno. error_id={error_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +61,7 @@ def _get_supabase():
 def _require_admin(request: Request) -> str:
     """Verifica que el usuario sea admin."""
     uid = require_user(request)
-    if uid not in ADMIN_USER_IDS:
+    if uid not in _get_admin_ids():
         raise HTTPException(403, "No autorizado")
     return uid
 
@@ -152,7 +175,7 @@ def admin_stats(request: Request):
         }
     except Exception as e:
         logger.exception("Error en admin_stats")
-        raise HTTPException(500, f"Error al obtener métricas: {e}")
+        raise _opaque_500(e, "obtener métricas")
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +268,7 @@ def admin_alerts(request: Request):
         return {"alerts": alerts}
     except Exception as e:
         logger.exception("Error en admin_alerts")
-        raise HTTPException(500, f"Error al obtener alertas: {e}")
+        raise _opaque_500(e, "obtener alertas")
 
 
 # ---------------------------------------------------------------------------
@@ -254,8 +277,9 @@ def admin_alerts(request: Request):
 
 @router.get("/admin/activity")
 def admin_activity(request: Request, limit: int = 50):
-    """Feed de actividad reciente."""
+    """Feed de actividad reciente (limit validado: 1..50)."""
     _require_admin(request)
+    limit = max(1, min(limit, 50))
     try:
         sb = _get_supabase()
 
@@ -264,7 +288,7 @@ def admin_activity(request: Request, limit: int = 50):
             sb.table("profiles")
             .select("id,username,created_at")
             .order("created_at", desc=True)
-            .limit(10)
+            .limit(limit)
             .execute()
         )
 
@@ -273,7 +297,7 @@ def admin_activity(request: Request, limit: int = 50):
             sb.table("submissions")
             .select("id,tournament_id,user_id,status,submitted_at")
             .order("submitted_at", desc=True)
-            .limit(10)
+            .limit(limit)
             .execute()
         )
 
@@ -282,7 +306,7 @@ def admin_activity(request: Request, limit: int = 50):
             sb.table("user_badges")
             .select("user_id,badge_type,earned_at")
             .order("earned_at", desc=True)
-            .limit(10)
+            .limit(limit)
             .execute()
         )
 
@@ -291,7 +315,7 @@ def admin_activity(request: Request, limit: int = 50):
             sb.table("referrals")
             .select("referrer_id,referred_id,status,created_at")
             .order("created_at", desc=True)
-            .limit(10)
+            .limit(limit)
             .execute()
         )
 
@@ -303,4 +327,4 @@ def admin_activity(request: Request, limit: int = 50):
         }
     except Exception as e:
         logger.exception("Error en admin_activity")
-        raise HTTPException(500, f"Error al obtener actividad: {e}")
+        raise _opaque_500(e, "obtener actividad")

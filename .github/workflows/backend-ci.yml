@@ -1,0 +1,23 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "worker/**"
+  pull_request:
+    paths:
+      - "worker/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install worker deps
+        run: pip install -r worker/requirements.txt
+      - name: Run worker tests
+        working-directory: worker
+        run: TESTING=1 pytest tests/ -q -x

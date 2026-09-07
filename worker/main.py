@@ -11,13 +11,16 @@ CORS habilitado para que el frontend Next.js (web/) pueda invocarlo.
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import re
+import uuid
 
-from fastapi import FastAPI, Header, Query
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
+
+from auth import require_user
 
 import engine
 from schemas import StrategyConfig
@@ -31,6 +34,8 @@ from referrals import router as referrals_router
 from badges import router as badges_router
 from admin import router as admin_router
 import ml_persist  # scoring programado de submissions ML (evaluate_ml_rounds)
+import scheduler as _scheduler  # torneos de codigo (create/evaluate/signals)
+import ml_scheduler  # reparto QP + consensus_signals tras el scoring ML
 
 app = FastAPI(
     title="QuantLab Worker API",
@@ -41,8 +46,10 @@ app = FastAPI(
 logger = logging.getLogger("quantlab.worker")
 
 # ---------------------------------------------------------------------------
-# CORS: por defecto abierto (refleja el Origin del request); se puede restringir
-# con CORS_ORIGINS.
+# CORS: por defecto CERRADO. Solo se emite Access-Control-Allow-Origin cuando
+# CORS_ORIGINS esta configurado (lista blanca) y el Origin del request esta
+# en ella. Si CORS_ORIGINS esta vacio, NO se refleja ningun Origin: el
+# navegador bloquea las lecturas cross-origin (fail-closed).
 #
 # Formato de CORS_ORIGINS: lista separada por comas, p.ej.
 #   "http://localhost:3000,https://app.quantlab.io"
@@ -51,19 +58,18 @@ logger = logging.getLogger("quantlab.worker")
 # autenticados. Cuando una request lleva credenciales, el navegador RECHAZA la
 # respuesta si Access-Control-Allow-Origin es "*" genérico o si falta
 # Access-Control-Allow-Credentials: true. Por eso:
-#   - Si CORS_ORIGINS está configurado → lista blanca + credentials=true.
-#   - Si NO está configurado → reflejamos el Origin del request (dinámico) +
-#     credentials=true, para que el navegador acepte la respuesta.
+#   - Origin en la lista blanca → se refleja + credentials=true.
+#   - Origin fuera de la lista (o sin lista) → sin headers CORS (cerrado).
 # ---------------------------------------------------------------------------
 _cors_env = os.environ.get("CORS_ORIGINS", "").strip()
 if _cors_env:
     _cors_allow_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
 else:
-    _cors_allow_origins = []  # dinámico: reflejamos el Origin
+    _cors_allow_origins = []  # sin lista blanca: CORS cerrado (no se refleja Origin)
 
-# Middleware CORS personalizado: refleja el Origin cuando no hay lista blanca,
-# permitiendo siempre credenciales para que el navegador acepte requests con
-# header Authorization.
+# Middleware CORS personalizado (fail-closed): sin lista blanca no se emite
+# ningun Access-Control-Allow-Origin; el navegador bloquea las lecturas
+# cross-origin.
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -78,12 +84,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
                 if origin and origin in _cors_allow_origins:
                     resp.headers["Access-Control-Allow-Origin"] = origin
                     resp.headers["Access-Control-Allow-Credentials"] = "true"
-            else:
-                if origin:
-                    resp.headers["Access-Control-Allow-Origin"] = origin
-                    resp.headers["Access-Control-Allow-Credentials"] = "true"
-                else:
-                    resp.headers["Access-Control-Allow-Origin"] = "*"
+            # Sin lista blanca: sin Allow-Origin (CORS cerrado por defecto).
             resp.headers["Access-Control-Allow-Methods"] = "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
             resp.headers["Access-Control-Allow-Headers"] = "*"
             resp.headers["Access-Control-Max-Age"] = "600"
@@ -96,13 +97,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
             if origin and origin in _cors_allow_origins:
                 response.headers["Access-Control-Allow-Origin"] = origin
                 response.headers["Access-Control-Allow-Credentials"] = "true"
-        else:
-            # Sin lista blanca: reflejamos cualquier Origin (modo abierto).
-            if origin:
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-            else:
-                response.headers["Access-Control-Allow-Origin"] = "*"
+        # Sin lista blanca: no se emite Allow-Origin (CORS cerrado por defecto).
 
         response.headers.setdefault("Access-Control-Allow-Methods", "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT")
         response.headers.setdefault("Access-Control-Allow-Headers", "*")
@@ -131,11 +126,7 @@ def _cors_headers_for(request: Request) -> dict:
         if origin and origin in _cors_allow_origins:
             h["Access-Control-Allow-Origin"] = origin
             h["Access-Control-Allow-Credentials"] = "true"
-    elif origin:
-        h["Access-Control-Allow-Origin"] = origin
-        h["Access-Control-Allow-Credentials"] = "true"
-    else:
-        h["Access-Control-Allow-Origin"] = "*"
+    # Sin lista blanca: sin Allow-Origin (CORS cerrado por defecto).
     return h
 
 
@@ -152,23 +143,20 @@ async def http_exception_with_cors(request: Request, exc: StarletteHTTPException
 
 @app.exception_handler(Exception)
 async def unhandled_exception_with_cors(request: Request, exc: Exception):
-    # Log completo en Render; al cliente devolvemos el mensaje REAL para poder
-    # diagnosticar (antes se envolvía en ExceptionGroup de anyio y era opaco).
-    logger.exception("Unhandled error en %s %s", request.method, request.url.path)
-
-    # Desenvolver ExceptionGroup (anyio/TaskGroup) para exponer la sub-excepción.
-    def _unwrap(e):
-        if hasattr(e, "exceptions") and e.exceptions:
-            return _unwrap(e.exceptions[0])
-        return e
-
-    real = _unwrap(exc)
-    detail = f"{type(real).__name__}: {real}"[:300]
+    # 500 opaco: el detalle real solo queda en el log, correlacionado por
+    # error_id. Nunca se expone el mensaje interno al cliente.
+    error_id = uuid.uuid4().hex[:12]
+    logger.exception(
+        "Unhandled error en %s %s (error_id=%s)",
+        request.method,
+        request.url.path,
+        error_id,
+    )
 
     from starlette.responses import JSONResponse
 
     return JSONResponse(
-        {"detail": detail},
+        {"error": "Error interno del servidor", "error_id": error_id},
         status_code=500,
         headers=_cors_headers_for(request),
     )
@@ -195,12 +183,27 @@ _DANGEROUS_PATTERNS = [
     "import os",
     "import sys",
     "import subprocess",
+    "import pickle",
+    "import marshal",
+    "import socket",
+    "from os",
+    "from sys",
+    "from subprocess",
     "subprocess",
     "__import__",
+    "__class__",
+    "__dict__",
+    "__bases__",
+    "__subclasses__",
+    "getattr(",
+    "getattr (",
     "eval(",
     "exec(",
     "compile(",
     "os.system",
+    "os.",
+    "sys.",
+    "subprocess.",
     "open(",
     "input(",
 ]
@@ -217,9 +220,12 @@ def validate_strategy(config: StrategyConfig) -> dict:
     warnings: list[str] = []
     valid = True
 
+    # Normalizar espacios (colapsar tabs/saltos/espacios multiples) para que
+    # variantes como "from   os   import ..." o "import  os" tambien casen.
     code_lower = (config.code or "").lower()
+    code_norm = re.sub(r"\s+", " ", code_lower).strip()
     for pat in _DANGEROUS_PATTERNS:
-        if pat in code_lower:
+        if pat in code_norm:
             valid = False
             warnings.append(f"Código peligroso detectado: '{pat}' no está permitido.")
 
@@ -276,10 +282,24 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+def _check_scheduler_key(provided: str | None) -> bool:
+    """Verifica X-Scheduler-Key contra SCHEDULER_KEY en tiempo constante."""
+    expected = os.environ.get("SCHEDULER_KEY", "")
+    if not expected or not provided:
+        return False
+    return hmac.compare_digest(provided, expected)
+
+
 @app.get("/debug/env")
-def debug_env() -> dict:
+def debug_env(x_scheduler_key: str | None = Header(None)) -> dict:
     """Diagnóstico: verifica que las variables de entorno críticas estén configuradas.
-    NO expone secretos: solo confirma presencia y longitud."""
+    NO expone secretos: solo confirma presencia y longitud.
+    Protegido por X-Scheduler-Key."""
+    if not _check_scheduler_key(x_scheduler_key):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
+        )
     import os
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -307,8 +327,14 @@ def _get_jwks_url_safe() -> str:
 
 
 @app.get("/debug/jwks")
-def debug_jwks() -> dict:
-    """Diagnóstico: verifica conectividad con el JWKS de Supabase."""
+def debug_jwks(x_scheduler_key: str | None = Header(None)) -> dict:
+    """Diagnóstico: verifica conectividad con el JWKS de Supabase.
+    Protegido por X-Scheduler-Key."""
+    if not _check_scheduler_key(x_scheduler_key):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
+        )
     import os
     url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
     jwks_url = os.environ.get("SUPABASE_JWKS_URL", "") or (f"{url}/auth/v1/.well-known/jwks.json" if url else "")
@@ -332,12 +358,13 @@ def debug_jwks() -> dict:
 
 
 @app.post("/backtest")
-def backtest(config: StrategyConfig) -> dict:
+def backtest(config: StrategyConfig, request: Request) -> dict:
     """Ejecuta un backtest OOS real y devuelve el dict del motor.
 
-    En caso de error de validación/descarga/datos (ValueError) devuelve 400
-    con {"error": mensaje_claro}.
+    Requiere autenticación (JWT Supabase). En caso de error de
+    validación/descarga/datos (ValueError) devuelve 400 con {"error": ...}.
     """
+    require_user(request)
     try:
         _validate_config(config)
         result = engine.run_backtest(config)
@@ -345,16 +372,20 @@ def backtest(config: StrategyConfig) -> dict:
     except ValueError as exc:
         # Errores de validación, red o datos (Binance, yfinance, símbolo...).
         return JSONResponse(status_code=400, content={"error": str(exc)})
-    except Exception as exc:  # noqa: BLE001 - no queremos romper la API con 500 crudo
+    except Exception:  # noqa: BLE001 - 500 opaco, detalle solo en el log
+        error_id = uuid.uuid4().hex[:12]
+        logger.exception("Error interno en /backtest (error_id=%s)", error_id)
         return JSONResponse(
             status_code=500,
-            content={"error": f"Error interno del motor de backtest: {exc}"},
+            content={"error": "Error interno del servidor", "error_id": error_id},
         )
 
 
 @app.post("/backtest/validate")
-def validate(config: StrategyConfig) -> dict:
-    """Validación ligera de coherencia y seguridad de una StrategyConfig."""
+def validate(config: StrategyConfig, request: Request) -> dict:
+    """Validación ligera de coherencia y seguridad de una StrategyConfig.
+    Requiere autenticación (JWT Supabase)."""
+    require_user(request)
     return validate_strategy(config)
 
 
@@ -365,6 +396,7 @@ def validate(config: StrategyConfig) -> dict:
 @app.post("/scheduler/run")
 async def scheduler_run(
     x_scheduler_key: str | None = Header(None),
+    sync: bool = Query(False, description="Si true, ejecuta el trabajo SINCRONO dentro del request (no background). Necesario en Render plan free donde los background tasks no persisten."),
 ) -> dict:
     """Ejecuta el scheduler de torneos: create + evaluate.
 
@@ -377,7 +409,7 @@ async def scheduler_run(
             status_code=503,
             content={"error": "Scheduler no configurado (falta SCHEDULER_KEY)."},
         )
-    if not x_scheduler_key or x_scheduler_key != expected:
+    if not _check_scheduler_key(x_scheduler_key):
         return JSONResponse(
             status_code=401,
             content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
@@ -405,49 +437,76 @@ async def scheduler_run(
 
     # Trabajo pesado (generar dataset sintético puede tardar minutos) se ejecuta
     # en un background task para no superar el timeout de gunicorn (120s) y evitar
-    # el 502. El endpoint devuelve 200 inmediato.
-    async def _run_scheduler():
+    # el 502. El endpoint devuelve 200 inmediato. Con ?sync=true se ejecuta
+    # dentro del request (plan free de Render, donde los background tasks se
+    # pierden al terminar el request).
+    async def _do_scheduler_work():
+        """Ejecuta create + evaluate + signals + scoring ML. Devuelve resumen."""
         loop = asyncio.get_event_loop()
+        # Torneos de código
+        tournament = await loop.run_in_executor(
+            None, lambda: _scheduler.create_weekly_tournament(sb, now)
+        )
+        created_id = tournament.get("id") if tournament else None
+        evaluated = await loop.run_in_executor(
+            None, lambda: _scheduler.evaluate_tournaments(sb, engine, now)
+        )
+        signals_generated = 0
         try:
-            # Torneos de código
-            tournament = await loop.run_in_executor(
-                None, lambda: create_weekly_tournament(sb, now)
+            signals_generated = await loop.run_in_executor(
+                None, lambda: _scheduler.generate_weekly_signals(sb, now)
             )
-            created_id = tournament.get("id") if tournament else None
-            evaluated = await loop.run_in_executor(
-                None, lambda: evaluate_tournaments(sb, engine, now)
-            )
-            signals_generated = 0
-            try:
-                signals_generated = await loop.run_in_executor(
-                    None, lambda: generate_weekly_signals(sb, now)
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"generate_weekly_signals falló: {e}")
+        except Exception:  # noqa: BLE001
+            logger.exception("generate_weekly_signals falló")
 
-            # Rondas ML: puntuar submissions pendientes.
-            # (la GENERACIÓN de datasets la hace GitHub Actions en ubuntu-latest,
-            #  con 7GB de RAM; aquí solo servimos + puntuamos. create_ml_round no
-            #  existe en este worker, por lo que no se crea nada aquí.)
-            ml_evaluated = 0
-            try:
-                ml_evaluated = await loop.run_in_executor(
-                    None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"Scheduler ML falló (evaluate): {e}")
+        # Rondas ML: puntuar submissions pendientes.
+        # (la GENERACIÓN de datasets la hace GitHub Actions en ubuntu-latest,
+        #  con 7GB de RAM; aquí solo servimos + puntuamos. create_ml_round no
+        #  existe en este worker, por lo que no se crea nada aquí.)
+        ml_evaluated = 0
+        try:
+            ml_evaluated = await loop.run_in_executor(
+                None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Scheduler ML falló (evaluate)")
+        return {
+            "created_id": created_id,
+            "evaluated": evaluated,
+            "signals_generated": signals_generated,
+            "ml_evaluated": ml_evaluated,
+        }
+
+    async def _run_scheduler():
+        try:
+            summary = await _do_scheduler_work()
             logger.info(
-                f"Scheduler completado: created={created_id}, "
-                f"ml_evaluated={ml_evaluated}"
+                f"Scheduler completado: created={summary['created_id']}, "
+                f"evaluated={summary['evaluated']}, "
+                f"signals={summary['signals_generated']}, "
+                f"ml_evaluated={summary['ml_evaluated']}"
             )
         except Exception:
             logger.exception("Error en el scheduler (background)")
+
+    if sync:
+        try:
+            summary = await _do_scheduler_work()
+            return {"status": "ok", "mode": "sync", **summary}
+        except Exception:
+            error_id = uuid.uuid4().hex[:12]
+            logger.exception("Error en el scheduler (sync) (error_id=%s)", error_id)
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Error interno del servidor", "error_id": error_id},
+            )
 
     asyncio.create_task(_run_scheduler())
 
     return {
         "status": "ok",
-        "message": "Scheduler encolado en background. Revisa los logs del worker para el resultado.",
+        "mode": "background",
+        "message": "Scheduler encolado en background. Revisa los logs del worker para el resultado. Usa ?sync=true en plan free de Render.",
     }
 
 
@@ -470,7 +529,7 @@ async def scheduler_evaluate(
             status_code=503,
             content={"error": "Scheduler no configurado (falta SCHEDULER_KEY)."},
         )
-    if not x_scheduler_key or x_scheduler_key != expected:
+    if not _check_scheduler_key(x_scheduler_key):
         return JSONResponse(
             status_code=401,
             content={"error": "Unauthorized. Header X-Scheduler-Key inválido o ausente."},
@@ -493,33 +552,47 @@ async def scheduler_evaluate(
     sb = create_client(url, key)
     now = datetime.now(timezone.utc)
 
-    async def _run_eval():
+    async def _score_and_distribute():
+        """Scoring (ml_persist) + reparto QP y consensus_signals (ml_scheduler)."""
         loop = asyncio.get_event_loop()
+        evaluated = await loop.run_in_executor(
+            None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
+        )
+        ml_rounds = 0
         try:
-            evaluated = await loop.run_in_executor(
-                None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
+            ml_rounds = await loop.run_in_executor(
+                None, lambda: ml_scheduler.evaluate_ml_rounds(sb, now)
             )
-            logger.info(f"Evaluacion ML completada: {evaluated} submissions.")
+        except Exception:  # noqa: BLE001
+            logger.exception("Reparto QP ML falló (ml_scheduler.evaluate_ml_rounds)")
+        return evaluated, ml_rounds
+
+    async def _run_eval():
+        try:
+            evaluated, ml_rounds = await _score_and_distribute()
+            logger.info(
+                f"Evaluacion ML completada: {evaluated} submissions, "
+                f"{ml_rounds} rondas con reparto QP."
+            )
         except Exception:  # noqa: BLE001
             logger.exception("Error en la evaluacion ML (background)")
 
     if sync:
-        loop = asyncio.get_event_loop()
         try:
-            evaluated = await loop.run_in_executor(
-                None, lambda: ml_persist.evaluate_ml_rounds(sb, now)
-            )
+            evaluated, ml_rounds = await _score_and_distribute()
             return {
                 "status": "ok",
                 "mode": "sync",
                 "evaluated": evaluated,
+                "ml_rounds": ml_rounds,
                 "message": "Scoring ML ejecutado sincronamente.",
             }
-        except Exception as e:  # noqa: BLE001
-            logger.exception("Error en evaluacion ML (sync)")
+        except Exception:  # noqa: BLE001
+            error_id = uuid.uuid4().hex[:12]
+            logger.exception("Error en evaluacion ML (sync) (error_id=%s)", error_id)
             return JSONResponse(
                 status_code=500,
-                content={"error": "Error en el scoring ML (sync)", "detail": str(e)[:300]},
+                content={"error": "Error interno del servidor", "error_id": error_id},
             )
 
     asyncio.create_task(_run_eval())

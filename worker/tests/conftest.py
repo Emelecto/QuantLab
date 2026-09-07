@@ -1,6 +1,10 @@
 # Fixtures compartidas para tests de torneos, tokens y marketplace.
 
 import os
+
+os.environ.setdefault("TESTING", "1")
+os.environ.setdefault("ALLOW_TEST_AUTH", "1")
+
 import sys
 import pytest
 from unittest.mock import MagicMock, patch

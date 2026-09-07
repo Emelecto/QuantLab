@@ -3,12 +3,13 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from auth import require_user, get_optional_user
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Motor de backtest (datos reales, walk-forward) + esquema de config.
 # Import diferido a nivel de módulo: engine solo trae pandas (dependencia central),
@@ -19,7 +20,8 @@ from schemas import StrategyConfig  # noqa: E402
 logger = logging.getLogger(__name__)
 
 # Rate-limit en memoria (best-effort) para el endpoint /replicate:
-# no re-correr el backtest más de 1 vez por minuto por estrategia.
+# no re-correr el backtest más de 1 vez por minuto por (estrategia, usuario).
+# Clave del dict: f"{strategy_id}:{user_id}".
 _replicate_last_run: dict[str, float] = {}
 
 # Umbral de tolerancia del Sello de Replicabilidad (Δ sharpe OOS).
@@ -64,6 +66,8 @@ def tournament_list(type: str | None = None, status: str | None = None):
     return res.data or []
 
 
+# NOTA: este /tournament/ml debe ir ANTES de /tournament/{id} (si no, "ml"
+# cae como id y Postgres recibe "ml" como UUID -> 500). No duplicar.
 @router.get("/tournament/ml")
 def tournament_list_ml(status: str | None = None):
     sb = get_supabase()
@@ -88,7 +92,7 @@ class SubmitBody(BaseModel):
     tournament_id: str
     code: str
     config: dict
-    qp_stake: int = 0
+    qp_stake: int = Field(default=0, ge=0)
     replace: bool = False
 
 
@@ -274,7 +278,7 @@ def tournament_round(tournament_id: str, request: Request):
 
 
 @router.get("/tournament/{tournament_id}/my-submission")
-def tournament_my_submission(tournament_id: str):
+def tournament_my_submission(tournament_id: str, request: Request):
     sb = get_supabase()
     uid = require_user(request)
     res = (
@@ -323,8 +327,13 @@ class TransactionBody(BaseModel):
 
 @router.post("/tokens/transaction")
 def tokens_transaction(body: TransactionBody, request: Request):
+    if body.amount == 0:
+        raise HTTPException(400, "El monto debe ser distinto de cero")
     sb = get_supabase()
     uid = require_user(request)
+    # Un gasto no puede exceder el balance disponible.
+    if body.amount < 0 and _get_balance(uid) + body.amount < 0:
+        raise HTTPException(400, "QP insuficientes para esta transacción")
     # Insert ledger entry
     sb.table("token_ledger").insert({
         "user_id": uid, "amount": body.amount, "type": body.type,
@@ -346,10 +355,22 @@ class GrantBody(BaseModel):
 
 
 def _require_scheduler_key(x_scheduler_key: str | None) -> None:
-    """Valida el header X-Scheduler-Key contra env SCHEDULER_KEY."""
+    """Valida el header X-Scheduler-Key contra env SCHEDULER_KEY.
+
+    Comparación en tiempo constante (hmac.compare_digest) para no filtrar
+    por timing el valor esperado.
+    """
     import os
     expected = os.environ.get("SCHEDULER_KEY")
-    if not expected or not x_scheduler_key or x_scheduler_key != expected:
+    if not expected or not x_scheduler_key:
+        raise HTTPException(
+            401, "Unauthorized. Header X-Scheduler-Key inválido o ausente."
+        )
+    try:
+        ok = hmac.compare_digest(x_scheduler_key, expected)
+    except TypeError:
+        ok = False
+    if not ok:
         raise HTTPException(
             401, "Unauthorized. Header X-Scheduler-Key inválido o ausente."
         )
@@ -417,20 +438,6 @@ def marketplace_list(asset_type: str | None = None, symbol: str | None = None):
         q = q.eq("symbol", symbol)
     q = q.order("subscribers", desc=True)
     return q.execute().data or []
-
-
-# Alias para el frontend de torneos ML: /tournament/ml lista torneos type="ml"
-# (sin esto, el frontend que llama /tournament/ml cae en /tournament/{id}
-#  y Postgres recibe "ml" como UUID -> 500).
-@router.get("/tournament/ml")
-def tournament_list_ml(status: str | None = None):
-    sb = get_supabase()
-    q = sb.table("tournaments").select("*").eq("type", "ml")
-    if status:
-        q = q.eq("status", status)
-    q = q.order("created_at", desc=True)
-    res = q.execute()
-    return res.data or []
 
 
 # ---------------------------------------------------------------------------
@@ -569,7 +576,14 @@ def marketplace_publish(body: PublishBody, request: Request):
             seal["bench_buyhold"] = None
             seal["bench_ma"] = None
 
-        sb.table("marketplace_strategies").update(seal).eq("id", strategy_id).execute()
+        try:
+            sb.table("marketplace_strategies").update(seal).eq("id", strategy_id).execute()
+        except Exception:
+            # La columna data_hash aún no existe en DB (migración 0021
+            # pendiente de aplicar): reintentar el sello sin ella, best-effort.
+            logger.warning("Sello: columna data_hash ausente, se reintenta sin ella")
+            seal_sin_hash = {k: v for k, v in seal.items() if k != "data_hash"}
+            sb.table("marketplace_strategies").update(seal_sin_hash).eq("id", strategy_id).execute()
     except Exception as seal_exc:  # noqa: BLE001
         logger.warning(
             "Sello de Integridad falló al publicar (se publica igual, backtest_metrics=None): %s",
@@ -587,7 +601,7 @@ def marketplace_publish(body: PublishBody, request: Request):
 
 
 @router.get("/marketplace/{strategy_id}/replicate")
-def marketplace_replicate(strategy_id: str):
+def marketplace_replicate(strategy_id: str, request: Request = None):  # noqa: RUF013 - None mantiene compat con llamadas directas en tests
     """VERIFICACIÓN / SELLO DE REPLICABILIDAD (item 2 del rediseño).
 
     Corre el backtest OTRA VEZ con datos frescos (mismo config) y compara el
@@ -595,20 +609,24 @@ def marketplace_replicate(strategy_id: str):
     estrategia como `replicable=True` (Sello de Integridad confirmado). Si el
     hash de datos cambió, avisa que se evaluó sobre una ventana distinta.
 
-    Protección: rate-limit en memoria (best-effort) de 1 corrida por minuto por
-    estrategia, para no re-bajar la API de datos en cada click.
+    Requiere auth (evita cómputo anónimo costoso) y rate-limit en memoria
+    (best-effort) de 1 corrida por minuto por (estrategia, usuario), para no
+    re-bajar la API de datos en cada click.
     """
     import time
 
+    uid = require_user(request)
+
     now = time.time()
-    last = _replicate_last_run.get(strategy_id)
+    rl_key = f"{strategy_id}:{uid}"
+    last = _replicate_last_run.get(rl_key)
     if last is not None and (now - last) < _REPLICATE_COOLDOWN_S:
         raise HTTPException(
             429,
             f"Replicar solo se puede correr 1 vez por minuto por estrategia "
             f"(espera {int(_REPLICATE_COOLDOWN_S - (now - last))}s).",
         )
-    _replicate_last_run[strategy_id] = now
+    _replicate_last_run[rl_key] = now
 
     sb = get_supabase()
     s = sb.table("marketplace_strategies").select("*").eq("id", strategy_id).execute()
@@ -664,13 +682,20 @@ def marketplace_replicate(strategy_id: str):
             f"Estrategia NO replicable."
         )
 
-    # Persistir el veredicto + el hash fresco (best-effort).
+    # Persistir el veredicto + el hash fresco (best-effort: la columna
+    # data_hash aún no existe en DB —migración 0021 pendiente—, se reintenta
+    # sin ella antes de rendirse).
     try:
         sb.table("marketplace_strategies").update(
             {"replicable": replicable, "data_hash": bt.get("data_hash")}
         ).eq("id", strategy_id).execute()
     except Exception:  # noqa: BLE001
-        pass
+        try:
+            sb.table("marketplace_strategies").update(
+                {"replicable": replicable}
+            ).eq("id", strategy_id).execute()
+        except Exception:  # noqa: BLE001
+            pass
 
     result = {
         "replicable": replicable,
@@ -724,7 +749,7 @@ def marketplace_subscribe(strategy_id: str, request: Request):
 
 
 @router.post("/marketplace/{strategy_id}/unsubscribe")
-def marketplace_unsubscribe(strategy_id: str, request):
+def marketplace_unsubscribe(strategy_id: str, request: Request):
     sb = get_supabase()
     uid = require_user(request)
     sb.table("strategy_subscriptions").update({"status": "cancelled"}).eq("strategy_id", strategy_id).eq("subscriber_id", uid).execute()
@@ -760,18 +785,40 @@ def signals_list(strategy_id: str):
 
 
 @router.get("/marketplace/{strategy_id}/signals")
-def marketplace_signals(strategy_id: str, limit: int = 20):
-    """Señales públicas de una estrategia del marketplace (sin auth)."""
+def marketplace_signals(strategy_id: str, request: Request = None, limit: int = 20):  # noqa: RUF013
+    """Señales de una estrategia del marketplace.
+
+    Gratis (price_qp_week=0): públicas, sin auth. De pago: exigen suscripción
+    activa a la estrategia (o ser su autor); si no, 403.
+    """
     limit = max(1, min(limit, 100))
     sb = get_supabase()
     exists = (
         sb.table("marketplace_strategies")
-        .select("id")
+        .select("id,price_qp_week,author_id")
         .eq("id", strategy_id)
         .execute()
     )
     if not exists.data:
         raise HTTPException(404, "Estrategia no encontrada")
+    price = exists.data[0].get("price_qp_week") or 0
+    if price > 0:
+        uid = require_user(request)
+        if uid != exists.data[0].get("author_id"):
+            sub = (
+                sb.table("strategy_subscriptions")
+                .select("id")
+                .eq("strategy_id", strategy_id)
+                .eq("subscriber_id", uid)
+                .eq("status", "active")
+                .execute()
+            )
+            if not sub.data:
+                raise HTTPException(
+                    403,
+                    "Estas señales son de pago: necesitas una suscripción activa "
+                    "a la estrategia para verlas.",
+                )
     res = (
         sb.table("signals")
         .select("*")
@@ -784,13 +831,16 @@ def marketplace_signals(strategy_id: str, limit: int = 20):
 
 
 @router.get("/marketplace/{strategy_id}")
-def marketplace_detail(strategy_id: str):
+def marketplace_detail(strategy_id: str, request: Request = None):  # noqa: RUF013
     """Detalle de una estrategia del marketplace (lectura, sin auth).
 
     Devuelve la fila completa (`*` incluye backtest_metrics, backtest_equity,
     is_public_code y, tras la migración 0012, delivers/replicable/bench_*).
     Trae también el perfil del autor vía join para el Sello de Integridad y
     la zona de autor de la página de detalle.
+
+    Privacidad del código: si `is_public_code` es false y el lector no es el
+    autor, el campo `code` se omite de la respuesta.
     """
     sb = get_supabase()
     res = (
@@ -801,7 +851,12 @@ def marketplace_detail(strategy_id: str):
     )
     if not res.data:
         raise HTTPException(404, "Estrategia no encontrada")
-    return res.data[0]
+    row = res.data[0]
+    if not row.get("is_public_code"):
+        reader = get_optional_user(request) if request is not None else None
+        if reader != row.get("author_id"):
+            row = {k: v for k, v in row.items() if k != "code"}
+    return row
 
 
 # ---------------------------------------------------------------------------
@@ -880,9 +935,37 @@ def _get_balance(uid: str) -> int:
 
 
 def _update_balance(uid: str, delta: int):
+    """Aplica `delta` al balance manteniendo lifetime_earned/spent y tier.
+
+    Misma aritmética que `internal_tokens_grant` (referencia): el alta y el
+    gasto acumulados se mueven en el MISMO upsert que el balance, para no
+    perderlos con on_conflict="user_id".
+    """
     sb = get_supabase()
-    bal = _get_balance(uid) + delta
-    sb.table("tokens").upsert({"user_id": uid, "balance": bal}, on_conflict="user_id").execute()
+    cur = (
+        sb.table("tokens")
+        .select("balance,lifetime_earned,lifetime_spent,tier")
+        .eq("user_id", uid)
+        .execute()
+    )
+    if cur.data:
+        row = cur.data[0]
+        bal = int(row.get("balance") or 0) + delta
+        earned = int(row.get("lifetime_earned") or 0) + (delta if delta > 0 else 0)
+        spent = int(row.get("lifetime_spent") or 0) + (-delta if delta < 0 else 0)
+        sb.table("tokens").upsert({
+            "user_id": uid, "balance": bal,
+            "lifetime_earned": earned, "lifetime_spent": spent,
+            "tier": row.get("tier") or "free",
+        }, on_conflict="user_id").execute()
+    else:
+        sb.table("tokens").upsert({
+            "user_id": uid,
+            "balance": delta if delta > 0 else 0,
+            "lifetime_earned": max(0, delta),
+            "lifetime_spent": max(0, -delta),
+            "tier": "free",
+        }, on_conflict="user_id").execute()
 
 
 def _slugify(s: str) -> str:

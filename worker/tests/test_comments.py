@@ -3,6 +3,7 @@
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 from unittest.mock import MagicMock, patch
 
 
@@ -37,22 +38,25 @@ def test_create_comment_ok(mock_supabase):
 
 
 def test_create_comment_too_long(mock_supabase):
+    # pydantic valida max_length=2000 en CommentBody → ValidationError (422 vía HTTP).
     with patch("comments.get_supabase", return_value=mock_supabase):
-        from comments import create_comment, CommentBody
+        from comments import CommentBody
 
-        with pytest.raises(HTTPException) as exc:
-            create_comment("strat-1", CommentBody(body="x" * 2001), MagicMock())
-        assert exc.value.status_code == 400
+        with pytest.raises(ValidationError):
+            CommentBody(body="x" * 2001)
 
 
 def test_create_comment_empty(mock_supabase):
+    # pydantic valida min_length=1 → "" vacío lanza ValidationError (422 vía HTTP).
     with patch("comments.get_supabase", return_value=mock_supabase):
-        from comments import create_comment, CommentBody
+        from comments import CommentBody, create_comment
 
-        for text in ("", "   "):
-            with pytest.raises(HTTPException) as exc:
-                create_comment("strat-1", CommentBody(body=text), MagicMock())
-            assert exc.value.status_code == 400
+        with pytest.raises(ValidationError):
+            CommentBody(body="")
+        # Solo-blancos pasa pydantic (len>=1) pero el strip-check lo rechaza con 400.
+        with pytest.raises(HTTPException) as exc:
+            create_comment("strat-1", CommentBody(body="   "), MagicMock())
+        assert exc.value.status_code == 400
 
 
 def test_create_comment_requires_auth(mock_supabase):

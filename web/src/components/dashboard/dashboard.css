@@ -186,6 +186,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.ql-nav-section {
+  margin: 10px 10px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ql-muted);
+}
 .ql-sidebar.collapsed .ql-nav-label {
   display: none;
 }

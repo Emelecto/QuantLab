@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { MobileBottomNav } from "@/components/dashboard/MobileBottomNav";
+import { CommandPalette } from "@/components/command-palette";
 import "@/components/learn/learn.css";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="ql-dash-main">
         {children}
         <MobileBottomNav />
+        <CommandPalette />
       </div>
     </div>
   );

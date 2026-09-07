@@ -102,18 +102,18 @@ class CreateNotificationBody(BaseModel):
 
 
 def _require_service_role(request: Request) -> None:
-    """Valida que la request venga con service_role."""
+    """Valida que la request venga con service_role (comparación timing-safe)."""
+    import hmac
     import os
-    from fastapi import Header
-    
+
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, "Token requerido")
-    
+
     token = auth_header[7:].strip()
     expected = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    
-    if token != expected:
+
+    if not expected or not hmac.compare_digest(token, expected):
         raise HTTPException(403, "Solo service_role puede crear notificaciones")
 
 
