@@ -83,21 +83,26 @@ def admin_stats(request: Request):
         # Usuarios totales
         total_users = sb.table("profiles").select("id", count="exact").execute().count or 0
 
-        # Usuarios activos última semana (WAU)
-        wau = (
-            sb.table("profiles")
-            .select("id", count="exact")
-            .gte("last_active_date", seven_days_ago.date().isoformat())
-            .execute().count or 0
-        )
-
-        # Usuarios activos último mes (MAU)
-        mau = (
-            sb.table("profiles")
-            .select("id", count="exact")
-            .gte("last_active_date", thirty_days_ago.date().isoformat())
-            .execute().count or 0
-        )
+        # Usuarios activos última semana (WAU) y último mes (MAU).
+        # NOTA: last_active_date vive en course_progress (migración 0015),
+        # no en profiles; leer de profiles revienta con 500. Fallback a 0
+        # para no tumbar el endpoint si course_progress falla.
+        try:
+            wau = (
+                sb.table("course_progress")
+                .select("user_id", count="exact")
+                .gte("last_active_date", seven_days_ago.date().isoformat())
+                .execute().count or 0
+            )
+            mau = (
+                sb.table("course_progress")
+                .select("user_id", count="exact")
+                .gte("last_active_date", thirty_days_ago.date().isoformat())
+                .execute().count or 0
+            )
+        except Exception:
+            logger.warning("No se pudo calcular WAU/MAU desde course_progress; uso 0")
+            wau, mau = 0, 0
 
         # Nuevos registros esta semana
         new_this_week = (

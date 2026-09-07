@@ -235,7 +235,12 @@ export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(json.error || `HTTP ${res.status}`) as Error & { code?: string };
+    // Incluir el path: /app/admin dispara 3 llamadas en Promise.all y sin
+    // esto es imposible saber cuál falló. Leer también `detail` porque
+    // FastAPI serializa HTTPException como {detail}, no como {error}.
+    const detail =
+      (json as any).error || (json as any).detail || `HTTP ${res.status}`;
+    const err = new Error(`${path}: ${detail}`) as Error & { code?: string };
     if (res.status === 502 || res.status === 503) err.code = "WORKER_UNAVAILABLE";
     else if (res.status === 504) err.code = "WORKER_TIMEOUT";
     throw err;
