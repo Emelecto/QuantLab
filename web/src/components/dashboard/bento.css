@@ -625,6 +625,76 @@
   background-clip: text;
 }
 
+/* ===== Skeletons de carga (reemplazan "Cargando...") ===== */
+.ql-skel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.ql-skel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ql-skel-header .ql-skeleton-line {
+  flex: 1;
+  max-width: 140px;
+}
+.ql-skel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.ql-skel-block {
+  border-radius: 10px;
+  background: hsla(224, 96%, 97%, 0.025);
+  border: 1px solid hsla(224, 96%, 97%, 0.06);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ql-skel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ql-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+  padding: 6px;
+}
+@media (max-width: 640px) {
+  .ql-skel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Color semántico en métricas ===== */
+.ql-estrategia-metric.is-neg {
+  color: var(--ql-short);
+}
+
+/* ===== Números tabulares (fuente mono + alineación estable) ===== */
+.ql-competencia-mini-prize-value,
+.ql-competencia-mini-countdown,
+.ql-ranking-qp,
+.ql-ranking-pos,
+.ql-estrategia-metric,
+.ql-aprendizaje-percent {
+  font-variant-numeric: tabular-nums;
+}
+.ql-competencia-mini-countdown {
+  color: var(--ql-muted);
+}
+.ql-competencia-mini-countdown.is-live {
+  color: var(--ql-accent);
+  font-weight: 600;
+}
+
 @media (max-width: 1024px) {
   .ql-bento-grid {
     grid-template-columns: 1fr;

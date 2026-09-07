@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/useAuth";
-import { useDashboardData } from "./useDashboardData";
+import { useDashboardData, type DashboardTournament } from "./useDashboardData";
 import { modules as courseModules } from "@/lib/learn/modules";
 import {
   getQPRanking,
@@ -40,6 +40,78 @@ function formatDateTime(value: string | null): string | null {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(d);
+}
+
+/** Card de competencia con countdown en vivo (re-render cada minuto). */
+function TournamentMini({ tournament }: { tournament: DashboardTournament }) {
+  const countdown = useCountdown(tournament.deadline);
+  const deadline = formatDateTime(tournament.deadline);
+  const isEnding = tournament.deadline && new Date(tournament.deadline) > new Date();
+
+  return (
+    <Link
+      href={`/app/tournaments/${tournament.id}`}
+      className="ql-competencia-mini"
+    >
+      <div className="ql-competencia-mini-header">
+        <div className="ql-competencia-mini-top">
+          <span className="ql-competencia-mini-type">
+            {tournament.type === "ml" ? "ML" : "Estrategias"}
+          </span>
+          {tournament.submission && (
+            <span className={`ql-competencia-mini-status${tournament.submission.status === "pending" || tournament.submission.status === "running" ? " pending" : ""}`}>
+              {tournament.submission.status === "done" || tournament.submission.status === "scored" ? "Evaluada" : "Pendiente"}
+            </span>
+          )}
+        </div>
+        <h4 className="ql-competencia-mini-name">{tournament.name}</h4>
+      </div>
+      <div className="ql-competencia-mini-body">
+        {tournament.symbol && <span className="ql-competencia-mini-badge">{tournament.symbol}</span>}
+        <span className="ql-competencia-mini-badge">{tournament.asset_type}</span>
+      </div>
+      <div className="ql-competencia-mini-footer">
+        <div className="ql-competencia-mini-prize">
+          <span className="ql-competencia-mini-prize-label">Premio</span>
+          <span className="ql-competencia-mini-prize-value">{formatNumber(tournament.qp_prize)} QP</span>
+        </div>
+        <span className={`ql-competencia-mini-countdown${countdown ? " is-live" : ""}`}>
+          {countdown ? (
+            <>Cierra en {countdown}</>
+          ) : (
+            <>{isEnding ? "Termina: " : "Inicia: "}{deadline}</>
+          )}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/** Devuelve el tiempo restante legible ("3d 04h") hasta una fecha ISO,
+ *  o null si ya pasó / no hay deadline. Re-renderiza cada minuto. */
+function useCountdown(deadline: string | null): string | null {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!deadline) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [deadline]);
+
+  if (!deadline) return null;
+  const end = new Date(deadline).getTime();
+  if (Number.isNaN(end)) return null;
+  const diffMs = end - now;
+  if (diffMs <= 0) return null;
+
+  const diffMin = Math.floor(diffMs / 60_000);
+  const days = Math.floor(diffMin / 1440);
+  const hours = Math.floor((diffMin % 1440) / 60);
+  const minutes = diffMin % 60;
+
+  if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}h`;
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  return `${minutes}m`;
 }
 
 function StatusBadge({
@@ -116,6 +188,57 @@ function SectionLink({ href, label }: { href: string; label: string }) {
   );
 }
 
+function SkeletonBlock({ rows = 2 }: { rows?: number }) {
+  return (
+    <div className="ql-skel-block" aria-hidden="true">
+      <span className="ql-skeleton-line" style={{ width: "45%" }} />
+      {Array.from({ length: rows }).map((_, i) => (
+        <span key={i} className="ql-skeleton-line" />
+      ))}
+    </div>
+  );
+}
+
+function SkeletonCompetencias() {
+  return (
+    <div className="ql-skeletons" aria-busy="true" aria-label="Cargando competencias">
+      <div className="ql-skel-grid">
+        <SkeletonBlock rows={3} />
+        <SkeletonBlock rows={3} />
+        <SkeletonBlock rows={3} />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonRanking() {
+  return (
+    <div className="ql-skel-list" aria-busy="true" aria-label="Cargando ranking">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="ql-skel-row">
+          <span className="ql-skeleton-line" style={{ width: "24px" }} />
+          <span className="ql-skeleton-circle" style={{ width: 20, height: 20 }} />
+          <span className="ql-skeleton-line" style={{ flex: 1 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonEstrategias() {
+  return (
+    <div className="ql-skel-list" aria-busy="true" aria-label="Cargando estrategias">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="ql-skel-row">
+          <span className="ql-skeleton-line" style={{ width: "32%" }} />
+          <span className="ql-skeleton-line" style={{ flex: 1 }} />
+          <span className="ql-skeleton-line" style={{ width: "16%" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DashboardHome() {
   const { user } = useAuth();
   const { qp, course, ranking, strategies, tournaments, loading, error, sources } =
@@ -169,9 +292,19 @@ function DashboardHome() {
   };
 
   const rankingEntries = rankingTab === "qp" ? qpRanking : tournamentRanking;
-  const myTournaments = tournaments.slice(0, 6);
-  const hasMoreTournaments = tournaments.length > 6;
-  const myStrategies = strategies.slice(0, 6);
+    const myTournaments = tournaments.slice(0, 6);
+    const hasMoreTournaments = tournaments.length > 6;
+    const myStrategies = [...strategies]
+      .sort((a, b) => {
+        const sa = a.last_sharpe_oos;
+        const sb = b.last_sharpe_oos;
+        // Nulos al final; resto descendente por sharpe OOS.
+        if (sa == null && sb == null) return 0;
+        if (sa == null) return 1;
+        if (sb == null) return -1;
+        return sb - sa;
+      })
+      .slice(0, 6);
 
   // Cargar el ranking al montar para que aparezca instantáneamente sin requerir click.
   useEffect(() => {
@@ -204,7 +337,7 @@ function DashboardHome() {
           />
           <div className="ql-bento-competencias-body">
             {sources.tournaments === "loading" ? (
-              <div className="ql-bento-empty">Cargando competencias...</div>
+              <SkeletonCompetencias />
             ) : myTournaments.length === 0 ? (
               <div className="ql-bento-empty">
                 <p>No estás inscrito en ninguna competencia.</p>
@@ -214,44 +347,9 @@ function DashboardHome() {
               </div>
             ) : (
               <div className="ql-competencias-grid">
-                {myTournaments.map((t) => {
-                  const deadline = formatDateTime(t.deadline);
-                  const isEnding = t.deadline && new Date(t.deadline) > new Date();
-                  return (
-                    <Link
-                      key={t.id}
-                      href={`/app/tournaments/${t.id}`}
-                      className="ql-competencia-mini"
-                    >
-                      <div className="ql-competencia-mini-header">
-                        <div className="ql-competencia-mini-top">
-                          <span className="ql-competencia-mini-type">
-                            {t.type === "ml" ? "ML" : "Estrategias"}
-                          </span>
-                          {t.submission && (
-                            <span className={`ql-competencia-mini-status${t.submission.status === "pending" || t.submission.status === "running" ? " pending" : ""}`}>
-                              {t.submission.status === "done" || t.submission.status === "scored" ? "Evaluada" : "Pendiente"}
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="ql-competencia-mini-name">{t.name}</h4>
-                      </div>
-                      <div className="ql-competencia-mini-body">
-                        {t.symbol && <span className="ql-competencia-mini-badge">{t.symbol}</span>}
-                        <span className="ql-competencia-mini-badge">{t.asset_type}</span>
-                      </div>
-                      <div className="ql-competencia-mini-footer">
-                        <div className="ql-competencia-mini-prize">
-                          <span className="ql-competencia-mini-prize-label">Premio</span>
-                          <span className="ql-competencia-mini-prize-value">{formatNumber(t.qp_prize)} QP</span>
-                        </div>
-                        <span className="ql-competencia-mini-countdown">
-                          {isEnding ? "Termina: " : "Inicia: "}{deadline}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })}
+                {myTournaments.map((t) => (
+                  <TournamentMini key={t.id} tournament={t} />
+                ))}
               </div>
             )}
           </div>
@@ -310,7 +408,7 @@ function DashboardHome() {
           </div>
           <div className="ql-ranking-body">
             {rankingLoading ? (
-              <div className="ql-bento-empty">Cargando ranking...</div>
+              <SkeletonRanking />
             ) : rankingEntries.length === 0 ? (
               <div className="ql-bento-empty">
                 No hay datos para este período.
@@ -382,7 +480,7 @@ function DashboardHome() {
             />
             <div className="ql-estrategias-body">
               {sources.strategies === "loading" ? (
-                <div className="ql-bento-empty">Cargando estrategias...</div>
+                <SkeletonEstrategias />
               ) : myStrategies.length === 0 ? (
                 <div className="ql-bento-empty">
                   <p>No tienes estrategias aún.</p>
@@ -406,7 +504,11 @@ function DashboardHome() {
                         </span>
                       </div>
                       {s.last_sharpe_oos != null && (
-                        <span className="ql-estrategia-metric">
+                        <span
+                          className={`ql-estrategia-metric${
+                            s.last_sharpe_oos < 0 ? " is-neg" : ""
+                          }`}
+                        >
                           {s.last_sharpe_oos.toFixed(2)}
                         </span>
                       )}
