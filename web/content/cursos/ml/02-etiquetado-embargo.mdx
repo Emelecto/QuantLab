@@ -1,0 +1,79 @@
+---
+id: "c5-l2"
+curso: "ml"
+leccion: 2
+titulo: "Etiquetado y embargo"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Etiquetado y embargo
+
+> El mismo modelo, con las mismas features, pasa de rentable a ruina según cómo etiquetes cada vela. La etiqueta es la mitad del modelo.
+
+## Objetivo
+
+Etiquetar movimientos futuros con horizonte fijo y triple barrera, y aplicar embargo (purge + embargo) para que train y test no compartan información.
+
+## TL;DR
+
+- Etiqueta de horizonte fijo: signo del retorno t+1..t+h menos costos.
+- Triple barrera: toma-profit, stop-loss o tiempo máximo; lo que toque primero manda.
+- Embargo: elimina del train las muestras cercanas al test para que no se filtre el mismo evento.
+
+## 1. Etiqueta de horizonte fijo
+
+La etiqueta más simple: ¿sube o baja en los próximos h días después de costos? Sin costos, el ruido te paga comisiones; con costos, solo sobreviven las señales con margen.
+
+```python
+h, costo = 5, 0.002
+df['ret_fut'] = df['close'].pct_change(h).shift(-h)
+df['y_fija'] = (df['ret_fut'] > costo).astype(int)
+```
+
+Con el CSV etiquetas 60 días a 5 días vista y mides el balance de clases: si el 90% es una sola clase, el modelo aprenderá a predecir siempre lo mismo.
+
+## 2. Triple barrera de López de Prado
+
+En vez de esperar h días fijos, defines take-profit (+2σ), stop-loss (−2σ) y vencimiento h. La primera barrera tocada define la etiqueta: +1, −1 o 0. Así la etiqueta refleja lo operable, no lo académico.
+
+```python
+tp, sl = 0.04, 0.02  # +4% toma-profit, −2% stop
+# recorre h barras: primera barrera tocada define y (-1, 0, +1)
+```
+
+En el notebook comparas la etiqueta fija contra la triple barrera y ves cuántos 'ganadores' fijos habrían tocado el stop primero.
+
+## 3. Purge y embargo: el test no se toca
+
+Si una muestra de train usa precios que también usa una de test (ventanas solapadas), el test está contaminado. La purga elimina del train toda muestra cuyo horizonte toque el periodo de test, y el embargo borra unas muestras extra de colchón.
+
+```python
+# test empieza en t0: purga train con horizonte que cruce t0
+embargo = 5  # días de colchón
+train_ok = df[df['t_end'] < t0 - embargo]
+```
+
+El notebook muestra cuántas muestras caen en la purga: pocas filas menos, mucha honestidad más.
+
+## Visual
+
+Piensa en dos cubetas conectadas por un tubo: si no pones el tapón (embargo), el agua del test se filtra al train y el examen miente.
+
+## Error típico
+
+Etiquetar con el retorno del mismo día (h = 0) o sin desplazar: la etiqueta contiene el presente que las features no tendrían en vivo. Todo retorno etiquetado debe mirar solo al futuro.
+
+## Checklist
+
+- [ ] Etiquetas con horizonte fijo descontando costos
+- [ ] Aplican la triple barrera (TP/SL/tiempo) y explican cada salida
+- [ ] Purgan y embargan el train antes de medir
+- [ ] Quiz `c5_l2.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l2.ipynb`, sube el costo de 0.002 a 0.005 y observa cómo la clase positiva se encoge: ese es tu margen real.
+- Quiz `c5_l2.json`: 3 preguntas, necesitas 2 bien para el QP.

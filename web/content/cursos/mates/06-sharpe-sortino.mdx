@@ -1,0 +1,80 @@
+---
+id: "c3-l6"
+curso: "mates"
+leccion: 6
+titulo: "Sharpe y Sortino: retorno por unidad de susto"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 4
+---
+
+# Sharpe y Sortino: retorno por unidad de susto
+
+> Ganar 8,32% suena bien hasta que ves el camino: 26 de 50 días en rojo y una caída de −11,81%. El Sharpe (1,31) y el Sortino (2,60) ponen el retorno en relación con el susto. Sin ellos, comparas ganancias; con ellos, comparas estrategias.
+
+## Objetivo
+
+Calcular el Sharpe y el Sortino anualizados de una serie de 50 retornos diarios (`c3_l6.csv`) y entender por qué el Sortino (2,60) supera al Sharpe (1,31): solo castiga la volatilidad mala.
+
+## TL;DR
+
+Retorno total +8,32% con Sharpe 1,31, Sortino 2,60 y caída máxima −11,81%. Más de la mitad de los días (26/50) cerraron en rojo y aun así la estrategia gana: el promedio de los días buenos pesa más. El Sortino es mayor porque ignora los días verdes al medir el riesgo.
+
+## 1. Sharpe: el retorno entre el ruido
+
+El Sharpe divide el retorno promedio entre su desviación estándar y lo anualiza con raíz de 252. Premia ganar mucho y castiga el vaivén, suba o baje.
+
+```python
+sharpe = r.mean() / r.std(ddof=1) * (252 ** 0.5)   # 1,31
+```
+
+Regla de bolsillo: bajo 1,0 es ruido con suerte; sobre 1,0 es interesante; sobre 2,0 en muestra corta, sospecha (ver lección 7).
+
+## 2. Sortino: solo el susto cuenta
+
+Al inversor no le quita el sueño la volatilidad hacia arriba. El Sortino cambia el denominador por la desviación solo de los días negativos: aquí 2,60, el doble del Sharpe, porque los días verdes eran movidos pero los rojos, contenidos.
+
+```python
+down = r[r < 0]
+sortino = r.mean() / down.std(ddof=1) * (252 ** 0.5)   # 2,60
+```
+
+Si el Sortino supera por mucho al Sharpe, tus subidas son bruscas y tus bajadas, ordenadas: buen perfil para dormir tranquilo.
+
+## 3. El precio del 8,32%: −11,81% en el camino
+
+El retorno total fue +8,32%, pero el equity pasó por una caída máxima de −11,81% y 26 de 50 días en rojo. Ningún ratio sustituye esa pregunta: ¿habrías aguantado el pozo sin abandonar la estrategia? El Sharpe mide eficiencia, el drawdown mide si sigues vivo para cobrarla.
+
+## Visual: retorno contra susto
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Sharpe 1,31, Sortino 2,60, retorno 8,32 por ciento y caida maxima menos 11,81" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Retorno por unidad de susto</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="200" x2="520" y2="200" stroke="#52525b" stroke-width="1"/>
+<rect x="70" y="122" width="70" height="78" rx="3" fill="#5eead4"/>
+<text x="78" y="216" fill="#e5e5e5">Sharpe</text>
+<text x="88" y="228" fill="#5eead4">1,31</text>
+<rect x="200" y="70" width="70" height="130" rx="3" fill="#a78bfa"/>
+<text x="208" y="216" fill="#e5e5e5">Sortino</text>
+<text x="214" y="228" fill="#a78bfa">2,60</text>
+<rect x="330" y="148" width="70" height="52" rx="3" fill="#f59e0b"/>
+<text x="334" y="216" fill="#e5e5e5">retorno</text>
+<text x="334" y="228" fill="#f59e0b">+8,32%</text>
+<rect x="440" y="150" width="40" height="50" rx="3" fill="#f87171" transform="translate(0,0)"/>
+<text x="428" y="216" fill="#e5e5e5">maxDD</text>
+<text x="428" y="228" fill="#f87171">−11,81%</text>
+</g>
+</svg>
+
+## Error común
+
+Comparar retornos sin ajustar por riesgo: "la mía ganó 20% y la tuya 12%". Si la tuya tuvo triple volatilidad y un pozo del −30%, el Sharpe cuenta la historia completa. Retorno sin denominador es anécdota.
+
+## Checklist
+
+- [ ] Calculo el Sharpe anualizado: 1,31
+- [ ] Calculo el Sortino con solo días negativos: 2,60
+- [ ] Explico por qué el Sortino supera al Sharpe en esta serie
+- [ ] Reporto el retorno total (+8,32%) junto a la caída máxima (−11,81%)
+- [ ] Completo el quiz c3_l6 (3/3 para ganar 2 QP)

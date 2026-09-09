@@ -1,0 +1,48 @@
+{
+  "questions": [
+    {
+      "q": "¿Qué es el edge en trading?",
+      "options": [
+        "Una racha de operaciones ganadoras",
+        "Una ventaja repetible con expectativa positiva",
+        "Un indicador que nunca falla",
+        "Operar con más capital que el resto"
+      ],
+      "answer": 1,
+      "explain": "Edge es un sesgo estadístico a tu favor que sobrevive a muchas repeticiones, no una racha ni un indicador infalible."
+    },
+    {
+      "q": "Ganas el 40% de las veces 2 € y pierdes el 60% de las veces 1 €. ¿Cuál es la expectativa por operación?",
+      "options": [
+        "−0.20 €",
+        "+0.20 €",
+        "+0.80 €",
+        "0 €"
+      ],
+      "answer": 1,
+      "explain": "E = 0.4×2 − 0.6×1 = 0.8 − 0.6 = +0.20 €. Juego con expectativa positiva."
+    },
+    {
+      "q": "Tu estrategia gana +0.10 € brutos por operación pero cada operación cuesta 0.12 € entre comisiones y deslizamiento. ¿Qué debes hacer?",
+      "options": [
+        "Operarla igual, el bruto manda",
+        "Aumentar el tamaño para compensar",
+        "No operarla: la expectativa neta es negativa",
+        "Operarla solo los lunes"
+      ],
+      "answer": 2,
+      "explain": "Expectativa neta = 0.10 − 0.12 = −0.02 €. Repetirla te acerca a cero; los costos son parte del juego."
+    },
+    {
+      "q": "¿Por qué una racha de 5 aciertos NO demuestra que tienes edge?",
+      "options": [
+        "Porque 5 es un número de mala suerte",
+        "Porque las rachas ocurren por azar incluso con expectativa negativa",
+        "Porque el mercado castiga a los ganadores",
+        "Porque los indicadores van con retraso"
+      ],
+      "answer": 1,
+      "explain": "Con suficientes intentos, las rachas aparecen por puro azar. El edge se demuestra con expectativa positiva en muestra grande, no con rachas."
+    }
+  ]
+}

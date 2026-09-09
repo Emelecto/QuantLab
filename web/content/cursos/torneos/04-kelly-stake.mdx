@@ -1,0 +1,76 @@
+---
+id: "c6-l4"
+curso: "torneos"
+leccion: 4
+titulo: "Kelly y stake"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Kelly y stake
+
+> El tamaño de la apuesta decide si una estrategia ganadora te hace rico o te quiebra. Kelly calcula el óptimo; la prudencia apuesta la mitad.
+
+## Objetivo
+
+Dimensionar el stake con el criterio de Kelly (y su versión prudente, half-Kelly) según filo estimado y volatilidad.
+
+## TL;DR
+
+- **Kelly**: fracción óptima ≈ filo / varianza. Más filo → más stake; más ruido → menos.
+- **Half-Kelly** (mitad) sacrifica poco crecimiento y recorta muchísimo el riesgo de ruina.
+- Apostar por encima de Kelly full es peor que apostar de menos: el crecimiento esperado se vuelve negativo.
+
+## 1. Apostar demasiado quiebra al ganador
+
+Una estrategia con CORR positivo esperado puede quebrar si apuestas demasiado en cada ronda: una mala racha te deja sin capital para la recuperación. El stake no es valentía, es aritmética.
+
+```python
+f_kelly = edge / varianza   # filo dividido por ruido
+f_half = f_kelly / 2        # la mitad: casi igual de rentable, mucho más segura
+```
+
+En el notebook simulas 60 rondas con stake fijo, Kelly full y half-Kelly sobre el CSV.
+
+## 2. Half-Kelly: el pacto con la realidad
+
+Tu filo estimado siempre es optimista (backtest, MMC pasado, sesgo). Half-Kelly absorbe ese optimismo: si tu edge real es la mitad del creído, sigues en el óptimo. Los profesionales rara vez superan el half-Kelly.
+
+```python
+stake = np.clip(0.5 * corr_estimado / (vol**2), 0, 0.25)  # tope de seguridad
+```
+
+Verificas que el stake medio queda acotado y que nunca supera el tope ni en la mejor ronda.
+
+## 3. Del score al stake: regla operativa
+
+Traduce tu diagnóstico a decisión: CORR medio por era y su volatilidad → fracción. Sin filo estimado positivo no hay stake, por doloroso que sea. Y el stake se recalcula cada ronda, no se fija una vez.
+
+```python
+if corr_medio <= 0:
+    stake = 0.0   # sin filo no hay apuesta
+```
+
+La simulación muestra el orden final típico: half-Kelly ≥ fijo > full-Kelly en capital final con sustos incluidos.
+
+## Visual
+
+Piensa en regar una planta con un vaso medidor: muy poca agua y no crece; el balde entero de golpe la ahoga. Kelly es la marca del vaso; half-Kelly es llenarlo hasta la mitad por si mediste mal.
+
+## Error típico
+
+Fijar el stake por intuición ("esta ronda se siente bien") o martingalear tras perder (doblar para recuperar). El stake sale de filo y varianza, y tras una pérdida se achica, no se agranda.
+
+## Checklist
+
+- [ ] Calculas la fracción de Kelly desde filo estimado y volatilidad
+- [ ] Aplicas half-Kelly con tope máximo y stake cero si no hay filo
+- [ ] Simulas 60 rondas y comparas capital final y peor racha por esquema
+- [ ] Quiz `c6_l4.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l4.ipynb`, duplica el stake de Kelly full (2×) y observa cómo el capital final empeora: pasarse del óptimo destruye.
+- Quiz `c6_l4.json`: 3 preguntas, necesitas 2 bien para el QP.

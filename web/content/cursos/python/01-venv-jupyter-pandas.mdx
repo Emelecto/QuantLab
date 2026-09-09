@@ -1,0 +1,88 @@
+---
+id: "c2-l1"
+curso: "python"
+leccion: 1
+titulo: "Tu laboratorio: venv, Jupyter y pandas"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Tu laboratorio: venv, Jupyter y pandas
+
+> Un trader sin entorno reproducible es un cocinero sin cocina: cada receta le sale distinta. Hoy montas la tuya.
+
+## Objetivo
+
+Al terminar, tendrás un entorno virtual funcionando, Jupyter abierto y un DataFrame de precios reales cargado desde un CSV.
+
+## TL;DR
+
+- `python -m venv .venv` aísla tus librerías por proyecto.
+- Jupyter te deja experimentar celda por celda, como un cuaderno de laboratorio.
+- En pandas todo gira alrededor del DataFrame: filas = observaciones, columnas = variables.
+
+## 1. El entorno virtual (tu caja de arena)
+
+Cada proyecto merece sus propias librerías. El venv evita el clásico "en mi máquina sí funcionaba":
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install pandas jupyter matplotlib
+```
+
+Yo aprendí esto a golpes: una actualización de pandas me rompió tres estrategias a la vez. Desde entonces, un proyecto, un venv, un `requirements.txt`.
+
+## 2. Jupyter: piensa en celdas, no en scripts
+
+Un notebook no es un programa de arriba abajo: es una conversación. Ejecutas una celda, miras el resultado, ajustas. Para análisis cuantitativo no hay nada mejor.
+
+Consejo práctico: reinicia el kernel y ejecuta todo de arriba abajo antes de dar algo por terminado. El 90% de los "bugs fantasma" son celdas ejecutadas en desorden.
+
+## 3. pandas en 5 verbos
+
+| Verbo | Qué hace |
+|---|---|
+| `read_csv` | Carga datos a un DataFrame |
+| `head/info/describe` | Inspecciona |
+| `loc/iloc` | Selecciona filas y columnas |
+| `assign` | Crea columnas nuevas |
+| `plot` | Grafica rápido |
+
+```python
+import pandas as pd
+df = pd.read_csv("data/c2_l1.csv", parse_dates=["date"])
+print(df.shape)
+print(df.head(3))
+print(df["close"].describe())
+```
+
+## 4. Tu primer gráfico de precios
+
+```python
+df.plot(x="date", y="close", title="Precio de cierre diario")
+```
+
+No busques belleza todavía: buscas familiaridad. ¿Hay huecos? ¿Un día raro? El gráfico te lo canta antes que cualquier estadística.
+
+## Visual
+
+Imagina tu DataFrame como una hoja de cálculo con superpoderes: cada columna sabe su tipo, cada fila su fecha, y puedes preguntarle cosas como "dame los 5 días de mayor volumen" en una línea.
+
+## Error típico
+
+Abrir el CSV con la ruta mal y culpar a pandas. Regla: imprime `Path.cwd()` y lista los archivos antes de cargar. Si el archivo no está donde crees, ningún código lo arregla.
+
+## Checklist
+
+- [ ] venv creado y activado con pandas + jupyter instalados
+- [ ] Notebook `c2_l1.ipynb` ejecutado de punta a punta sin errores
+- [ ] Sabes explicar qué es un DataFrame con tus palabras
+- [ ] Quiz `c2_l1.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- Abre el notebook `c2_l1.ipynb`, cambia la columna graficada a `volume` y describe qué ves.
+- Quiz `c2_l1.json`: 3 preguntas, necesitas 2 bien para el QP.

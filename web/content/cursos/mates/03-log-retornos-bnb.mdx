@@ -1,0 +1,71 @@
+---
+id: "c3-l3"
+curso: "mates"
+leccion: 3
+titulo: "Log-retornos con BNB: el retorno que se suma"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Log-retornos con BNB: el retorno que se suma
+
+> Los retornos simples mienten al acumularse: +10% y −10% no te dejan igual. Los log-retornos sí suman, y por eso todo quant serio los usa.
+
+## Objetivo
+
+Calcular retornos simples y logarítmicos sobre precios de BNB, verificar que los log-retornos se suman en el tiempo y elegir cuál usar según la tarea.
+
+## TL;DR
+
+- Retorno simple: (P₁ − P₀) / P₀. Log-retorno: ln(P₁ / P₀). Con movimientos pequeños casi coinciden.
+- Los log-retornos se suman: la suma de 30 días = ln(P₃₀ / P₀). Los simples no.
+- Para contar dinero usa simples; para modelar, sumar y anualizar, usa logs.
+
+## 1. Las dos fórmulas, una línea cada una
+
+```python
+df["ret_simple"] = df["close"].pct_change()
+df["ret_log"] = np.log(df["close"] / df["close"].shift(1))
+```
+
+Con BNB moviéndose ±2% al día, la diferencia entre ambos es de centésimas. Pero acumula 50 días y el simple compuesto se desvía: ahí nace el error silencioso de los backtests caseros.
+
+## 2. La magia: los logs se suman
+
+```python
+suma_logs = df["ret_log"].sum()
+total = np.log(df["close"].iloc[-1] / df["close"].iloc[0])
+assert abs(suma_logs - total) < 1e-9  # idénticos
+```
+
+Esto no es un truco: es la propiedad del logaritmo. Sumar 50 logs equivale al retorno total exacto. Por eso los modelos estadísticos (volatilidad, regresiones, Monte Carlo) viven en log-espacio.
+
+## 3. La trampa del +10% / −10%
+
+```python
+(1 + 0.10) * (1 - 0.10)  # 0.99: perdiste 1%
+```
+
+Sube 10% y baja 10% y no estás igual: estás 1% abajo. En logs: +0.0953 y −0.1054, cuya suma (−0.0101) te dice la pérdida exacta. El log no te endulza la caída.
+
+## Visual
+
+Imagina escalones: el retorno simple mide cada escalón con una regla distinta según la altura; el log-retorno usa siempre la misma regla. Al final de la escalera, solo una de las dos sumas llega al piso correcto.
+
+## Error típico
+
+Promediar retornos simples para estimar el crecimiento ("promedio 1% diario ⇒ 30% mensual"). El promedio aritmético de simples sobreestima: el crecimiento real lo da el promedio geométrico, o equivalentemente, la media de log-retornos.
+
+## Checklist
+
+- [ ] Calculas retornos simples y log con una línea cada uno
+- [ ] Demuestras que la suma de logs = log del retorno total
+- [ ] Explicas la trampa del +10%/−10% con números
+- [ ] Quiz `c3_l3.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c3_l3.ipynb`, compara el producto compuesto de simples contra la suma de logs: ¿cuánto difieren en 50 días?
+- Quiz `c3_l3.json`: 3 preguntas, necesitas 2 bien para el QP.

@@ -1,0 +1,77 @@
+---
+id: "c1-l4"
+curso: "fundamentos"
+leccion: 4
+titulo: "Sharpe, Sortino y drawdown: mide el camino, no solo la meta"
+tipo: "lesson"
+xp: 150
+qp: 1
+duracion_video_min: 4
+---
+
+# Sharpe, Sortino y drawdown: mide el camino, no solo la meta
+
+> Dos estrategias pueden terminar en el mismo número y que una te haya dado tres sustos por el camino y la otra ninguno. El retorno te dice el destino; estas tres métricas te dicen cómo fue el viaje.
+
+## 1. Sharpe: retorno por unidad de susto
+
+El Sharpe divide el retorno medio entre su volatilidad. Responde: "¿cuánto me pagaron por cada unidad de tembleque que aguanté?".
+
+Sharpe = media(retornos) / desviación(retornos), anualizado multiplicando por √252.
+
+Ficha rápida: por encima de 1.0 es aceptable, por encima de 2.0 es muy bueno, por debajo de 0.5 suele ser ruido disfrazado de estrategia. Nuestra serie demo de SOL da un Sharpe ≈ 1.05: jugable, nada heroico.
+
+```python
+import pandas as pd
+
+df = pd.read_csv("../data/c1_l4_sol_equity.csv")
+r = df["retorno_pct"] / 100
+sharpe = r.mean() / r.std(ddof=0) * (252 ** 0.5)
+print("Sharpe anualizado:", round(sharpe, 2))
+```
+
+## 2. Sortino: solo castiga lo malo
+
+Al trader le duelen las caídas, no las subidas. El Sharpe penaliza toda la volatilidad, incluso un +15% en un día. El Sortino solo divide entre la volatilidad de los días malos (downside deviation).
+
+En la demo, Sortino ≈ 1.53, claramente por encima del Sharpe: la estrategia tuvo subidas bruscas que el Sharpe castigaba y el Sortino no. Cuando Sortino supera con holgura al Sharpe, el camino tuvo más fiestas que sustos.
+
+## 3. Drawdown: cuánto caíste desde tu mejor día
+
+El drawdown mide la caída desde el último pico del equity. Si tu cuenta tocó 141.72 y luego bajó a 104.68, tu drawdown es −26.14%. Ese −26.14% es el MaxDD de nuestra serie: el peor susto del período.
+
+Y el "underwater" es el tiempo que pasas por debajo del pico, esperando recuperar. Un MaxDD de −26% que se recupera en una semana es un susto; el mismo −26% que tarda ocho meses es una prueba de fe. Por eso se grafica el equity junto a su zona bajo el agua.
+
+## Visual: equity de SOL con su zona underwater
+
+La línea sube de ~102 a ~112, pero en medio toca un pico de 141.72 y se hunde un −26.14%. La zona sombreada es el underwater: todo el tiempo que estuviste por debajo de tu mejor día.
+
+<svg viewBox="0 0 560 240" role="img" aria-label="Curva de equity de SOL con drawdown sombreado" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Equity SOL — 90 días (base 100)</text>
+<path d="M40,200 L100,182 L160,150 L220,110 L260,70 L300,120 L340,150 L380,168 L430,176 L500,160 L520,156 L40,200 Z" fill="rgba(245,158,11,0.15)"/>
+<polyline points="40,200 100,182 160,150 220,110 260,70 300,120 340,150 380,168 430,176 500,160 520,156" fill="none" stroke="#5eead4" stroke-width="2"/>
+<circle cx="260" cy="70" r="4" fill="#f59e0b"/>
+<text x="268" y="64" fill="#f59e0b" font-size="11" font-family="Inter,system-ui,sans-serif">pico 141.72</text>
+<line x1="260" y1="70" x2="260" y2="132" stroke="#f87171" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text x="268" y="110" fill="#f87171" font-size="11" font-family="Inter,system-ui,sans-serif">MaxDD −26.14%</text>
+<text x="40" y="224" fill="#8a8a93" font-size="10" font-family="Inter,system-ui,sans-serif">día 1</text>
+<text x="480" y="224" fill="#8a8a93" font-size="10" font-family="Inter,system-ui,sans-serif">día 90</text>
+<text x="40" y="208" fill="#8a8a93" font-size="10" font-family="Inter,system-ui,sans-serif">zona underwater (bajo el pico)</text>
+</svg>
+
+## Error común
+
+Elegir la estrategia de mayor retorno sin mirar el MaxDD. Un +80% anual con un MaxDD de −60% no es una estrategia: es una moneda al aire con comisiones. Pregunta siempre "¿cuánto tendría que caer para sacarme del juego?" antes de "¿cuánto puedo ganar?".
+
+## Checklist
+
+- [ ] Sé calcular el Sharpe de una serie con pandas
+- [ ] Explico la diferencia entre Sharpe y Sortino con mis palabras
+- [ ] Identifico el pico y el MaxDD (−26.14%) en el CSV de SOL
+- [ ] Entiendo qué es el underwater y por qué importa su duración
+- [ ] Completo el quiz c1_l4 (3/3 para ganar 1 QP)
+
+## Practica
+
+- Abre `c1_l4.ipynb`: calcula Sharpe, Sortino y MaxDD sobre `c1_l4_sol_equity.csv` y grafica el equity con su underwater.
+- Quiz `c1_l4.json`: 3 preguntas, necesitas el pleno para el QP.

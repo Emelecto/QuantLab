@@ -1,0 +1,67 @@
+---
+id: "c4-l2"
+curso: "riesgo"
+leccion: 2
+titulo: "Stop-loss y take-profit OCO: el trade que se gestiona solo"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Stop-loss y take-profit OCO: el trade que se gestiona solo
+
+> Una orden OCO cancela la otra: si toca el stop pierdes lo planeado, si toca el take ganas ~2R. Sin OCO, el plan es solo una intención.
+
+## Objetivo
+
+Colocar stops y takes con ratio riesgo-beneficio ≈ 2, verificar el RR de 50 trades y medir expectancy del sistema.
+
+## TL;DR
+
+- Riesgo: `entrada − stop`. Beneficio: `take − entrada`. RR = `beneficio / riesgo`.
+- En `c4_l2.csv` el RR medio es ≈ 2,0: cada ganadora paga dos perdedoras.
+- Con RR = 2 basta ganar 1 de cada 3 para no perder (breakeven = 1/(1+RR) ≈ 33%).
+
+## 1. Las tres líneas del trade
+
+```python
+df["riesgo_calc"] = (df["entrada"] - df["stop"]).abs()
+df["beneficio_calc"] = (df["take"] - df["entrada"]).abs()
+df["rr_calc"] = df["beneficio_calc"] / df["riesgo_calc"]
+```
+
+Trade 1: riesgo 655,91, beneficio 1.301,13 → RR 1,98. El CSV trae 50 casos entre 1,83 y 2,20: replícalos y confirma que ninguno esconde un RR menor a 1,8.
+
+## 2. OCO: una cancela la otra
+
+OCO (one-cancels-the-other) ata el stop y el take: cuando uno se ejecuta, el otro muere. Sin OCO dejas una orden huérfana que puede venderte —o comprarte— cuando ya no miras la pantalla. El stop te saca del error; el take te saca de la codicia.
+
+## 3. Expectancy: ¿este sistema gana dinero?
+
+```python
+winrate = (df["resultado"] == "win").mean()
+expectancy = winrate * df.loc[df["resultado"]=="win","pnl"].mean() + (1-winrate) * df.loc[df["resultado"]=="loss","pnl"].mean()
+```
+
+Con RR ≈ 2, un winrate de apenas 35% ya da expectancy positiva. La lección incómoda: puedes perder la mayoría de tus trades y aun así ser rentable, siempre que el RR se respete.
+
+## Visual
+
+Piensa en una puerta giratoria con dos salidas: una pequeña con tu stop ("salida de emergencia") y una al doble de distancia con tu take ("salida con premio"). OCO es el guardia que cierra la otra puerta en cuanto cruzas una.
+
+## Error típico
+
+Mover el stop "un poco más abajo para darle aire" cuando el precio se acerca. Eso rompe el RR planeado y convierte un sistema ganador en una máquina de perder: el stop se pone con análisis, no con esperanza.
+
+## Checklist
+
+- [ ] Replicas `riesgo`, `beneficio` y `rr` fila por fila
+- [ ] Explicas qué significa OCO y qué riesgo elimina
+- [ ] Calculas winrate, breakeven y expectancy del CSV
+- [ ] Quiz `c4_l2.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c4_l2.ipynb`, calcula winrate y expectancy: ¿el sistema es rentable con RR ≈ 2?
+- Quiz `c4_l2.json`: 3 preguntas, necesitas 2 bien para el QP.

@@ -1,0 +1,40 @@
+{
+  "id": "c2_l4",
+  "curso": "python",
+  "leccion": 4,
+  "questions": [
+    {
+      "q": "¿Qué mide el drawdown en una fecha dada?",
+      "options": [
+        "La caída porcentual del equity respecto a su pico previo",
+        "El retorno del precio ese día",
+        "El volumen negociado esa semana",
+        "La diferencia entre open y close de la vela"
+      ],
+      "answer": 0,
+      "explain": "Drawdown = (equity − pico) / pico, con pico = cummax del equity. Siempre es ≤ 0 y su mínimo es el max drawdown."
+    },
+    {
+      "q": "¿Para qué sirve el gráfico underwater?",
+      "options": [
+        "Ver cuándo y cuánto cayó la cuenta bajo su pico, de un vistazo",
+        "Predecir el próximo máximo del precio",
+        "Comparar el volumen de dos exchanges",
+        "Eliminar valores NaN del DataFrame"
+      ],
+      "answer": 0,
+      "explain": "El área bajo cero muestra cada racha de pérdida desde el pico: profundidad y duración del sufrimiento, no solo el número final."
+    },
+    {
+      "q": "¿Cuándo prefieres plotly sobre matplotlib?",
+      "options": [
+        "Cuando necesitas explorar con zoom y hover sobre cada punto",
+        "Cuando el reporte debe ser un PNG estático",
+        "Cuando no hay navegador disponible",
+        "Cuando quieres el gráfico más rápido de generar siempre"
+      ],
+      "answer": 0,
+      "explain": "Plotly es interactivo (hover con fecha y valor, zoom): ideal para investigar. Matplotlib gana para reportes estáticos y scripts."
+    }
+  ]
+}

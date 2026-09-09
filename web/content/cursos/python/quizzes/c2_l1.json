@@ -1,0 +1,40 @@
+{
+  "id": "c2_l1",
+  "curso": "python",
+  "leccion": 1,
+  "questions": [
+    {
+      "q": "¿Para qué sirve crear un venv en tu proyecto de trading?",
+      "options": [
+        "Aislar las librerías del proyecto para que el código sea reproducible",
+        "Hacer que Python vaya más rápido",
+        "Evitar usar Jupyter",
+        "Conectarse al bróker"
+      ],
+      "answer": 0,
+      "explain": "El venv fija tus dependencias por proyecto: lo que corre hoy corre igual mañana y en otra máquina."
+    },
+    {
+      "q": "Un DataFrame de pandas es...",
+      "options": [
+        "Una función para graficar",
+        "Una tabla de filas y columnas con tipos por columna",
+        "Un entorno virtual",
+        "Un tipo de gráfico de velas"
+      ],
+      "answer": 1,
+      "explain": "Filas = observaciones (días), columnas = variables (precio, volumen). Cada columna tiene su dtype."
+    },
+    {
+      "q": "Antes de dar por bueno un notebook, el hábito correcto es...",
+      "options": [
+        "Ejecutar solo la última celda",
+        "Reiniciar el kernel y ejecutar todo de arriba abajo",
+        "Borrar las celdas con errores sin leerlos",
+        "Guardar sin ejecutar"
+      ],
+      "answer": 1,
+      "explain": "Las celdas ejecutadas en desorden dejan variables viejas vivas. El reinicio completo revela esos fantasmas."
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+---
+id: c1-l3
+curso: fundamentos
+leccion: 3
+titulo: "Volatilidad y colas: lo normal no es normal"
+tipo: lesson
+xp: 150
+qp: 1
+---
+
+## Objetivo
+
+Entender qué es la volatilidad, medirla en sigmas y aceptar que en cripto los días extremos llegan más seguido de lo que la intuición dice.
+
+## TL;DR
+
+La volatilidad mide el tamaño de los sustos, no la dirección. Se expresa en sigmas (σ). En cripto, un día de ±3σ no es un milagro: es parte del paisaje.
+
+## 1. La volatilidad es dispersión, no dirección
+
+Un activo puede terminar el mes plano y aun así ser brutalmente volátil, si en el camino subió y bajó 10% varias veces. La volatilidad responde "¿qué tan grandes son los movimientos?", nunca "¿hacia dónde van?".
+
+Se calcula como la desviación estándar de los retornos. Un BTC con σ diaria de 2,5% tiene días típicos entre −2,5% y +2,5%, pero "típico" no significa "garantizado".
+
+```python
+import csv
+
+rets = []
+with open("../data/c1_l3_btc_retornos.csv") as f:
+    for row in csv.DictReader(f):
+        rets.append(float(row["retorno_pct"]))
+
+media = sum(rets) / len(rets)
+var = sum((r - media) ** 2 for r in rets) / len(rets)
+print("media:", round(media, 2), "sigma:", round(var ** 0.5, 2))
+```
+
+## 2. Sigma: tu regla para medir sustos
+
+Divide cualquier movimiento entre σ y obtienes su tamaño en sigmas. Un −8% con σ de 2,5% son −3,2σ. Esa regla te permite comparar sustos entre activos distintos: −3σ en BTC y −3σ en ETH son el mismo nivel de rareza, aunque los porcentajes difieran.
+
+## 3. Las colas pesadas: en cripto lo "imposible" pasa
+
+En una campana normal perfecta, un día de ±3σ ocurre ~0,3% de las veces. En cripto ocurre mucho más: las caídas y subidas extremas pesan más de lo que la teoría predice. A eso se le dice colas pesadas. Consecuencia práctica: si tu plan solo sobrevive a días "normales", tu plan no sobrevive.
+
+## Visual: histograma de retornos BTC con línea +3σ
+
+La barra marcada a la derecha es el día extremo del dataset: más de 3 sigmas por encima de la media. Fíjate que existe, y que el resto de la distribución se ve "normal" a su lado.
+
+<svg viewBox="0 0 560 220" role="img" aria-label="Histograma de retornos diarios de BTC con evento de cola" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Retornos diarios BTC (%) — 60 días</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<rect x="40" y="150" width="28" height="8" rx="2" fill="#3f3f46"/>
+<rect x="72" y="138" width="28" height="20" rx="2" fill="#3f3f46"/>
+<rect x="104" y="118" width="28" height="40" rx="2" fill="#52525b"/>
+<rect x="136" y="96" width="28" height="62" rx="2" fill="#71717a"/>
+<rect x="168" y="74" width="28" height="84" rx="2" fill="#5eead4"/>
+<rect x="200" y="66" width="28" height="92" rx="2" fill="#5eead4"/>
+<rect x="232" y="74" width="28" height="84" rx="2" fill="#5eead4"/>
+<rect x="264" y="92" width="28" height="66" rx="2" fill="#71717a"/>
+<rect x="296" y="112" width="28" height="46" rx="2" fill="#52525b"/>
+<rect x="328" y="130" width="28" height="28" rx="2" fill="#3f3f46"/>
+<rect x="360" y="146" width="28" height="12" rx="2" fill="#3f3f46"/>
+<rect x="440" y="120" width="28" height="38" rx="2" fill="#f59e0b"/>
+<line x1="420" y1="50" x2="420" y2="170" stroke="#f59e0b" stroke-dasharray="5 4" stroke-width="1.5"/>
+<text x="424" y="44" fill="#f59e0b">+3σ</text>
+<text x="440" y="172" fill="#f59e0b">día extremo</text>
+<text x="40" y="172" fill="#8a8a93">−12%</text>
+<text x="200" y="172" fill="#8a8a93">0%</text>
+<text x="330" y="172" fill="#8a8a93">+6%</text>
+</g>
+</svg>
+
+## Error común
+
+Ver una caída de −3σ y pensar "ya no puede caer más, compro el doble". Las colas se agrupan: después de un día extremo suele venir más volatilidad, no calma. El tamaño de tu posición debe asumir que mañana puede repetirse.
+
+## Checklist
+
+- [ ] Sé calcular σ de una serie de retornos con código
+- [ ] Convierto cualquier movimiento a sigmas dividiendo entre σ
+- [ ] Identifico el día de cola (+3σ) en el CSV de BTC
+- [ ] Explico con mis palabras qué son las colas pesadas
+- [ ] Completo el quiz c1_l3 (3/3 para ganar 1 QP)

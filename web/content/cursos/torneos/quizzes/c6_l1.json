@@ -1,0 +1,40 @@
+{
+  "id": "c6_l1",
+  "curso": "torneos",
+  "leccion": 1,
+  "questions": [
+    {
+      "q": "Cada semana del torneo es una era. ¿Cómo partes train y test?",
+      "options": [
+        "Mezclo todas las filas al azar para aprovechar los datos",
+        "Por era: entreno con eras pasadas y valido con eras futuras",
+        "Entreno con las futuras y valido con las pasadas",
+        "Uso una sola era para todo"
+      ],
+      "answer": 1,
+      "explain": "Partir por era respeta el tiempo: el futuro nunca entra al train."
+    },
+    {
+      "q": "Tu submission tiene una predicción de 1.4 y un id repetido. ¿Qué pasa?",
+      "options": [
+        "Se puntúa igual, el modelo manda",
+        "Se rechaza por formato antes de puntuarse: predicción en [0, 1], sin duplicados",
+        "Se corrige sola",
+        "Solo baja un poco el score"
+      ],
+      "answer": 1,
+      "explain": "El formato es sagrado: rango [0, 1], sin nulos ni duplicados, o ni se corrige."
+    },
+    {
+      "q": "¿Cuántas submissions oficiales puedes enviar por ronda?",
+      "options": [
+        "Todas las que quieras hasta acertar",
+        "Una: por eso se valida el formato en local antes de enviar",
+        "Ninguna, es automático",
+        "Depende del stake"
+      ],
+      "answer": 1,
+      "explain": "Cada ronda admite un envío oficial: experimenta en local y valida antes."
+    }
+  ]
+}

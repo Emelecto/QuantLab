@@ -1,0 +1,78 @@
+---
+id: "c4-l8"
+curso: "riesgo"
+leccion: 8
+titulo: "Diario y kill-switch: el freno que te salva del mes rojo"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 4
+---
+
+# Diario y kill-switch: el freno que te salva del mes rojo
+
+> 45 días de diario: cada vez que el día tocó −3,00%, el kill-switch cerró la plataforma. Se activó 6 veces y evitó 12,9 puntos extra de pérdida; aun así el drawdown máximo fue −8,77%. Sin freno, el mes habría sido una carnicería. El diario registra, el kill-switch ejecuta.
+
+## Objetivo
+
+Operar un diario de 45 días con kill-switch diario en −3,00% (`c4_l8.csv`), medir cuántas veces se activó, cuánto drawdown evitó y cuál fue el drawdown máximo real.
+
+## TL;DR
+
+Kill-switch: si el día llega a −3,00%, se cierra todo hasta mañana. En 45 días se activó 6 veces, el drawdown máximo quedó en −8,77% y se evitaron 12,9 puntos porcentuales de pérdida adicional. Moraleja: el diario te dice qué está mal; solo el kill-switch automático lo detiene a tiempo.
+
+## 1. El diario: 4 columnas que lo cambian todo
+
+Día, PnL del día, drawdown acumulado y si saltó el kill-switch. Nada más. Cuatro columnas durante 45 días bastan para verte por fuera: rachas, días tilt, tamaños. El que no anota repite; el que anota, detecta. Tu diario es la auditoría de tu plan (L7) y tu detector de tilt (L6) en un solo archivo.
+
+```python
+df["equity"] = 100 * (1 + df["pnl_diario_pct"] / 100).cumprod()
+df["peak"] = df["equity"].cummax()
+df["dd"] = (df["equity"] / df["peak"] - 1) * 100
+```
+
+## 2. El kill-switch: −3% y a casa
+
+La regla es brutalmente simple: día en −3,00% → cierras todo, sin "recuperar". En estos 45 días saltó 6 veces. Esos 6 días, dejados a su suerte (siguiendo el patrón de tilt de −1,5 a −3,0 extra), habrían restado 12,9 puntos más. El freno no evita perder; evita que un mal día se convierta en un mal mes.
+
+```python
+kills = df[df["kill_switch"] == 1]
+print(len(kills), "activaciones")  # 6 en 45 días
+```
+
+Fija tu nivel antes de operar: −3% diario y −8% mensual son puntos de partida sensatos para una cuenta pequeña.
+
+## 3. El drawdown máximo: −8,77% CON freno
+
+Aun con kill-switch, el drawdown acumulado tocó −8,77%: varias pérdidas pequeñas seguidas duelen igual. La diferencia es que el capital sobrevivió para la recuperación: con el freno, necesitas ~+9,6% para volver al pico; sin él, la cuenta habría quedado ~21,7% abajo y necesitaría casi +28%. El drawdown se mide en ida Y en vuelta.
+
+## Visual: el freno contuvo la caída
+
+Equity con 6 frenadas en −3%: el drawdown se detuvo en −8,77% en vez de profundizarse 12,9 puntos más. Cada marca roja es un día que pudo ser peor.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Drawdown maximo menos 8,77 con kill-switch; sin freno 12,9 puntos peor" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">45 días: con kill-switch vs sin freno</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="60" x2="520" y2="60" stroke="#52525b" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="44" y="54" fill="#8a8a93">pico (0%)</text>
+<rect x="80" y="110" width="150" height="50" rx="3" fill="#f59e0b"/>
+<text x="88" y="130" fill="#0a0a0b">con kill: −8,77%</text>
+<text x="88" y="144" fill="#0a0a0b">6 frenadas en −3%</text>
+<rect x="300" y="110" width="180" height="90" rx="3" fill="#f87171" opacity="0.85"/>
+<text x="308" y="130" fill="#0a0a0b">sin freno: −21,7%</text>
+<text x="308" y="144" fill="#0a0a0b">12,9 pp peor</text>
+<text x="308" y="158" fill="#0a0a0b">6 días a la deriva</text>
+</g>
+</svg>
+
+## Error común
+
+Poner el kill-switch "mental". Un freno que depende de tu decisión en caliente no es un freno: es una sugerencia que ignorarás. Escríbelo, prográmalo si puedes (alerta al −2,5%, cierre al −3%) y que tu diario registre cada activación como una victoria, no como un fracaso.
+
+## Checklist
+
+- [ ] Reconstruyo equity, peak y drawdown y verifico el máximo (−8,77%)
+- [ ] Cuento las 6 activaciones del kill-switch en los días de −3,00%
+- [ ] Estimo la pérdida evitada (12,9 pp) y el costo de recuperación con/sin freno
+- [ ] Defino mis niveles: kill diario (−3%) y kill mensual (−8%)
+- [ ] Completo el quiz c4_l8 (3/3 para ganar 2 QP)

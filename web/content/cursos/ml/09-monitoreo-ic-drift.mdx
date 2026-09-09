@@ -1,0 +1,88 @@
+---
+id: "c5-l9"
+curso: "ml"
+leccion: 9
+titulo: "Monitoreo: IC y drift"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Monitoreo: IC y drift
+
+> Desplegar sin monitorear es manejar con los ojos cerrados: el backtest te dijo cómo manejaba el auto ayer, el IC y el drift te dicen si sigue en la pista hoy.
+
+## Objetivo
+
+Medir la salud de la señal en vivo con el IC (Spearman entre señal y retorno futuro), su rolling de 20 barras y el drift de features (z-shift train vs reciente), con umbrales que disparan degradar o apagar.
+
+## TL;DR
+
+- IC ≈ correlación de rangos señal vs retorno futuro; IC ≈ 0 sostenido = señal muerta.
+- IC rolling de 20 barras detecta la muerte antes que el P&L.
+- Drift (|z-shift| > 1,5) avisa que el mercado cambió de mundo.
+
+## 1. IC: ¿tu señal sigue ordenando el futuro?
+
+El Information Coefficient es la correlación de Spearman entre tu señal (mom5) y el retorno de la barra siguiente. No le importan los costos ni el tamaño: solo si ordena bien. Un IC de 0,05–0,10 ya es respetable en mercados; lo que manda es que sea persistentemente positivo.
+
+```python
+from scipy.stats import spearmanr
+ic, _ = spearmanr(data["mom5"][:-1], data["ret"].shift(-1)[:-1])
+print(f"IC global: {ic:.4f}")
+```
+
+Sin SciPy a mano, el rango manual con `pandas.Series.rank` y Pearson da lo mismo: lo importante es el hábito, no la librería.
+
+## 2. Rolling: la muerte avisa por carta
+
+El IC global esconde los funerales recientes: una señal que funcionó 6 meses y murió hace 3 semanas sigue mostrando un global decente. El rolling de 20 barras con su fracción de ventanas positivas cuenta la historia viva: si cae a ≈ 0 o se vuelve negativo, degrada el tamaño antes de que el P&L te lo grite.
+
+```python
+VENTANA = 20
+ic_roll = [spearmanr(s, f)[0] for s, f in ventanas_momentum_vs_fwd]
+print(f"IC rolling medio: {np.nanmean(ic_roll):.4f} | ventanas+: {np.nanmean(np.array(ic_roll) > 0):.0%}")
+```
+
+## 3. Drift: ¿cambió el mundo bajo tus pies?
+
+Aunque la señal ordene bien, el mercado puede moverse a un régimen que tu modelo nunca vio: compara media y dispersión de `lag_1` y `rango` entre el train (primera mitad) y lo reciente (últimas 20 barras) con un z-shift. |z| > 1,5 dispara revisión; combinado con IC cayendo, dispara apagado.
+
+```python
+z = (reciente.mean() - train.mean()) / train.std()
+alerta = abs(z) > 1.5 or ic_reciente <= 0
+```
+
+Semáforo operativo: verde (IC+ y sin drift) opera normal; amarillo (uno de los dos falla) reduce a la mitad; rojo (ambos fallan) apaga y reentrena con embargo.
+
+## Visual
+
+El IC es el pulso y el drift la fiebre: el rolling te muestra cuándo el corazón se detiene y el z-shift cuándo el cuerpo ya es otro.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 200" role="img" aria-label="Monitoreo: IC rolling cayendo a cero y drift con z-shift en alerta">
+  <polyline points="20,40 120,55 220,60 320,95 420,120 520,125" fill="none" stroke="#0e7c5b" stroke-width="3"/>
+  <line x1="20" y1="125" x2="520" y2="125" stroke="#8a2f2f" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="525" y="128" fill="#c98a8a" font-size="11">IC=0</text>
+  <text x="20" y="25" fill="#9fb3d9" font-size="11">IC rolling 20b: vivo → muerto</text>
+  <rect x="20" y="150" width="240" height="34" rx="8" fill="#1b2a4a"/>
+  <text x="140" y="172" text-anchor="middle" fill="#fff" font-size="12">z-shift rango: 0,4 ✓ sin drift</text>
+  <rect x="300" y="150" width="240" height="34" rx="8" fill="#8a2f2f"/>
+  <text x="420" y="172" text-anchor="middle" fill="#fff" font-size="12">z-shift lag_1: 2,5 ✗ ALERTA</text>
+</svg>
+
+## Error típico
+
+Mirar solo el P&L acumulado para decidir si la señal vive: el P&L mezcla señal, costos y suerte. IC (¿ordena?), drift (¿cambió el mundo?) y neto (¿paga?) son tres preguntas distintas con tres respuestas distintas.
+
+## Checklist
+
+- [ ] Calculas el IC global Spearman señal vs retorno futuro
+- [ ] Graficas el IC rolling de 20 barras y su fracción positiva
+- [ ] Mides z-shift de features train vs recientes con umbral 1,5
+- [ ] Quiz `c5_l9.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l9.ipynb`, achica la ventana rolling a 10: anota cómo sube el ruido y por qué 20 es el equilibrio sensato con 80 filas.
+- Quiz `c5_l9.json`: 3 preguntas, necesitas 2 bien para el QP.

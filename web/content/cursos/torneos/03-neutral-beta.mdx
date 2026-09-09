@@ -1,0 +1,76 @@
+---
+id: "c6-l3"
+curso: "torneos"
+leccion: 3
+titulo: "Estrategia neutral a beta"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Estrategia neutral a beta
+
+> Si tu "alfa" sube cuando el mercado sube y cae cuando cae, no tienes alfa: tienes beta disfrazada. La neutralización la desnuda.
+
+## Objetivo
+
+Neutralizar las predicciones contra la exposición al mercado (beta) para que el score mida habilidad de selección, no dirección del mercado.
+
+## TL;DR
+
+- Toda predicción carga beta sin querer: correlación con el mercado o un factor.
+- Neutralizar = quitar la media por era y el componente explicado por beta (residuo de regresión).
+- Una señal neutral conserva su CORR por era pero su correlación con beta cae a ≈ 0.
+
+## 1. La beta se cuela en silencio
+
+Si tus features favorecen activos de beta alta, tu predicción apuesta al mercado sin que lo pidas. En semanas alcistas brillas y en bajistas te hundes: el score por era lo delata con dispersión enorme.
+
+```python
+df['pred_rank'] = df.groupby('era')['pred'].rank(pct=True)
+print(df['pred'].corr(df['beta']))  # si es alta, hay carga indeseada
+```
+
+En el notebook mides esa correlación antes de neutralizar: suele estar lejos de cero.
+
+## 2. Neutralización en dos pasos
+
+Primero restas la media de la era (demean): nadie cobra por predecir que "todo sube". Luego quitas el componente lineal de beta con una regresión por era y te quedas con el residuo: tu selección pura.
+
+```python
+demeaned = pred - pred.mean()                      # paso 1: sin nivel de era
+coef = np.polyfit(beta, demeaned, 1)[0]            # paso 2: pendiente vs beta
+neutral = demeaned - coef * beta                   # residuo: selección pura
+```
+
+Comparas CORR por era antes y después: la señal real sobrevive, el humo del mercado no.
+
+## 3. Verifica la neutralidad, no la declares
+
+Neutralizar no es un ritual: se comprueba. La correlación de la predicción neutral con beta debe quedar en ≈ 0 y la correlación con el retorno futuro por era debe seguir positiva. Si ambas caen a cero, tu "señal" era solo mercado.
+
+```python
+assert abs(neutral.corr(beta)) < 0.1   # neutral de verdad
+assert corr_por_era(neutral) > 0       # con filo superviviente
+```
+
+## Visual
+
+Imagina juzgar a un navegante: si solo navega a favor del viento, no sabes si sabe navegar. Neutralizar es quitarle el viento y mirar si aún avanza.
+
+## Error típico
+
+Neutralizar con la beta de toda la muestra (futura incluida) en vez de por era con datos conocidos: otra forma de leakage. Cada era se neutraliza con su propia información.
+
+## Checklist
+
+- [ ] Mides la correlación de tu predicción con beta antes de tocarla
+- [ ] Aplicas demean por era + residuo de regresión contra beta
+- [ ] Verificas correlación con beta ≈ 0 y CORR por era aún positivo
+- [ ] Quiz `c6_l3.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l3.ipynb`, salta el paso de regresión y deja solo el demean: mira cuánta beta sobrevive.
+- Quiz `c6_l3.json`: 3 preguntas, necesitas 2 bien para el QP.

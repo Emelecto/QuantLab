@@ -1,0 +1,76 @@
+---
+id: "c6-l5"
+curso: "torneos"
+leccion: 5
+titulo: "Testnet demo antes de stake"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# Testnet demo antes de stake
+
+> Nadie apuesta capital real con un pipeline sin estrenar. La demo (testnet/paper) es el ensayo general: mismos pasos, dinero de mentira.
+
+## Objetivo
+
+Montar un pipeline demo end-to-end (generar → validar → puntuar → decidir stake) y definir el umbral objetivo para pasar a real.
+
+## TL;DR
+
+- La demo replica el flujo real con dinero ficticio: si falla aquí, habría fallado con stake.
+- El pase a real exige umbral: score demo positivo y estable durante N rondas seguidas.
+- En real se monitorea deriva (IC, CORR por era): si cae bajo el umbral, se vuelve a demo.
+
+## 1. El ensayo general con dinero de mentira
+
+El pipeline demo ejecuta exactamente los mismos pasos que el real: lee datos, genera predicción, valida formato de submission, calcula score por era. La única diferencia es que el stake es cero.
+
+```python
+sub = generar_submission(df)   # id + prediction
+validar(sub)                   # formato sagrado de L1
+score = corr_por_era(sub)      # Spearman de L2, neutral de L3
+```
+
+En el notebook lo corres sobre 60 días del CSV y obtienes tu primer score demo.
+
+## 2. Umbral de paso: ni un día bueno ni fe ciega
+
+Una semana verde no autoriza stake real. Regla operativa: score demo medio > 0.01 con al menos 4 de las últimas 6 semanas en positivo. Exigente pero barata: la demo no cuesta.
+
+```python
+pasa = (score_medio > 0.01) and (semanas_positivas >= 4)
+stake = f_half_kelly if pasa else 0.0   # L4 decide cuánto, la demo decide si
+```
+
+Verificas cuántas ventanas de 6 semanas del CSV pasarían el corte: pocas, y esa es la idea.
+
+## 3. En real, el monitoreo manda
+
+Pasar a real no es graduarse: es empezar a vigilar. Cada semana anotas CORR, MMC y exposición a beta; si el CORR cae dos semanas seguidas bajo cero o la beta se dispara, reduces stake y vuelves a demo. El prestigio no paga el drawdown.
+
+```python
+if corr_ultimas_2 < 0 or abs(corr_beta) > 0.2:
+    volver_a_demo()   # sin drama: la demo siempre está abierta
+```
+
+## Visual
+
+Como los pilotos: horas de simulador antes del primer vuelo, y lista de chequeo antes de cada despegue. La demo es tu simulador; el umbral, tu licencia.
+
+## Error típico
+
+Estrenar en real porque "la demo aburre" o saltarse la validación de formato en demo ("total, es de mentira"). El hábito que entrenas en demo es el que ejecutas con dinero.
+
+## Checklist
+
+- [ ] Corres el pipeline demo completo: generar, validar, puntuar, decidir
+- [ ] Aplicas el umbral (media > 0.01 y 4/6 semanas positivas) antes de autorizar stake
+- [ ] Defines regla de retorno a demo por deriva (CORR negativo o beta alta)
+- [ ] Quiz `c6_l5.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l5.ipynb`, relaja el umbral a media > 0 y mira cuántas ventanas malas se cuelan: el umbral existe por algo.
+- Quiz `c6_l5.json`: 3 preguntas, necesitas 2 bien para el QP.

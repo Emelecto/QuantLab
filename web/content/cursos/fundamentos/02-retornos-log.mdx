@@ -1,0 +1,45 @@
+---
+id: "c1-l2"
+curso: "fundamentos"
+leccion: 2
+titulo: "Retornos simples y logarítmicos"
+tipo: "lesson"
+xp: 100
+qp: 1
+duracion_video_min: 4
+---
+
+# Retornos simples y logarítmicos
+
+> El precio te dice dónde estás. El retorno te dice a qué velocidad te mueves. Y si mides mal la velocidad, todo tu análisis va chueco.
+
+## Del precio al retorno
+
+Un precio solo es un punto. Lo que importa para comparar días, activos y estrategias es el cambio relativo: cuánto subió o bajó respecto a donde estaba.
+
+## Retorno simple: el directo
+
+Retorno simple = (precio_final − precio_inicial) / precio_inicial. Si algo pasa de 100 a 110, ganó 10%. Fácil de explicar, fácil de entender.
+
+## El problema de sumar simples
+
+Sube 50% y luego baja 50%: 100 → 150 → 75. El promedio simple dice "+0%", tu cuenta dice "−25%". Los retornos simples no se suman; se encadenan multiplicando.
+
+## Retorno logarítmico: el que sí se suma
+
+Retorno log = ln(precio_final / precio_inicial). La gracia: los logs de días seguidos se suman y dan el retorno total del período. Por eso en cuant se trabaja con logs cuando hay series largas.
+
+Para movimientos chicos, simple y log casi coinciden (un 1% es ~0.00995 en log). Para movimientos grandes, divergen, y ahí el log es el honesto.
+
+## Cuándo usar cada uno
+
+Reporte para personas: simple, en porcentaje. Cálculos, modelos y agregación en el tiempo: log. Yo convierto a simple solo al final, para contar la historia.
+
+## El error clásico
+
+Promediar retornos simples diarios y multiplicar por 252 para "anualizar" sin pensar en composición. Funciona como aproximación, pero con volatilidad alta te miente en la cara.
+
+## Practica
+
+- Abre `c1_l2_retornos.ipynb`: calcula ambos retornos sobre `c1_l2_precios.csv` y verifica que los logs se suman al total.
+- Quiz `c1_l2.json`: 4 preguntas, necesitas 3 bien para el QP.

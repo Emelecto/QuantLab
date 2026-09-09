@@ -1,0 +1,87 @@
+---
+id: "c2-l6"
+curso: "python"
+leccion: 6
+titulo: "Backtest SMA con costos: el neto manda"
+tipo: "lesson"
+xp: 150
+qp: 2
+duracion_video_min: 4
+---
+
+# Backtest SMA con costos: el neto manda
+
+> El retorno bruto es marketing; el neto es tu cuenta. Un cruce SMA(10,30) que gana 11,53% en bruto se queda en 11,25% tras costos… y aun así pierde contra comprar y no tocar nada.
+
+## Objetivo
+
+Programar un backtest honesto del cruce SMA(10,30) sobre 120 días de BTC (`c2_l6_precios.csv`): señal calculada solo con datos pasados, costo de 5 bps por cada cambio de posición, y curva de equity bruta contra neta.
+
+## TL;DR
+
+5 trades, retorno bruto +11,53%, neto +11,25%: los costos muerden 0,28 puntos. Sharpe neto 0,94 con caída máxima −10,41%. Y el buy-and-hold ganó +27,87%: tu estrategia tiene que batir al sofá, no solo ganarle al cero.
+
+## 1. La señal sin mirar el futuro
+
+La regla es tonta a propósito: si la media de 10 días está por encima de la de 30, estás dentro (1); si no, fuera (0). El detalle que separa un backtest de una fantasía es el `shift(1)`: la señal que opera hoy se calcula con datos hasta ayer.
+
+```python
+df["sma_fast"] = df["precio"].rolling(10).mean()
+df["sma_slow"] = df["precio"].rolling(30).mean()
+df["pos"] = (df["sma_fast"].shift(1) > df["sma_slow"].shift(1)).astype(int)
+df["bruto"] = df["pos"].shift(1).fillna(0) * df["ret"]
+```
+
+Sin ese desplazamiento estarías operando a precio de cierre con información del mismo cierre. Eso se llama lookahead y convierte cualquier porquería en máquina de dinero… en el pasado.
+
+## 2. Los costos: 5 trades, 25 puntos básicos
+
+Cada vez que la posición cambia (de 0 a 1 o de 1 a 0) pagas 5 bps: comisión, spread y deslizamiento empaquetados en un número honesto.
+
+```python
+df["costo"] = df["pos"].diff().abs().fillna(0) * 0.0005
+df["neto"] = df["bruto"] - df["costo"]
+```
+
+El cruce operó 5 veces en 120 días: costo total 0,0025 (25 bps). El arrastre final es 0,28 puntos (de +11,53% a +11,25%; la capitalización lo engorda un poco). Con 5 trades duele poco. Con 500, el mismo 5 bps te deja en los huesos: los costos castigan la rotación, no el tamaño.
+
+## 3. Bruto contra neto contra el sofá
+
+BTC subió de 60.000 a 76.723 en el período (+27,87% buy-and-hold). Tu cruce, con todo el trabajo, sacó +11,25% neto con Sharpe 0,94 y un susto de −10,41% en el camino. Moraleja doble: el neto siempre queda bajo el bruto, y batir al cero no basta; hay que batir al sofá.
+
+## Visual: tres destinos del mismo período
+
+Bruto, neto y buy-and-hold normalizados a 100. El sofá gana caminando; tu estrategia queda en medio; el bruto y el neto casi se tocan porque 5 trades baratos perdonan.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Barras de retorno bruto, neto y buy and hold" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Mismo período, tres destinos (base 100)</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="200" x2="520" y2="200" stroke="#52525b" stroke-width="1"/>
+<text x="14" y="60" fill="#8a8a93">+30%</text>
+<text x="14" y="125" fill="#8a8a93">+15%</text>
+<text x="18" y="203" fill="#8a8a93">0</text>
+<rect x="80" y="163" width="70" height="37" rx="3" fill="#5eead4"/>
+<text x="88" y="216" fill="#e5e5e5">bruto</text>
+<text x="84" y="228" fill="#5eead4">+11,53%</text>
+<rect x="200" y="164" width="70" height="36" rx="3" fill="#f59e0b"/>
+<text x="211" y="216" fill="#e5e5e5">neto</text>
+<text x="204" y="228" fill="#f59e0b">+11,25%</text>
+<rect x="320" y="112" width="70" height="88" rx="3" fill="#52525b"/>
+<text x="322" y="216" fill="#e5e5e5">buy-hold</text>
+<text x="322" y="228" fill="#e5e5e5">+27,87%</text>
+<text x="420" y="120" fill="#f59e0b">el sofá ganó</text>
+<text x="420" y="134" fill="#8a8a93">caminando</text>
+</g>
+</svg>
+
+## Error común
+
+Calcular la señal con el cierre de hoy y operar a ese mismo cierre. El backtest se ve hermoso y es mentira: en vivo ese precio ya no existe cuando decides. Regla de oro: la posición de hoy usa información de ayer o antes, sin excepciones.
+
+## Checklist
+
+- [ ] Explico por qué el `shift(1)` evita el lookahead
+- [ ] Calculo el costo total: 5 trades × 5 bps = 25 bps
+- [ ] Digo en voz alta los tres números: bruto +11,53%, neto +11,25%, sofá +27,87%
+- [ ] Grafico bruto vs neto y verifico que el neto nunca supera al bruto
+- [ ] Completo el quiz c2_l6 (3/3 para ganar 2 QP)

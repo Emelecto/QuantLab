@@ -1,0 +1,82 @@
+---
+id: "c6-l9"
+curso: "torneos"
+leccion: 9
+titulo: "Checklist go-live: 60 trades antes de arriesgar"
+tipo: "lesson"
+xp: 110
+qp: 2
+duracion_video_min: 5
+---
+
+# Checklist go-live: 60 trades antes de arriesgar
+
+> 60 trades de prueba con costos reales (4 bps por trade): neto medio +5,78 bps, winrate neto 55% y 44 de 60 con checklist completo. Veredicto: GO con stake mínimo, porque los números netos —no la ilusión bruta— lo sostienen.
+
+## Objetivo
+
+Aplicar el checklist go-live sobre 60 trades (`c6_l9.csv`): expectancy neto de costos, winrate, rachas, adherencia al plan y veredicto GO / NO-GO con stake inicial definido.
+
+## TL;DR
+
+- 60 trades mínimo antes de subir stake: menos es ruido con uniforme.
+- Resta SIEMPRE 4 bps por trade (2 de comisión + 2 de slippage): el bruto miente, el neto decide.
+- Aquí: +5,78 bps netos por trade, winrate 55%, 44/60 con checklist → GO con stake mínimo.
+- Si el neto ≤ 0 o la adherencia < 70%, es NO-GO: otros 60 trades en demo.
+
+## 1. El checklist: siete puertas, todas abiertas o no sales
+
+Walk-forward OOS positivo neto de costos, IC/Spearman estable con t > 2, turnover bajo control, kill-switch programado (no mental), bitácora completa de 60 trades, adherencia al plan ≥ 70% y peor racha simulada soportable. Cada puerta se verifica con datos, no con sensaciones: en estos 60 trades, 44 pasan todas (`checklist_ok = 1`).
+
+```python
+neto = df["ret_neto_bps"]
+print(f"neto medio {neto.mean():+.2f} bps · winrate {float((neto > 0).mean()):.0%}")
+print(f"adherencia {df['checklist_ok'].mean():.0%} (umbral 70%)")
+```
+
+## 2. Los costos muerden: +9,78 brutos son +5,78 netos
+
+El bruto medio (+9,78 bps) se ve cómodo; tras 4 bps de costos queda +5,78. Ese es tu edge real por trade. Multiplícalo por tu frecuencia y réstale los días malos: si el neto anualizado no paga las horas, el sistema es un hobby caro. dimensiona el stake para que la peor racha vista (−6 seguidas aquí) duela sin matar.
+
+## 3. El veredicto y el stake inicial
+
+GO con stake mínimo: 60 trades, neto positivo, adherencia 73% (44/60), kill-switch probado en la L8. Reglas de salida escritas antes del primer trade real: si el neto de los próximos 20 cae bajo 0, stake a 0 y post-mortem; si toca el kill mensual (−8%), de vuelta a demo 60 trades. El go-live no es una graduación: es un período de prueba con dinero pequeño.
+
+## Visual: el veredicto GO
+
+Distribución de retornos netos por trade: media +5,78 bps a la derecha del cero, 55% de trades positivos y 44/60 con checklist completo.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 220" role="img" aria-label="Neto medio mas 5,78 bps, winrate 55, veredicto GO con stake minimo">
+  <rect x="10" y="10" width="540" height="200" rx="10" fill="#101a30"/>
+  <text x="28" y="34" fill="#e5e5e5" font-size="12">60 trades netos de costos (bps): media +5,78 · winrate 55%</text>
+  <line x1="280" y1="50" x2="280" y2="170" stroke="#f87171" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="280" y="185" text-anchor="middle" fill="#f87171" font-size="11">cero</text>
+  <g font-size="10" text-anchor="middle" font-family="Inter,system-ui,sans-serif">
+    <rect x="120" y="140" width="34" height="30" fill="#52525b"/><text x="137" y="182" fill="#9fb3d9">≤0</text>
+    <rect x="160" y="120" width="34" height="50" fill="#52525b"/><text x="177" y="182" fill="#9fb3d9">0–5</text>
+    <rect x="200" y="100" width="34" height="70" fill="#0e7c5b"/><text x="217" y="182" fill="#9fb3d9">5–10</text>
+    <rect x="244" y="110" width="34" height="60" fill="#0e7c5b"/><text x="261" y="182" fill="#9fb3d9">10–20</text>
+    <rect x="288" y="90" width="34" height="80" fill="#0e7c5b"/><text x="305" y="182" fill="#9fb3d9">media</text>
+    <rect x="332" y="125" width="34" height="45" fill="#0e7c5b"/><text x="349" y="182" fill="#9fb3d9">20+</text>
+  </g>
+  <rect x="380" y="60" width="150" height="60" rx="8" fill="#0e7c5b"/>
+  <text x="455" y="84" text-anchor="middle" fill="#fff" font-size="16">GO</text>
+  <text x="455" y="104" text-anchor="middle" fill="#d7f0e6" font-size="11">stake mínimo · 20 trades</text>
+</svg>
+
+## Error común
+
+Pasar a real porque "el bruto se ve bien" sin restar costos, o con 20 trades buenos y 40 ignorados. El go-live se gana con 60 trades netos, adherencia ≥ 70% y peor racha conocida. Todo lo demás es impaciencia con vocabulario técnico.
+
+## Checklist
+
+- [ ] Calculo neto medio (+5,78 bps) y winrate neto (55%) tras 4 bps de costos
+- [ ] Verifico adherencia 44/60 = 73% ≥ 70% y peor racha soportable
+- [ ] Dicto veredicto GO con stake mínimo y reglas de salida escritas
+- [ ] Programo kill-switch diario y mensual antes del primer trade real
+- [ ] Quiz `c6_l9.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l9.ipynb`, sube los costos a 8 bps: ¿sigue siendo GO? Ese es tu margen de seguridad.
+- Quiz `c6_l9.json`: 3 preguntas, necesitas 2 bien para el QP.

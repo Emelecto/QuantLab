@@ -1,0 +1,123 @@
+---
+id: "c1-l7"
+curso: "fundamentos"
+leccion: 7
+titulo: "Proyecto: tu ficha de BTC en una página"
+tipo: "lesson"
+xp: 200
+qp: 1
+duracion_video_min: 3
+---
+
+# Proyecto: tu ficha de BTC en una página
+
+> Si no cabe en una página, no la entiendes todavía. Tu proyecto final es una ficha de BTC con tesis, números, riesgos y un veredicto que se pueda romper.
+
+## Objetivo
+
+Armar la ficha de una página de BTC con datos reales de 90 días (`c1_l7_btc.csv`): retorno total, volatilidad, caída máxima, tesis, riesgos y un veredicto falsable.
+
+## TL;DR
+
+BTC del 1 de enero al 30 de marzo de 2024: +0,7% total, volatilidad ~24% anual, caída máxima −10,7%. Casi plano con sustos de dos dígitos en el medio. Una buena ficha cuenta esa historia en cinco bloques y dice qué dato la rompería.
+
+## 1. La ficha: cinco bloques, una página
+
+Toda ficha quant seria tiene los mismos cinco bloques, en este orden:
+
+1. **Tesis** (2 líneas): qué crees y por qué, en palabras simples.
+2. **Evidencia**: los números que la sostienen —retorno, volatilidad, rachas— calculados por ti, no copiados.
+3. **Gráfico**: una curva de precio con el máximo y la caída máxima marcados. Si el gráfico contradice tu tesis, manda el gráfico.
+4. **Riesgos**: qué puede salir mal, con números (colas, correlación, tamaño).
+5. **Veredicto falsable**: "creo X, y si veo Y, cambio de opinión". Sin Y, es una creencia, no una tesis.
+
+## 2. Los números de tu BTC (calcúlalos tú)
+
+Con el CSV de 90 días de BTC vas a obtener, más o menos: retorno total simple ≈ +0,7% (de ~42.000 a ~42.303), volatilidad anualizada ≈ 24%, caída máxima ≈ −10,7% desde el máximo de ~44.528 hasta el mínimo de ~39.766.
+
+```python
+import csv, math, statistics
+
+closes = []
+with open("../data/c1_l7_btc.csv") as f:
+    for row in csv.DictReader(f):
+        closes.append(float(row["close"]))
+
+rets = [math.log(b / a) for a, b in zip(closes[:-1], closes[1:])]
+total = closes[-1] / closes[0] - 1
+vol_anual = statistics.pstdev(rets) * math.sqrt(365)
+print(f"retorno total: {total:+.2%}")
+print(f"vol anualizada: {vol_anual:.1%}")
+```
+
+Fíjate en la lección escondida: un activo puede terminar el trimestre casi plano (+0,7%) y aun así haberte paseado por un −10,7% en el camino. El destino no describe el viaje; por eso la ficha lleva volatilidad y caída máxima, no solo retorno.
+
+## 3. Cómo leer el gráfico antes de escribir la tesis
+
+Orden sugerido: primero grafica el precio con el máximo y la zona de caída máxima marcados; después escribe la tesis mirando el gráfico, no al revés. Si escribes primero, el gráfico se vuelve decoración y solo verás lo que confirma tu idea (sesgo de confirmación, lección 6 en acción).
+
+Preguntas que el gráfico debe responder: ¿dónde está el máximo?, ¿cuánto cayó desde ahí?, ¿cuánto tardó en recuperar?, ¿la subida final compensa el susto del medio?
+
+## Visual: 90 días de BTC en una curva
+
+Esquema del trimestre: arranca en ~42.000, toca ~44.528 a mediados de enero, se hunde hasta ~39.766 y cierra en ~42.303. La zona sombreada es la caída máxima (−10,7%): el dato que tu tesis tiene que poder explicar, no esconder.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Curva esquemática de 90 días de BTC con caída máxima marcada" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">BTC 90 días (esquema): precio de cierre en miles USD</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<rect x="40" y="60" width="480" height="120" rx="8" fill="rgba(245,158,11,0.08)"/>
+<text x="46" y="74" fill="#f59e0b">zona de caída máxima ≈ −10,7%</text>
+<polyline points="40,150 80,142 120,128 150,60 190,90 230,110 270,105 310,130 350,180 390,168 430,150 470,146 520,148" fill="none" stroke="#5eead4" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="150" cy="60" r="4" fill="#5eead4"/>
+<text x="158" y="56" fill="#5eead4">máx ~44,5k</text>
+<circle cx="350" cy="180" r="4" fill="#f59e0b"/>
+<text x="358" y="184" fill="#f59e0b">mín ~39,8k</text>
+<circle cx="40" cy="150" r="3" fill="#e5e5e5"/>
+<text x="46" y="164" fill="#e5e5e5">~42,0k</text>
+<circle cx="520" cy="148" r="3" fill="#e5e5e5"/>
+<text x="478" y="140" fill="#e5e5e5">~42,3k</text>
+<text x="40" y="200" fill="#8a8a93">ene</text>
+<text x="260" y="200" fill="#8a8a93">feb</text>
+<text x="490" y="200" fill="#8a8a93">mar</text>
+<text x="40" y="222" fill="#8a8a93">+0,7% en 90 días, con un −10,7% en el medio: plano no significa tranquilo.</text>
+</g>
+</svg>
+
+## 4. Plantilla para copiar
+
+```markdown
+# Ficha: BTC (90 días, ene–mar 2024)
+
+## 1. Tesis
+(Creo que... porque... — 2 líneas máximo)
+
+## 2. Evidencia
+- Retorno total: ___% (de ___ a ___)
+- Volatilidad anualizada: ___%
+- Caída máxima: ___% (de ___ a ___)
+- Mejor racha / peor racha: ___
+
+## 3. Gráfico
+(curva de precio con máximo y caída máxima marcados)
+
+## 4. Riesgos
+- Colas: un día de ±3σ ocurre más seguido de lo "normal" (L3)
+- Correlación: en caídas fuertes, casi todo cae junto (L5)
+- Tamaño: con esta volatilidad, mi posición máxima es ___
+
+## 5. Veredicto falsable
+Creo ___. Si BTC ___, cambio de opinión.
+```
+
+## Error común
+
+Entregar una ficha que es un gráfico bonito más una opinión ("BTC se ve alcista"). Sin números calculados por ti y sin veredicto falsable, es un post de redes, no una ficha. La pregunta del revisor siempre es la misma: ¿qué dato te haría cambiar de opinión? Si no hay respuesta, la ficha está incompleta.
+
+## Checklist
+
+- [ ] Calculo retorno total, volatilidad anualizada y caída máxima del CSV
+- [ ] Grafico el precio marcando máximo y caída máxima
+- [ ] Escribo mi tesis después de ver el gráfico, no antes
+- [ ] Incluyo riesgos con números y un veredicto falsable
+- [ ] Mi ficha cabe en una página y la entiende alguien sin contexto
+- [ ] Completo el quiz c1_l7 (3/3 para ganar 1 QP)

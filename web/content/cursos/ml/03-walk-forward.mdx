@@ -1,0 +1,81 @@
+---
+id: "c5-l3"
+curso: "ml"
+leccion: 3
+titulo: "Validación walk-forward"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Validación walk-forward
+
+> El k-fold clásico en series financieras es una máquina de autoengaño: entrena con el futuro y evalúa con el pasado.
+
+## Objetivo
+
+Evaluar un modelo con walk-forward (expanding o rolling) respetando el orden temporal, con embargo entre pliegues, y reportar métricas OOS honestas.
+
+## TL;DR
+
+- Nunca k-fold aleatorio en series: el orden temporal es sagrado.
+- Walk-forward: entrena en pasado, evalúa en el bloque siguiente, avanza y repite.
+- Reporta el promedio OOS y su dispersión, no el mejor pliegue.
+
+## 1. Por qué el k-fold miente aquí
+
+El k-fold mezcla días al azar: el fold de validación puede ser anterior al de entrenamiento. El modelo 'aprende' regímenes que aún no ocurrieron y el Sharpe OOS se infla el doble o triple.
+
+```python
+from sklearn.model_selection import TimeSeriesSplit
+tscv = TimeSeriesSplit(n_splits=4)  # orden respetado
+# PROHIBIDO en series: KFold(shuffle=True)
+```
+
+En el notebook comparas KFold aleatorio contra TimeSeriesSplit con el mismo Ridge: el aleatorio casi siempre luce mejor y es mentira.
+
+## 2. Walk-forward paso a paso
+
+Con expanding window el train crece; con rolling el train se desliza manteniendo tamaño fijo. En mercados con cambio de régimen, rolling se adapta más rápido; con pocos datos, expanding estabiliza.
+
+```python
+for tr, te in tscv.split(X):
+    m = Ridge().fit(X[tr], y[tr])
+    scores.append(m.score(X[te], y[te]))
+print('R2 OOS medio:', sum(scores)/len(scores))
+```
+
+Con 120 filas del CSV obtienes 4 scores OOS: el promedio manda, y la desviación te dice si el filo es estable o un golpe de suerte.
+
+## 3. Embargo entre pliegues y reporte honesto
+
+Entre train y test de cada pliegue deja un embargo de h días (tu horizonte de etiqueta) para que ningún evento se comparta. Y reporta media ± desviación de los pliegues, más el hit-rate direccional: un R² modesto con hit-rate estable vale más que un pico aislado.
+
+```python
+embargo = 5
+# recorta las últimas `embargo` filas del train de cada split
+tr_honesto = tr[tr < te.min() - embargo]
+```
+
+El notebook aplica el embargo y muestra cómo el score cae un poco pero se vuelve creíble: eso que cae era fuga, no filo.
+
+## Visual
+
+Imagina simular que vives el pasado sin saber el futuro: cada lunes entrenas con lo vivido hasta el viernes anterior y operas la semana siguiente. Repetir eso 4 veces es el walk-forward.
+
+## Error típico
+
+Re-optimizar hiperparámetros mirando todos los pliegues y luego reportar el mejor: eso es overfitting de validación. Fija la grilla antes o usa un pliegue de validación anidado.
+
+## Checklist
+
+- [ ] Explicas por qué el k-fold aleatorio invalida el backtest
+- [ ] Corres walk-forward expanding y rolling y comparas
+- [ ] Aplican embargo entre train y test de cada pliegue
+- [ ] Quiz `c5_l3.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l3.ipynb`, cambia expanding por rolling (window fija) y anota cuál da OOS más estable con estos datos.
+- Quiz `c5_l3.json`: 3 preguntas, necesitas 2 bien para el QP.

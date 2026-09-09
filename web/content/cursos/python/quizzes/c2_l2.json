@@ -1,0 +1,40 @@
+{
+  "id": "c2_l2",
+  "curso": "python",
+  "leccion": 2,
+  "questions": [
+    {
+      "q": "¿Cómo detectas valores ausentes en un DataFrame?",
+      "options": [
+        "Con df.isna().sum(), que cuenta los NaN por columna",
+        "Con df.plot(), que los borra solos",
+        "No se puede: pandas los oculta",
+        "Reiniciando el kernel"
+      ],
+      "answer": 0,
+      "explain": "isna().sum() es el chequeo estándar: te dice exactamente qué columnas tienen huecos y cuántos."
+    },
+    {
+      "q": "¿Por qué es peligroso rellenar precios con fillna(0)?",
+      "options": [
+        "Porque tarda demasiado",
+        "Porque un precio 0 es una quiebra ficticia que destruye los retornos",
+        "Porque borra las columnas",
+        "Porque cambia el nombre del archivo"
+      ],
+      "answer": 1,
+      "explain": "El cero no significa 'sin dato' en precios: genera caídas de -100% falsas y arruina cualquier métrica."
+    },
+    {
+      "q": "Para pasar precios horarios a velas diarias...",
+      "options": [
+        "df.resample('D').mean() sobre el volumen solamente",
+        "df['price'].resample('D').ohlc() y el volumen con .sum()",
+        "df.dropna() sin agrupar",
+        "df.sort_values() y listo"
+      ],
+      "answer": 1,
+      "explain": "El precio se resume con OHLC (o last) y el volumen se suma. Promediar volumen subestima la actividad real."
+    }
+  ]
+}

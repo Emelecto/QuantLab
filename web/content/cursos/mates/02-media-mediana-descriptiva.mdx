@@ -1,0 +1,70 @@
+---
+id: "c3-l2"
+curso: "mates"
+leccion: 2
+titulo: "Media vs mediana: describe sin que te engañen"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Media vs mediana: describe sin que te engañen
+
+> Un ballena mueve el promedio y los titulares. La mediana ni se inmuta. Si describes retornos solo con la media, describes al ballena, no al mercado.
+
+## Objetivo
+
+Resumir una serie de retornos con media, mediana, desviación estándar y percentiles, y elegir el estadístico correcto cuando hay valores atípicos.
+
+## TL;DR
+
+- La media la arrastran los atípicos; la mediana resiste. Con colas gordas, reporta ambas.
+- La desviación estándar mide dispersión, no dirección: úsala con la media, nunca sola.
+- Los percentiles (P5, P50, P95) cuentan la historia que un solo número esconde.
+
+## 1. La media es frágil
+
+```python
+rets = df["ret"].to_numpy()
+media, mediana = rets.mean(), np.median(rets)
+```
+
+En el CSV hay 50 retornos diarios y dos días extremos. Esos dos días mueven la media el triple que la mediana. En crypto, donde un ±15% semanal no es raro, esto pasa siempre.
+
+## 2. Dispersión: cuánto se mueve de verdad
+
+```python
+std = rets.std(ddof=1)          # desviación muestral
+iqr = np.percentile(rets, 75) - np.percentile(rets, 25)
+```
+
+La desviación estándar resume la dispersión si la distribución es más o menos simétrica. El rango intercuartílico (IQR) hace lo mismo pero ignorando las colas: entre el P25 y el P75 vive "el mercado normal".
+
+## 3. Percentiles: la foto completa en 5 números
+
+```python
+p5, p25, p50, p75, p95 = np.percentile(rets, [5, 25, 50, 75, 95])
+```
+
+El P5 te dice tu "mal día típico"; el P95, tu "buen día típico". Si el P5 es −4% y tu stop está en −2%, vivirás stoppeado: la estadística te avisa antes de que el mercado te cobre.
+
+## Visual
+
+Imagina diez personas en un bar y entra un multimillonario: el ingreso medio se dispara, la mediana apenas se mueve. El bar es tu serie de retornos; el multimillonario, tu día atípico.
+
+## Error típico
+
+Reportar media ± desviación como si todo fuera normal. Los retornos crypto tienen colas gordas: el "±2σ cubre 95%" de los libros aquí cubre menos. Mira los percentiles reales antes de prometer coberturas.
+
+## Checklist
+
+- [ ] Explicas con un ejemplo por qué la mediana resiste atípicos
+- [ ] Calculas media, mediana, std e IQR de una serie
+- [ ] Lees P5/P95 y los traduces a "día malo/bueno típico"
+- [ ] Quiz `c3_l2.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c3_l2.ipynb`, quita los 2 días extremos y recalcula: ¿cuánto se acerca la media a la mediana?
+- Quiz `c3_l2.json`: 3 preguntas, necesitas 2 bien para el QP.

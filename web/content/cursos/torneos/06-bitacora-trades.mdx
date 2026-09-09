@@ -1,0 +1,86 @@
+---
+id: "c6-l6"
+curso: "torneos"
+leccion: 6
+titulo: "Bitácora de trades: el diario que te hace profesional"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Bitácora de trades: el diario que te hace profesional
+
+> 30 trades demo: los 19 con plan promedian +0,41R y los 11 sin plan −0,22R. Misma persona, mismo mercado: la diferencia no es el talento, es el cuaderno.
+
+## Objetivo
+
+Llevar una bitácora completa de 30 trades demo (`c6_l6.csv`): entrada, salida, stop, take, motivo, emoción y si seguiste el plan, y demostrar con tus propios números que el plan paga.
+
+## TL;DR
+
+- Anota ANTES de entrar: setup, stop, take, tamaño en R e invalidez.
+- Anota DESPUÉS: resultado en R, emoción y si seguiste el plan.
+- En estos 30 trades, con plan: +0,41R por trade; sin plan: −0,22R.
+- El campo más rentable de la bitácora es `siguio_plan`.
+
+## 1. Qué anotar (y cuándo)
+
+Antes de entrar, cinco campos: setup (`ruptura`, `rebote`, `momentum_era`, `reversal`), lado, stop, take y tamaño en R. Después de salir, tres más: resultado en R, emoción (`calmado`, `ansioso`, `tilt`) y `siguio_plan` (1/0). Medir en R —lo que arriesgaste— permite comparar trades de distinto tamaño sin que los dólares confundan.
+
+```python
+df["R_por_setup"] = df.groupby("setup")["resultado_R"].mean()
+print(df.groupby("siguio_plan")["resultado_R"].mean())
+# 1 → +0,41R · 0 → −0,22R
+```
+
+Sin estos campos tu memoria reescribirá la historia: recordarás las ganadoras y olvidarás las impulsivas.
+
+## 2. Lo que dicen tus 30 trades
+
+Separa la bitácora en dos grupos por `siguio_plan` y compara expectancy. Aquí el grupo con plan gana +0,41R por trade y el grupo sin plan pierde −0,22R. El tilt se ve en la conducta: cuenta las operaciones impulsivas por estado emocional y verás que casi todas viven en `ansioso` y `tilt`.
+
+```python
+plan = df[df.siguio_plan == 1]["resultado_R"]
+fuera = df[df.siguio_plan == 0]["resultado_R"]
+print(f"con plan {plan.mean():+.2f}R (n={len(plan)}) · sin plan {fuera.mean():+.2f}R (n={len(fuera)})")
+```
+
+Si tu grupo sin plan también pierde, no es mala suerte: es el costo medido de improvisar.
+
+## 3. De la bitácora al hábito
+
+Revisa la bitácora cada noche en 10 minutos: ¿cuántos trades fuera del plan? ¿qué setup paga y cuál solo entretiene? ¿qué emoción precede a tus peores R? Una bitácora que no se revisa es un diario íntimo; una que se revisa es un sistema de control de calidad.
+
+## Visual: el plan paga
+
+Con plan (+0,41R, 19 trades) vs sin plan (−0,22R, 11 trades): la misma estrategia con y sin disciplina son dos estrategias distintas.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 220" role="img" aria-label="Expectancy con plan mas 0,41R contra sin plan menos 0,22R">
+  <rect x="60" y="40" width="180" height="110" rx="8" fill="#0e7c5b"/>
+  <text x="150" y="80" text-anchor="middle" fill="#fff" font-size="15">con plan</text>
+  <text x="150" y="104" text-anchor="middle" fill="#d7f0e6" font-size="20">+0,41R</text>
+  <text x="150" y="126" text-anchor="middle" fill="#d7f0e6" font-size="11">19 trades</text>
+  <rect x="320" y="90" width="180" height="60" rx="8" fill="#b3352c"/>
+  <text x="410" y="114" text-anchor="middle" fill="#fff" font-size="15">sin plan</text>
+  <text x="410" y="136" text-anchor="middle" fill="#ffe1de" font-size="14">−0,22R · 11 trades</text>
+  <line x1="40" y1="165" x2="520" y2="165" stroke="#7d8fb0" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="40" y="185" fill="#9fb3d9" font-size="11">expectancy por trade en R (30 trades demo)</text>
+</svg>
+
+## Error común
+
+Anotar solo las ganadoras para motivarte, o escribir el motivo DESPUÉS de ver el resultado. La bitácora se llena antes de entrar y se cierra al salir; todo lo demás es maquillaje.
+
+## Checklist
+
+- [ ] Registro los 30 trades con los 8 campos (setup, lado, entrada, salida, stop, take, R, emoción, plan)
+- [ ] Calculo expectancy en R con plan vs sin plan (+0,41R vs −0,22R)
+- [ ] Identifico mi setup más rentable y mi emoción más cara
+- [ ] Defino una regla para esta semana basada en mi bitácora (p. ej. máximo 1 trade en tilt)
+- [ ] Quiz `c6_l6.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l6.ipynb`, filtra por setup y encuentra cuál paga mejor con plan: ¿operarías solo ese una semana?
+- Quiz `c6_l6.json`: 3 preguntas, necesitas 2 bien para el QP.

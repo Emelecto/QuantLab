@@ -1,0 +1,40 @@
+{
+  "id": "c1_l3",
+  "curso": "fundamentos",
+  "leccion": 3,
+  "questions": [
+    {
+      "q": "Si los retornos diarios de BTC tienen desviacion estandar de 2,5%, que significa un dia de -8%?",
+      "options": [
+        "Un movimiento de mas de 3 sigmas, tipico de las colas pesadas en cripto",
+        "Un error de datos: es imposible en la practica",
+        "Exactamente el comportamiento promedio",
+        "Una senal segura de compra"
+      ],
+      "answer": 0,
+      "explain": "-8% / 2,5% son mas de 3 sigmas. En una normal seria rarezimo; en cripto pasa: las colas pesan mas."
+    },
+    {
+      "q": "Que es la volatilidad en este curso?",
+      "options": [
+        "La direccion del precio",
+        "La desviacion estandar de los retornos: cuanto se dispersan",
+        "El volumen negociado en el dia",
+        "La comision que cobra el exchange"
+      ],
+      "answer": 1,
+      "explain": "Volatilidad es dispersion, no direccion. Mide que tan grandes son los sustos, no hacia donde van."
+    },
+    {
+      "q": "BTC cae 3 sigmas en un dia. El error mas comun es...",
+      "options": [
+        "Asumir que 'ya no puede caer mas' y duplicar la apuesta",
+        "Medir cuanto representa en % de tu capital",
+        "Revisar si fue un dato erroneo",
+        "Anotar el evento en tu bitacora"
+      ],
+      "answer": 0,
+      "explain": "Las colas se agrupan: despues de un dia extremo suele venir mas volatilidad, no calma garantizada."
+    }
+  ]
+}

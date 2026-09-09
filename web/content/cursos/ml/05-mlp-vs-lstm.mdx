@@ -1,0 +1,78 @@
+---
+id: "c5-l5"
+curso: "ml"
+leccion: 5
+titulo: "MLP vs LSTM"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# MLP vs LSTM
+
+> Redes neuronales en mercados: a veces capturan secuencias que los árboles no ven, y muchas veces solo memorizan ruido con más estilo.
+
+## Objetivo
+
+Comparar un MLP con una LSTM sobre ventanas secuenciales, con walk-forward temporal, early stopping y costos, y decidir si la complejidad compensa.
+
+## TL;DR
+
+- MLP = foto: ve un vector de features por muestra, sin memoria.
+- LSTM = película: lee la secuencia de las últimas w barras en orden.
+- Con pocos datos, la LSTM sobreajusta fácil: exige early stopping y walk-forward.
+
+## 1. MLP: la red que ve fotos
+
+Un perceptrón multicapa aplana las features de t en un vector y lo pasa por capas densas. Es rápido y decente cuando la señal vive en el corte transversal (momentum, volatilidad, distancia a medias).
+
+```python
+from sklearn.neural_network import MLPRegressor
+mlp = MLPRegressor(hidden_layer_sizes=(32, 16),
+    alpha=0.01, early_stopping=True, max_iter=500)
+```
+
+Entrenas el MLP del notebook con early stopping: la curva de validación te dice en qué época la red empezó a memorizar.
+
+## 2. LSTM: la red que ve películas
+
+La LSTM recibe una ventana (w = 20 barras × f features) en orden y mantiene un estado que olvida y recuerda. Solo brilla si la señal es secuencial (rachas, microestructura); si no, es un cañón caro para un gorrión.
+
+```python
+# X_seq: (muestras, 20, features) en orden temporal
+# LSTM(32) -> Dense(1); early stopping por val temporal
+```
+
+El notebook intenta Keras/TensorFlow y, si no está instalado, usa una LSTM ligera con ventana + Ridge/MLP como aproximación honesta y etiquetada.
+
+## 3. Veredicto con costos y estabilidad
+
+Mismo walk-forward para MLP y LSTM, misma regla de señal con costos, y reporte de R² OOS, hit-rate y P&L neto por pliegue. Si la LSTM no supera al MLP en neto de forma estable, la complejidad no se paga: quédate con lo simple.
+
+```python
+neto = hit * ganancia_media - (1-hit) * perdida_media - costo
+# compara media ± std entre pliegues, no el mejor
+```
+
+El resultado típico con 150 filas: MLP estable y modesto, LSTM brillante en un pliegue y floja en otros. Esa dispersión es la respuesta.
+
+## Visual
+
+El MLP juzga una foto del mercado; la LSTM ve el cortometraje de las últimas 20 velas. Si la historia no importa, ver la película solo cansa.
+
+## Error típico
+
+Escalar secuencias con estadísticas de todo el set o armar ventanas que incluyen el futuro: leakage con disfraz de deep learning. Ventanas estrictamente causales y scaler solo de train.
+
+## Checklist
+
+- [ ] Armas ventanas secuenciales causales (solo pasado)
+- [ ] Entrenas MLP y LSTM con early stopping y validación temporal
+- [ ] Decides con P&L neto walk-forward, no con el train
+- [ ] Quiz `c5_l5.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l5.ipynb`, cambia la ventana de 20 a 5 barras y anota si la LSTM se estabiliza: menos memoria, menos ruido.
+- Quiz `c5_l5.json`: 3 preguntas, necesitas 2 bien para el QP.

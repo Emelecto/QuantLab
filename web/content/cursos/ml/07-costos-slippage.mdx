@@ -1,0 +1,100 @@
+---
+id: "c5-l7"
+curso: "ml"
+leccion: 7
+titulo: "Costos: 2 bps + slippage"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Costos: 2 bps + slippage
+
+> El backtest bruto es marketing; el neto es contabilidad. Un edge de 55% de aciertos con rotación frenética puede terminar pagando la fiesta del bróker.
+
+## Objetivo
+
+Modelar costos realistas (2 bps de comisión + slippage proporcional al rango), comparar P&L bruto contra neto y usar un umbral de señal para recortar la rotación que devora el edge.
+
+## TL;DR
+
+- Costo por trade = 2 bps + slippage (≈ ¼ del rango de la barra).
+- El costo se paga solo cuando cambias de posición (turnover), no por barra.
+- Manda el Sharpe neto: un filtro por umbral suele ganar operando menos.
+
+## 1. El costo vive en la rotación
+
+Cada cambio de posición paga comisión (0,0002) más cruzar el spread, que aproximamos como un cuarto del rango high-low relativo. La fórmula es honesta: si no te mueves, no pagas.
+
+```python
+COMISION = 0.0002  # 2 bps
+df["slip"] = 0.25 * (df["high"] - df["low"]) / df["close"]
+turnover = np.abs(np.diff(np.r_[0, pos])) / 2  # 1 solo si cambias de lado
+costo = turnover * (COMISION + df["slip"].values)
+pnl_neto = pos * fwd_ret - costo
+```
+
+En el notebook verás el puente completo: bruto atractivo, neto decepcionante. Esa brecha es el impuesto por hiperactividad.
+
+## 2. Bruto vs neto: el puente que duele
+
+Con la señal de momentum cruda el hit-rate ronda el 55%, pero el turnover diario hace que el costo acumulado se coma el margen. Reporta siempre los tres números juntos: Sharpe bruto, Sharpe neto y número de trades. Un Sharpe que cae más de la mitad al netear es una estrategia que opera demasiado.
+
+```python
+def sharpe(x):
+    return float(x.mean() / x.std() * np.sqrt(252)) if x.std() > 0 else 0.0
+print(f"bruto={sharpe(pnl_bruto):.3f}  neto={sharpe(pnl_neto):.3f}  trades={int(turnover.sum())}")
+```
+
+## 3. Umbral: opera menos, quédate más
+
+Filtrar por convicción (|mom5| > 0,006) elimina los giros débiles donde el costo supera al edge esperado. El bruto baja un poco, la rotación se desploma y el neto sube: menos fiesta, más ganancia.
+
+```python
+UMBRAL = 0.006  # deadband: solo un giro fuerte cambia la posición
+pos_f = np.zeros_like(pos); pos_f[0] = pos[0]
+for t in range(1, len(mom)):
+    pos_f[t] = np.sign(mom[t]) if abs(mom[t]) > UMBRAL else pos_f[t-1]
+```
+
+Regla de oro: si tu edge por trade es menor que tu costo por trade, no tienes estrategia, tienes una donación al mercado.
+
+## Visual
+
+El bruto es el sueldo; el neto es lo que llega al banco después de que el turnover pasa la tarjeta en cada cambio de posición.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 190" role="img" aria-label="Del P&amp;L bruto al neto: comisiones y slippage muerden en cada rotacion">
+  <rect x="10" y="60" width="130" height="60" rx="8" fill="#0e7c5b"/>
+  <text x="75" y="86" text-anchor="middle" fill="#fff" font-size="13">P&amp;L bruto</text>
+  <text x="75" y="104" text-anchor="middle" fill="#d7f0e6" font-size="11">hit ≈ 55%</text>
+  <rect x="200" y="20" width="150" height="55" rx="8" fill="#8a2f2f"/>
+  <text x="275" y="43" text-anchor="middle" fill="#fff" font-size="13">− comisión 2 bps</text>
+  <text x="275" y="60" text-anchor="middle" fill="#f3c8c8" font-size="11">× cada rotación</text>
+  <rect x="200" y="95" width="150" height="55" rx="8" fill="#8a2f2f"/>
+  <text x="275" y="118" text-anchor="middle" fill="#fff" font-size="13">− slippage ¼ rango</text>
+  <text x="275" y="135" text-anchor="middle" fill="#f3c8c8" font-size="11">cruzar el spread</text>
+  <rect x="400" y="60" width="150" height="60" rx="8" fill="#1b2a4a"/>
+  <text x="475" y="86" text-anchor="middle" fill="#fff" font-size="13">P&amp;L neto</text>
+  <text x="475" y="104" text-anchor="middle" fill="#9fb3d9" font-size="11">el que importa</text>
+  <line x1="140" y1="80" x2="200" y2="48" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="140" y1="100" x2="200" y2="122" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="350" y1="48" x2="400" y2="80" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="350" y1="122" x2="400" y2="100" stroke="#7d8fb0" stroke-width="2"/>
+</svg>
+
+## Error típico
+
+Restar un costo fijo por barra en vez de por rotación, o ignorar el slippage porque "son solo 2 bps": con turnover diario, esos polvos traen estos lodos. Costo siempre atado al cambio de posición.
+
+## Checklist
+
+- [ ] Modelas comisión 2 bps + slippage de ¼ del rango por rotación
+- [ ] Reportas Sharpe bruto, neto y número de trades juntos
+- [ ] Pruebas el filtro por umbral y comparas el neto
+- [ ] Quiz `c5_l7.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l7.ipynb`, sube el umbral a 0,010 y bájalo a 0,002: dibuja mentalmente la curva trades vs neto y encuentra tu punto dulce.
+- Quiz `c5_l7.json`: 3 preguntas, necesitas 2 bien para el QP.

@@ -1,0 +1,40 @@
+{
+  "id": "c6_l3",
+  "curso": "torneos",
+  "leccion": 3,
+  "questions": [
+    {
+      "q": "Tu señal brilla en semanas alcistas y se hunde en bajistas. ¿Diagnóstico?",
+      "options": [
+        "Falta stake",
+        "Es beta disfrazada de alfa: carga dirección de mercado no neutralizada",
+        "Falta MMC",
+        "El Spearman está mal calculado"
+      ],
+      "answer": 1,
+      "explain": "Esa asimetría es la firma de la beta: tu modelo apuesta al mercado sin decirlo."
+    },
+    {
+      "q": "¿Cuál es el orden correcto de neutralización?",
+      "options": [
+        "Regresión primero y luego mezclar eras",
+        "Demean por era y luego residuo de regresión contra beta, era por era",
+        "Restar la beta global de toda la muestra",
+        "Multiplicar por la beta"
+      ],
+      "answer": 1,
+      "explain": "Demean por era más residuo contra beta, siempre era por era para no filtrar futuro."
+    },
+    {
+      "q": "Tras neutralizar, tu CORR por era cae a cero. ¿Qué significa?",
+      "options": [
+        "Que la neutralización falló",
+        "Que tu señal era solo mercado: no había selección real",
+        "Que debes subir el stake",
+        "Que el MMC subirá"
+      ],
+      "answer": 1,
+      "explain": "Si al quitar el viento nadie avanza, no había navegantes: era puro mercado."
+    }
+  ]
+}

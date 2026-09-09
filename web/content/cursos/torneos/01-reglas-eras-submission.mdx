@@ -1,0 +1,70 @@
+---
+id: "c6-l1"
+curso: "torneos"
+leccion: 1
+titulo: "Reglas, eras y submission"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Reglas, eras y submission
+
+> En un torneo no compites contra el mercado: compites contra otros modelos con las mismas reglas. Quien no entiende las reglas, dona stake.
+
+## Objetivo
+
+Entender las reglas de un torneo cuantitativo (eras, formato de submission, rondas) y validar una submission que cumpla el formato exigido.
+
+## TL;DR
+
+- Los datos se agrupan en **eras**: bloques temporales (una semana) que no se pueden mezclar.
+- Tu submission es una columna de predicciones en [0, 1], un valor por activo, sin duplicados ni NaN.
+- Entrenar con eras futuras para predecir eras pasadas es lookahead y te descalifica del podio aunque el score brille.
+
+## 1. Las eras son semanas que no se hablan
+
+Cada era es una semana de mercado con sus activos y su target. El pasado predice el futuro, nunca al revés: entrenas con eras 1-8 y validas con eras 9-12. Mezclar eras al azar (un shuffle global) filtra el futuro igual que en C5-L3.
+
+```python
+train = df[df['era'] <= 8]   # pasado
+test = df[df['era'] > 8]     # futuro, eras posteriores
+```
+
+Con el CSV (12 eras × 5 activos) verificas que toda era del test es posterior a toda era del train.
+
+## 2. La submission tiene un formato sagrado
+
+El torneo pide un archivo con `id` y `prediction`: una fila por activo, predicción entre 0 y 1, sin nulos ni ids repetidos. Un archivo mal formado se rechaza antes de puntuarse, da igual lo bueno que sea tu modelo.
+
+```python
+assert sub['prediction'].between(0, 1).all()  # rango válido
+assert sub['id'].is_unique and sub.notna().all().all()
+```
+
+En el notebook construyes la submission desde tus features y la validas celda por celda.
+
+## 3. Una ronda, una oportunidad
+
+Cada ronda admite una sola submission oficial. Por eso el flujo serio es: experimenta en local, valida el formato, envía. Reenviar a ciegas para "probar suerte" quema rondas y, cuando hay stake, quema dinero.
+
+## Visual
+
+Imagina un examen por semanas selladas en sobres: solo puedes abrir los sobres pasados para estudiar. Tu hoja de respuestas (la submission) debe tener el formato exacto o ni la corrigen.
+
+## Error típico
+
+Validar con split aleatorio sobre filas mezclando eras: el score se infla porque el modelo ve el futuro de la misma semana. Parte siempre por era, nunca por fila.
+
+## Checklist
+
+- [ ] Partes train/test por era, con test estrictamente posterior
+- [ ] Generas una submission con columnas id + prediction en [0, 1], sin nulos ni duplicados
+- [ ] Entiendes que cada ronda admite un envío oficial: valida antes de enviar
+- [ ] Quiz `c6_l1.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l1.ipynb`, rompe el formato a propósito (un NaN, un duplicado) y mira qué chequeo salta primero.
+- Quiz `c6_l1.json`: 3 preguntas, necesitas 2 bien para el QP.

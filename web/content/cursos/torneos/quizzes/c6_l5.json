@@ -1,0 +1,40 @@
+{
+  "id": "c6_l5",
+  "curso": "torneos",
+  "leccion": 5,
+  "questions": [
+    {
+      "q": "¿Para qué sirve la demo (testnet/paper) antes del stake real?",
+      "options": [
+        "Para aburrirse sin costo",
+        "Para ensayar el pipeline idéntico al real con dinero ficticio y fallar barato",
+        "Para subir el QP",
+        "Para copiar al metamodelo"
+      ],
+      "answer": 1,
+      "explain": "La demo replica generar, validar, puntuar y decidir: si falla aquí, habría fallado con stake."
+    },
+    {
+      "q": "¿Qué umbral autoriza el paso a real?",
+      "options": [
+        "Una semana verde cualquiera",
+        "Score medio > 0.01 con 4 de las últimas 6 semanas en positivo",
+        "Tener el notebook abierto",
+        "Ganar una ronda"
+      ],
+      "answer": 1,
+      "explain": "El umbral exige filo medio y consistencia: ni un día bueno ni fe ciega."
+    },
+    {
+      "q": "En real, el CORR cae dos semanas seguidas bajo cero. ¿Qué haces?",
+      "options": [
+        "Doblar el stake para recuperar",
+        "Reducir stake y volver a demo según la regla de deriva",
+        "Cambiar de torneo",
+        "Ignorarlo, es ruido seguro"
+      ],
+      "answer": 1,
+      "explain": "El monitoreo manda: deriva negativa o beta disparada devuelven a demo sin drama."
+    }
+  ]
+}

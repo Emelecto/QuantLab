@@ -1,0 +1,68 @@
+---
+id: "c6-examen"
+curso: "torneos"
+leccion: 10
+titulo: "Examen final: Quant de torneos verificado"
+tipo: "exam"
+xp: 300
+qp: 7
+duracion_video_min: 5
+---
+
+# Examen final: Quant de torneos verificado
+
+> 20 preguntas (70% para aprobar) + entrega guiada: walk-forward honesto en BTC, submission de torneo y bitácora con kill-switch. Si pasas, no es porque memorizaste: es porque tus números son auditables.
+
+## Objetivo
+
+Demostrar que operas como un quant de torneos: sin leakage, con validación walk-forward, Spearman neutralizado, costos restados, stake con criterio y kill-switch programado (`c6_examen.csv` + `c6_examen.ipynb`).
+
+## TL;DR
+
+- Quiz `c6_examen.json`: 20 preguntas, necesitas 14/20 (70%).
+- Entrega: notebook con walk-forward OOS + submission `id,prediction` + bitácora de 20 trades con diario y kill.
+- Criterios de aprobado: Sharpe OOS reportado honesto (aunque sea ≤ 0 con análisis), sin leakage, quiz de ética aprobado.
+- Recompensa: +300 XP / +7 QP y badge Quant Verificado.
+
+## Temario
+
+1. **Torneos y eras (5 preguntas):** formato de torneo, qué es una era y por qué se promedia por era, orden permutado y embargo, formato de submission (`id,prediction`), holdout privado y por qué el target nunca sale.
+2. **Spearman y neutralización (5 preguntas):** correlación de rangos, por qué rangos y no valores, neutralización por beta/sector, correlación neutral (FNC) y t-stat para distinguir señal de ruido.
+3. **Stake, costos y kill-switch (5 preguntas):** stake proporcional a la convicción (t-stat), costos 2 bps + 2 slippage siempre restados, kill diario −3%, kill mensual −8% y cuándo NO enviar es la decisión profesional.
+4. **Caso BTC: leakage y sizing (5 preguntas):** por qué el high de la vela actual es leakage, embargo de 2 velas, walk-forward vs k-fold aleatorio, sizing al 1% (`tamaño = riesgo_usd / distancia`) y Kelly fraccional vs completo.
+
+## La entrega guiada (`c6_examen.ipynb`)
+
+1. **Walk-forward honesto:** 120 días de BTC, features solo con lags, embargo de 2 velas, 3 folds temporales, Sharpe OOS neto de 4 bps por trade.
+2. **Submission de torneo:** ranking por eras, Spearman crudo y neutralizado, t-stat y veredicto enviar/no-enviar.
+3. **Bitácora:** 20 trades con los 8 campos de la L6, expectancy con/sin plan y diario con kill-switch de la L8.
+
+## Visual: el camino al badge
+
+Seis cursos, un badge: el examen verifica que cada pieza —datos sin leakage, validación honesta, torneo, riesgo y diario— funciona junta.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 200" role="img" aria-label="Del walk-forward al badge Quant Verificado">
+  <g font-size="11" text-anchor="middle" font-family="Inter,system-ui,sans-serif">
+    <rect x="10" y="70" width="100" height="56" rx="8" fill="#1b2a4a"/><text x="60" y="94" fill="#fff">Sin leakage</text><text x="60" y="110" fill="#9fb3d9">lags+embargo</text>
+    <rect x="122" y="70" width="100" height="56" rx="8" fill="#1b2a4a"/><text x="172" y="94" fill="#fff">Walk-forward</text><text x="172" y="110" fill="#9fb3d9">Sharpe OOS</text>
+    <rect x="234" y="70" width="100" height="56" rx="8" fill="#243b63"/><text x="284" y="94" fill="#fff">Spearman</text><text x="284" y="110" fill="#9fb3d9">neutral+t-stat</text>
+    <rect x="346" y="70" width="100" height="56" rx="8" fill="#243b63"/><text x="396" y="94" fill="#fff">Costos+stake</text><text x="396" y="110" fill="#9fb3d9">neto manda</text>
+    <rect x="458" y="70" width="92" height="56" rx="8" fill="#0e7c5b"/><text x="504" y="94" fill="#fff">Badge</text><text x="504" y="110" fill="#d7f0e6">+300XP/+7QP</text>
+  </g>
+  <line x1="110" y1="98" x2="122" y2="98" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="222" y1="98" x2="234" y2="98" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="334" y1="98" x2="346" y2="98" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="446" y1="98" x2="458" y2="98" stroke="#7d8fb0" stroke-width="2"/>
+</svg>
+
+## Error común
+
+Estudiar para el quiz e improvisar la entrega. El quiz vale 70% de la nota pero la entrega es la que te contrata: un 20/20 con un notebook con leakage es un suspenso con buena memoria.
+
+## Checklist
+
+- [ ] Repaso el temario de 4 bloques y el glosario (era, Spearman, FNC, t-stat, kill-switch)
+- [ ] Completo `c6_examen.ipynb`: walk-forward + submission + bitácora, todo verificado con asserts
+- [ ] Quiz `c6_examen.json`: 14/20 mínimo (70%)
+- [ ] Mi Sharpe OOS está reportado honesto, con costos y sin leakage
+- [ ] Mi bitácora tiene 20 trades con plan, diario y niveles de kill escritos

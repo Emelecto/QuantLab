@@ -1,0 +1,40 @@
+{
+  "id": "c2_l5",
+  "curso": "python",
+  "leccion": 5,
+  "questions": [
+    {
+      "q": "¿Qué devuelve el endpoint público /api/v3/klines de Binance?",
+      "options": [
+        "Una lista de velas OHLCV: tiempo, open, high, low, close, volumen",
+        "Tu balance privado de la cuenta",
+        "La lista de símbolos listados sin precios",
+        "Un websocket en tiempo real ya suscrito"
+      ],
+      "answer": 0,
+      "explain": "Klines es público y no pide API key: cada fila trae open_time, OHLC, volumen y campos extra. Máximo 1000 velas por llamada."
+    },
+    {
+      "q": "Al normalizar klines en pandas, ¿qué conversiones son obligatorias?",
+      "options": [
+        "Precios de texto a float y open_time de milisegundos a datetime",
+        "Todo a strings para graficar más rápido",
+        "El volumen a entero y el símbolo a minúsculas",
+        "Ninguna: la API ya devuelve tipos pandas"
+      ],
+      "answer": 0,
+      "explain": "La API devuelve números como strings y el tiempo en ms epoch. Sin astype(float) y to_datetime(unit='ms'), los cálculos y gráficos fallan."
+    },
+    {
+      "q": "¿Por qué ordenar por open_time después de descargar o paginar?",
+      "options": [
+        "Porque las velas pueden llegar desordenadas y pct_change/shift exigen orden cronológico",
+        "Porque Binance lo exige para no banear la IP",
+        "Porque el DataFrame no admite fechas desordenadas",
+        "Porque el CSV local solo lee fechas ordenadas"
+      ],
+      "answer": 0,
+      "explain": "Al unir páginas con startTime el orden no está garantizado. Sin sort_values, los retornos y medias se calculan sobre basura ordenada mal."
+    }
+  ]
+}

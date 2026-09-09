@@ -1,0 +1,77 @@
+---
+id: "c3-l7"
+curso: "mates"
+leccion: 7
+titulo: "Overfitting y validación fuera de muestra: el examen real"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# Overfitting y validación fuera de muestra: el examen real
+
+> En muestra la estrategia presume Sharpe +2,89; fuera de muestra se desinfla a −0,06. No cambió el mercado: cambió que ya no hay trampa. Todo backtest brilla en los datos donde nació; el examen real son los datos que nunca vio.
+
+## Objetivo
+
+Dividir 50 días de retornos en muestra (IS, 30 días) y fuera de muestra (OOS, 20 días) con `c3_l7.csv`, medir el Sharpe en cada bloque y diagnosticar el overfitting: +2,89 contra −0,06.
+
+## TL;DR
+
+Sharpe en muestra +2,89 (30 días), fuera de muestra −0,06 (20 días). La brecha de casi 3 puntos es la firma del overfitting: la estrategia memorizó el ruido de su entrenamiento. Regla: si el OOS no confirma al menos la mitad del IS, no hay estrategia, hay espejismo.
+
+## 1. Overfitting: memorizar en vez de aprender
+
+Ajustar parámetros hasta que el backtest brille es como estudiarte solo las respuestas del examen pasado: sacas 10 en el simulacro y repruebas el real. Con pocos datos y muchos parámetros, siempre existe alguna combinación "perfecta" por puro azar.
+
+```python
+is_r = df.loc[df["split"] == "IS", "ret"]
+sharpe_is = is_r.mean() / is_r.std(ddof=1) * (252 ** 0.5)   # +2,89
+```
+
+Un Sharpe arriba de 2,0 en 30 días no es gloria: es la primera señal de sospecha.
+
+## 2. El protocolo OOS: candado y llave
+
+Separa los datos antes de optimizar: 30 días para ajustar (IS) y 20 días bajo candado para evaluar (OOS). El OOS se toca una sola vez, al final. Aquí el veredicto es brutal: −0,06, indistinguible de cero.
+
+```python
+oos_r = df.loc[df["split"] == "OOS", "ret"]
+sharpe_oos = oos_r.mean() / oos_r.std(ddof=1) * (252 ** 0.5)   # −0,06
+```
+
+Mirar el OOS, ajustar, volver a mirar: eso ya no es OOS, es IS con pasos extra. El candado se abre una vez.
+
+## 3. Cómo leer la brecha
+
+IS +2,89 contra OOS −0,06: brecha de ~2,95 puntos. Diagnóstico: overfitting severo, estrategia descartada. Un resultado sano sería OOS positivo conservando al menos la mitad del IS (por ejemplo, IS +1,20 y OOS +0,70). Sin confirmación OOS, ningún Sharpe de muestra vale nada.
+
+## Visual: del simulacro al examen real
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Sharpe en muestra mas 2,89 contra Sharpe fuera de muestra menos 0,06" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Del simulacro (IS) al examen (OOS)</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="200" x2="520" y2="200" stroke="#52525b" stroke-width="1"/>
+<rect x="110" y="55" width="80" height="145" rx="3" fill="#a78bfa"/>
+<text x="122" y="216" fill="#e5e5e5">IS (30 d)</text>
+<text x="126" y="228" fill="#a78bfa">+2,89</text>
+<rect x="330" y="196" width="80" height="4" rx="2" fill="#f87171"/>
+<text x="336" y="216" fill="#e5e5e5">OOS (20 d)</text>
+<text x="344" y="228" fill="#f87171">−0,06</text>
+<text x="220" y="120" fill="#f87171">brecha ≈ 2,95</text>
+<text x="220" y="134" fill="#8a8a93">firma del overfitting</text>
+</g>
+</svg>
+
+## Error común
+
+Optimizar mirando todo el historial y llamar "validación" a volver a medir sobre los mismos datos. Eso es calificarte tu propio examen. La validación real exige datos que el ajuste nunca vio, separados desde el minuto uno.
+
+## Checklist
+
+- [ ] Separo IS (30 días) y OOS (20 días) antes de calcular nada
+- [ ] Obtengo Sharpe IS +2,89 y OOS −0,06 con el mismo código
+- [ ] Calculo la brecha (~2,95) y dicto el diagnóstico: overfitting severo
+- [ ] Enuncio la regla: sin OOS que confirme, no hay estrategia
+- [ ] Completo el quiz c3_l7 (3/3 para ganar 2 QP)

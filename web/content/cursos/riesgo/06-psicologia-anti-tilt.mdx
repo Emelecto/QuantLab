@@ -1,0 +1,80 @@
+---
+id: "c4-l6"
+curso: "riesgo"
+leccion: 6
+titulo: "Psicología anti-tilt: tu peor enemigo opera contigo"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 3
+---
+
+# Psicología anti-tilt: tu peor enemigo opera contigo
+
+> Los mismos mercados, tres estados de ánimo: en días calmados el PnL promedio fue +0,65%; en tilt, −1,73% por día. El tilt no es mala suerte, es operar impulsivo: 3 a 6 operaciones impulsivas por día frente a cero en calma. La solución no es fuerza de voluntad, es una regla escrita.
+
+## Objetivo
+
+Analizar 50 días de operativa con registro emocional (`c4_l6.csv`) y demostrar que el estado mental predice el resultado: los días en tilt concentran las operaciones impulsivas y casi todo el daño al PnL.
+
+## TL;DR
+
+Días calmados (20): +0,65% promedio, cero impulsivas. Días ansiosos (15): −0,19%, 1–3 impulsivas. Días en tilt (15): −1,73%, 3–6 impulsivas. Moraleja: el tilt se mide en operaciones impulsivas, y se corta con una regla automática (3 pérdidas seguidas = pausa), no con promesas.
+
+## 1. El tilt tiene número: operaciones impulsivas
+
+Tilt es seguir operando para "recuperar" después de perder: entradas sin setup, tamaño duplicado, venganza contra el mercado. En el diario se ve clarito: los 20 días calmados tienen cero operaciones impulsivas; los 15 días en tilt tienen entre 3 y 6 cada uno. No adivines tu estado: cuenta tus impulsivas.
+
+```python
+df.groupby("estado")[["operaciones", "impulsivas", "pnl_pct"]].mean()
+```
+
+Si ya hiciste 2 operaciones fuera del plan hoy, vas camino al tilt aunque te sientas "bien".
+
+## 2. Cada estado cobra su peaje
+
+El promedio por estado no miente: calmado +0,65%, ansioso −0,19%, tilt −1,73%. Un solo día en tilt borra casi tres días buenos calmados. Y lo peor: el tilt encadena días, porque las pérdidas de hoy son la ansiedad de mañana.
+
+```python
+tilt = df[df["estado"] == "tilt"]["pnl_pct"].mean()      # −1,73%
+calma = df[df["estado"] == "calmado"]["pnl_pct"].mean()  # +0,65%
+```
+
+Tu edge real no es tu estrategia en papel: es tu estrategia multiplicada por tu disciplina.
+
+## 3. La regla anti-tilt: automática, no negociable
+
+La fuerza de voluntad falla justo cuando más la necesitas, así que la regla debe ejecutarse sola: 3 pérdidas seguidas = cierras la plataforma 24 horas. Sin excepciones, sin "una más". Escríbela en tu plan (L7) y que tu diario (L8) la audite: si la rompiste, el día cuenta como tilt aunque haya salido verde.
+
+## Visual: tu estado es tu resultado
+
+Tres barras, tres destinos: +0,65% calmado, −0,19% ansioso, −1,73% en tilt. La diferencia entre ganar y perder no está en el mercado, está en la silla.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="PnL promedio por estado: calmado mas 0,65, ansioso menos 0,19, tilt menos 1,73" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">PnL promedio por día según tu estado</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="150" x2="520" y2="150" stroke="#52525b" stroke-width="1"/>
+<rect x="80" y="90" width="70" height="60" rx="3" fill="#5eead4"/>
+<text x="86" y="166" fill="#e5e5e5">calmado</text>
+<text x="92" y="178" fill="#5eead4">+0,65%</text>
+<rect x="230" y="150" width="70" height="18" rx="3" fill="#f59e0b"/>
+<text x="236" y="166" fill="#e5e5e5">ansioso</text>
+<text x="236" y="184" fill="#f59e0b">−0,19%</text>
+<rect x="380" y="150" width="70" height="70" rx="3" fill="#f87171"/>
+<text x="396" y="166" fill="#e5e5e5">tilt</text>
+<text x="388" y="178" fill="#f87171" transform="rotate(0)">−1,73%</text>
+<text x="380" y="142" fill="#8a8a93">3–6 impulsivas/día</text>
+</g>
+</svg>
+
+## Error común
+
+Creer que el tilt se arregla "siendo más disciplinado". La disciplina es un recurso que se agota; las reglas automáticas no. Quien confía en su fuerza de voluntad opera en tilt con confianza: la peor combinación.
+
+## Checklist
+
+- [ ] Calculo el PnL promedio por estado: +0,65% / −0,19% / −1,73%
+- [ ] Verifico que las impulsivas se concentran en tilt (3–6/día) y son cero en calma
+- [ ] Calculo cuántos días calmados borra un día en tilt (≈3)
+- [ ] Escribo mi regla anti-tilt personal (p. ej. 3 pérdidas seguidas = pausa 24 h)
+- [ ] Completo el quiz c4_l6 (3/3 para ganar 2 QP)

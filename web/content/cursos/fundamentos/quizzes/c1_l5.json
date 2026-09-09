@@ -1,0 +1,40 @@
+{
+  "id": "c1_l5",
+  "curso": "fundamentos",
+  "leccion": 5,
+  "questions": [
+    {
+      "q": "BTC y ETH tienen correlacion 0,9. Eso significa...",
+      "options": [
+        "Se mueven juntos la mayoria de los dias, pero no identico",
+        "ETH siempre sube lo mismo que BTC, dia por dia",
+        "Que BTC causa los movimientos de ETH",
+        "Que no hay riesgo en tener ambos"
+      ],
+      "answer": 0,
+      "explain": "Correlacion alta es compania, no clonacion ni causalidad. Y dos activos juntos no diversifican."
+    },
+    {
+      "q": "Un activo con beta 1,5 respecto a BTC...",
+      "options": [
+        "Se mueve ~1,5 veces la magnitud de BTC en promedio",
+        "Rinde 1,5% fijo cada dia",
+        "Tiene 1,5 veces mas volumen",
+        "Esta descorrelacionado del mercado"
+      ],
+      "answer": 0,
+      "explain": "Beta es sensibilidad: si BTC se mueve 2%, el activo tiende a moverse ~3%. Para arriba o para abajo."
+    },
+    {
+      "q": "Para diversificar de verdad necesitas...",
+      "options": [
+        "Mas monedas del mismo sector",
+        "Activos con correlacion baja o negativa entre si",
+        "Tener todo en stablecoins",
+        "Operar mas seguido"
+      ],
+      "answer": 1,
+      "explain": "Diversificar es descorrelacionar: si todo cae junto, no tienes varias apuestas, tienes una sola disfrazada."
+    }
+  ]
+}

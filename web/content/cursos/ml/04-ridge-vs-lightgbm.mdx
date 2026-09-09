@@ -1,0 +1,82 @@
+---
+id: "c5-l4"
+curso: "ml"
+leccion: 4
+titulo: "Ridge vs LightGBM"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Ridge vs LightGBM
+
+> Lineal contra árboles: el modelo más simple suele ganar en mercados ruidosos, y cuando pierde, pierde por razones que puedes medir.
+
+## Objetivo
+
+Comparar Ridge regularizado contra LightGBM con walk-forward honesto, y decidir con métricas financieras (hit-rate, retorno neto) además del error.
+
+## TL;DR
+
+- Ridge = lineal con freno (L2): estable y difícil de sobreajustar.
+- LightGBM = árboles por gradiente: captura no linealidades pero pide más datos y disciplina.
+- Decide con walk-forward + costos: el mejor R² no siempre da el mejor P&L.
+
+## 1. Ridge: el lineal con freno
+
+Ridge minimiza error más una penalización L2 (alpha) sobre los coeficientes. Con alpha alto, ningún coeficiente se dispara por ruido; con pocos datos financieros, esa humildad paga.
+
+```python
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler().fit(X_train)  # solo train
+model = Ridge(alpha=1.0).fit(sc.transform(X_train), y_train)
+```
+
+Barres alpha en [0.1, 1, 10] con walk-forward y ves la curva típica: muy poco freno sobreajusta, demasiado freno aplana.
+
+## 2. LightGBM: potencia con correa
+
+Gradient boosting apila árboles que corrigen los errores del anterior. Sus perillas clave: num_leaves pequeño, min_data_in_leaf alto y learning_rate bajo con early stopping. Sin esa correa, memoriza el ruido del train.
+
+```python
+import lightgbm as lgb
+p = dict(num_leaves=15, min_data_in_leaf=50,
+        learning_rate=0.05, n_estimators=200)
+# fit con early stopping sobre validación temporal
+```
+
+Si LightGBM no está instalado, el notebook usa HistGradientBoosting de sklearn como gemelo: la lección es idéntica.
+
+## 3. Duelo honesto: del R² al P&L
+
+Comparas ambos con el mismo walk-forward, las mismas etiquetas y costos por trade. Reportas R² OOS, hit-rate direccional y retorno neto de una regla simple (opera si la predicción supera el costo). Muchas veces Ridge empata o gana en neto porque se equivoca menos en grande.
+
+```python
+pred = model.predict(X_te)
+señal = (pred > costo).astype(int)
+pnl = señal * ret_fut_te - señal * costo
+```
+
+La tabla final del notebook suele mostrar: LightGBM mejor en train, Ridge mejor o igual en OOS neto. Esa brecha es el overfitting con nombre y apellido.
+
+## Visual
+
+Dos arqueros: Ridge tira flechas rectas y agrupa; LightGBM tira curvas que a veces dan en el centro y a veces en la grada. Con viento (ruido), el recto gana por constancia.
+
+## Error típico
+
+Comparar modelos con distinto split, distintas etiquetas o sin costos: el duelo queda amañado. Mismo walk-forward, mismos costos, misma regla de señal para los dos.
+
+## Checklist
+
+- [ ] Entrenas Ridge con scaler ajustado solo en train
+- [ ] Entrenas LightGBM (o su gemelo) con regularización sensata
+- [ ] Comparas con el mismo walk-forward y reportas P&L neto
+- [ ] Quiz `c5_l4.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l4.ipynb`, sube num_leaves a 63 y mira cómo el train mejora y el OOS se hunde: overfitting en vivo.
+- Quiz `c5_l4.json`: 3 preguntas, necesitas 2 bien para el QP.

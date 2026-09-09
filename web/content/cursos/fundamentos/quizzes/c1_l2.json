@@ -1,0 +1,48 @@
+{
+  "questions": [
+    {
+      "q": "Un activo pasa de 100 a 110. ¿Cuál es su retorno simple?",
+      "options": [
+        "9.53%",
+        "10%",
+        "110%",
+        "1%"
+      ],
+      "answer": 1,
+      "explain": "Retorno simple = (110−100)/100 = 10%."
+    },
+    {
+      "q": "Un activo sube 50% y luego baja 50%. ¿Dónde terminas si empezaste con 100?",
+      "options": [
+        "En 100, se compensan",
+        "En 75, pierdes 25%",
+        "En 125, ganas 25%",
+        "En 0, quiebras"
+      ],
+      "answer": 1,
+      "explain": "100 → 150 → 75. Los retornos simples no se suman: se encadenan multiplicando (1.5 × 0.5 = 0.75)."
+    },
+    {
+      "q": "¿Cuál es la principal ventaja práctica del retorno logarítmico?",
+      "options": [
+        "Siempre es mayor que el simple",
+        "Los logs de períodos seguidos se suman al retorno total",
+        "Elimina la volatilidad",
+        "No necesita precios"
+      ],
+      "answer": 1,
+      "explain": "ln(P2/P0) = ln(P2/P1) + ln(P1/P0). Por eso en series largas se calcula con logs y al final se convierte a simple para reportar."
+    },
+    {
+      "q": "Para movimientos diarios pequeños (±1%), ¿cómo se comparan el retorno simple y el log?",
+      "options": [
+        "Son prácticamente iguales",
+        "El log es el doble",
+        "El simple siempre es negativo",
+        "No tienen ninguna relación"
+      ],
+      "answer": 0,
+      "explain": "Para x chico, ln(1+x) ≈ x. Un +1% simple es ~+0.00995 en log: casi idénticos. Divergen en movimientos grandes."
+    }
+  ]
+}

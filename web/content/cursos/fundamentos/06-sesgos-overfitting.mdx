@@ -1,0 +1,110 @@
+---
+id: "c1-l6"
+curso: "fundamentos"
+leccion: 6
+titulo: "Sesgos y overfitting: la auditoría de las 20 variantes"
+tipo: "lesson"
+xp: 150
+qp: 1
+duracion_video_min: 4
+---
+
+# Sesgos y overfitting: la auditoría de las 20 variantes
+
+> Probar 20 variantes y quedarse con la campeona no es investigar: es elegir el ruido con mejor disfraz.
+
+## Objetivo
+
+Auditar 20 variantes de un cruce de medias móviles (SMA rápida/lenta) separando muestra dentro (IS) y fuera (OOS), y salir con un checklist anti-overfitting aplicable a cualquier estrategia.
+
+## TL;DR
+
+La mejor variante dentro de muestra, (10,30) con Sharpe 2,47, se desinfla fuera de muestra (gap 1,16, veredicto débil). Solo 9 de 20 variantes son robustas. El Sharpe IS ordena el ruido; el gap IS−OOS dice la verdad.
+
+## 1. El experimento: 20 cruces, dos veredictos
+
+El archivo `c1_l6_sma20.csv` trae 20 combinaciones (rápida, lenta) con su Sharpe dentro de muestra (`sharpe_is`), fuera de muestra (`sharpe_oos`), el `gap` (IS menos OOS) y un `veredicto`: robusta, débil o sobreajustada.
+
+```python
+import csv
+
+with open("../data/c1_l6_sma20.csv") as f:
+    rows = list(csv.DictReader(f))
+
+print("variantes:", len(rows))
+for r in rows[:3]:
+    print(r["fast"], r["slow"], "IS:", r["sharpe_is"], "OOS:", r["sharpe_oos"], "→", r["veredicto"])
+```
+
+El reparto ya avisa: 9 robustas, 10 débiles y 1 sobreajustada. Ni la mitad sobrevive al contacto con datos nuevos.
+
+## 2. La trampa: el campeón de IS casi nunca repite
+
+Mira los dos casos que duelen. La (3,15) marca 2,01 en IS y −0,56 en OOS: veredicto sobreajustada, gap de 2,57. La mejor de todas en IS, (10,30) con 2,47, cae a 1,32 en OOS con gap 1,16: débil, no robusta.
+
+Esto no es mala suerte, es aritmética: si pruebas suficientes variantes, alguna va a ligar en IS por puro azar. El error es enamorarse del ranking IS. La pregunta correcta nunca es "¿cuál ganó dentro?", sino "¿cuánto se degradó fuera?".
+
+## 3. Qué sí es robustez: gap pequeño, OOS decente
+
+Las robustas no son las más brillantes en IS, son las que se degradan poco. La (8,35) pasa de 1,42 a 1,28 (gap 0,13). La (4,18) clava 0,90 en ambas (gap 0,00). Hasta la (7,28), que en IS pierde (−1,29), gana en OOS (2,22): nadie la habría elegido mirando solo dentro, y sin embargo aguanta.
+
+Regla práctica: Sharpe OOS aceptable más gap chico. Un Sharpe IS alto con gap grande es una confesión, no un logro.
+
+## 4. Checklist anti-overfitting
+
+Úsalo antes de creerte cualquier backtest, el tuyo o el de otro:
+
+- Separo IS y OOS antes de mirar ningún resultado, y no muevo la frontera después.
+- Decido pocas variantes a priori; cada variante extra es una oportunidad más de ligar por azar.
+- Exijo OOS decente, no IS espectacular.
+- Exijo gap pequeño: si se cae más de ~1,0 de Sharpe fuera, desconfío.
+- Repito con otra ventana o activo: lo que solo funciona en un dataset no es una estrategia, es una anécdota.
+- Resto costos (comisión, spread, deslizamiento) antes de celebrar.
+
+## Visual: Sharpe IS vs OOS en 5 variantes
+
+Cada par de barras es una variante: teal es dentro de muestra, ámbar es fuera. Las dos primeras brillan dentro y se derrumban fuera. Las dos del medio apenas se mueven. Esa estabilidad, no el pico, es lo que buscas.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Barras de Sharpe dentro y fuera de muestra para cinco variantes SMA" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Sharpe IS (teal) vs OOS (ámbar) — 5 variantes (rápida,lenta)</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="136" x2="520" y2="136" stroke="#52525b" stroke-width="1"/>
+<text x="14" y="46" fill="#8a8a93">3</text>
+<text x="14" y="139" fill="#8a8a93">0</text>
+<text x="10" y="203" fill="#8a8a93">−2</text>
+<rect x="56" y="72" width="30" height="64" rx="2" fill="#5eead4"/>
+<rect x="90" y="136" width="30" height="18" rx="2" fill="#f59e0b"/>
+<text x="66" y="222" fill="#e5e5e5">(3,15)</text>
+<text x="72" y="234" fill="#f59e0b">sobreaj.</text>
+<rect x="166" y="57" width="30" height="79" rx="2" fill="#5eead4"/>
+<rect x="200" y="94" width="30" height="42" rx="2" fill="#f59e0b"/>
+<text x="176" y="222" fill="#e5e5e5">(10,30)</text>
+<text x="186" y="234" fill="#8a8a93">débil</text>
+<rect x="276" y="91" width="30" height="45" rx="2" fill="#5eead4"/>
+<rect x="310" y="95" width="30" height="41" rx="2" fill="#f59e0b"/>
+<text x="286" y="222" fill="#e5e5e5">(8,35)</text>
+<text x="282" y="234" fill="#5eead4">robusta</text>
+<rect x="386" y="107" width="30" height="29" rx="2" fill="#5eead4"/>
+<rect x="420" y="107" width="30" height="29" rx="2" fill="#f59e0b"/>
+<text x="396" y="222" fill="#e5e5e5">(4,18)</text>
+<text x="392" y="234" fill="#5eead4">robusta</text>
+<rect x="276" y="150" width="0" height="0" fill="none"/>
+</g>
+<g font-family="Inter,system-ui,sans-serif" font-size="10">
+<rect x="56" y="150" width="0" height="0" fill="none"/>
+</g>
+</svg>
+
+Nota: la quinta variante (12,45) —IS 1,35, OOS −1,56, débil— ni siquiera cabe bien en la gráfica sin romper la escala. Ese es exactamente el punto.
+
+## Error común
+
+Elegir la variante campeona en IS y "confirmarla" moviendo la ventana OOS hasta que cuadre. Eso no es validación, es pescar el ruido con otro anzuelo. La frontera IS/OOS se fija una vez, al principio, y no se toca.
+
+## Checklist
+
+- [ ] Explico con mis palabras qué es overfitting usando la variante (3,15)
+- [ ] Calculo el gap IS−OOS de cualquier fila del CSV
+- [ ] Identifico por qué (8,35) y (4,18) son robustas y (10,30) no
+- [ ] Aplico el checklist anti-overfitting a un backtest antes de creerlo
+- [ ] Completo el quiz c1_l6 (3/3 para ganar 1 QP)

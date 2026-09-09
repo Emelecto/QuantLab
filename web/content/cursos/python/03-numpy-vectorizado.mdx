@@ -1,0 +1,90 @@
+---
+id: "c2-l3"
+curso: "python"
+leccion: 3
+titulo: "Piensa en vectores: NumPy y cálculo sin bucles"
+tipo: "lesson"
+xp: 110
+qp: 2
+duracion_video_min: 4
+---
+
+# Piensa en vectores: NumPy y cálculo sin bucles
+
+> Si iteras fila por fila un millón de precios, tu backtest termina mañana. Si vectorizas, termina antes del café.
+
+## Objetivo
+
+Operar columnas enteras de una vez con NumPy y pandas: retornos, medias móviles y señales, sin bucles de Python.
+
+## TL;DR
+
+- Un array de NumPy aplica la operación a todos los elementos a la vez (en C, rapidísimo).
+- `close.pct_change()` y `np.log(close/close.shift(1))` dan retornos simples y logarítmicos.
+- `rolling(20).mean()` es tu media móvil; compara precio vs media para una primera señal.
+
+## 1. Del bucle al vector
+
+Esto:
+
+```python
+rets = []
+for i in range(1, len(c)):
+    rets.append((c[i] - c[i-1]) / c[i-1])
+```
+
+es esto:
+
+```python
+import numpy as np
+rets = np.diff(c) / c[:-1]
+```
+
+Mismo resultado, 50 veces más rápido con 100.000 datos. En el notebook lo medimos con `%timeit` para que lo veas con tus ojos.
+
+## 2. Retornos con pandas (una línea)
+
+```python
+df["ret_simple"] = df["close"].pct_change()
+df["ret_log"] = np.log(df["close"] / df["close"].shift(1))
+```
+
+Recuerda del C1: el simple es para contar, el log para sumar. Aquí los calculas los dos y compruebas que con movimientos pequeños casi coinciden.
+
+## 3. Tu primera señal: precio vs media móvil
+
+```python
+df["sma20"] = df["close"].rolling(20).mean()
+df["senal"] = np.where(df["close"] > df["sma20"], 1, -1)
+```
+
+¿Es una estrategia rentable? Probablemente no. Pero es el esqueleto de todas: indicador → regla → señal. Todo backtest que harás en este curso cuelga de estas tres líneas.
+
+## 4. Broadcasting y máscaras
+
+```python
+anormal = df["ret_simple"].abs() > 0.03  # máscara booleana
+print(df[anormal])                        # solo días raros
+```
+
+Las máscaras son el superpoder silencioso: filtras miles de filas con una condición legible, sin un solo `if` dentro de un bucle.
+
+## Visual
+
+Imagina una fila de fichas de dominó: el bucle las empuja una por una; la operación vectorizada sopla y caen todas a la vez.
+
+## Error típico
+
+Mezclar `shift` sin orden cronológico. Si el DataFrame no está ordenado por fecha, `pct_change` calcula basura con total confianza. Siempre `sort_values("date")` primero.
+
+## Checklist
+
+- [ ] Explicas por qué vectorizar es más rápido que un bucle
+- [ ] Calculas retornos simples y log con una línea cada uno
+- [ ] Generas una columna de señales con `np.where`
+- [ ] Quiz `c2_l3.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c2_l3.ipynb`, cambia la ventana de 20 a 10 y a 50: ¿cuántas veces cambia la señal?
+- Quiz `c2_l3.json`: 3 preguntas, necesitas 2 bien para el QP.

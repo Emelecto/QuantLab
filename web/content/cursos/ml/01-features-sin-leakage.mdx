@@ -1,0 +1,79 @@
+---
+id: "c5-l1"
+curso: "ml"
+leccion: 1
+titulo: "Features sin leakage"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Features sin leakage
+
+> Un modelo con 95% de precisión en backtest puede perder dinero real desde el día uno. El culpable casi siempre es el mismo: leakage.
+
+## Objetivo
+
+Construir features temporales usando solo información disponible en el momento de la señal, y detectar leakage con una prueba de desplazamiento.
+
+## TL;DR
+
+- Leakage = usar en el feature información del futuro que en vivo no tendrías.
+- Toda feature debe calcularse solo con datos hasta t (cierre confirmado), nunca con el retorno que predices.
+- Prueba de fuego: desplaza la etiqueta un paso; si el score no cae, hay fuga.
+
+## 1. El futuro no puede ser tu feature
+
+Si tu feature usa el precio de cierre del mismo día para predecir el cierre del mismo día, ya viste el futuro. En vivo esa columna llega tarde y tu precisión se evapora. La regla es simple: la feature en t solo usa datos conocidos en t.
+
+```python
+df['ret_lag1'] = df['close'].pct_change().shift(1)  # solo pasado
+# PROHIBIDO: df['ret_hoy'] = df['close'].pct_change()  # usa el futuro
+```
+
+Con 60 días del CSV calculas el retorno desfasado y confirmas que la primera fila queda en NaN: sin pasado no hay feature.
+
+## 2. Ventanas que no miran adelante
+
+Las medias móviles y volatilidades deben ser rodantes hacia atrás (trailing). Una media centrada o un z-score con toda la muestra filtran el futuro a cada fila.
+
+```python
+df['sma10'] = df['close'].shift(1).rolling(10).mean()  # trailing puro
+df['vol10'] = df['ret_lag1'].rolling(10).std()
+```
+
+Comparas una SMA trailing contra una centrada y ves cómo la centrada 'adivina' giros que la trailing no ve.
+
+## 3. La prueba del desplazamiento
+
+Entrenas un Ridge con tus features y anotas el R². Luego desplazas la etiqueta un día hacia el futuro (más difícil) y reentrenas: un modelo sano cae; uno con leakage ni se inmuta porque la respuesta sigue escondida en las features.
+
+```python
+from sklearn.linear_model import Ridge
+from sklearn.metrics import r2_score
+m = Ridge().fit(X_train, y_train)
+print('R2 base:', r2_score(y_test, m.predict(X_test)))
+```
+
+En el notebook el R² base es modesto (~0.05-0.15) y con la etiqueta desplazada colapsa: señal de features limpias.
+
+## Visual
+
+Imagina un examen donde el alumno tiene las respuestas escritas en el borde de la hoja: saca 10 en el simulacro y reprueba el real. Quitar el leakage es quitarle el acordeón.
+
+## Error típico
+
+Normalizar (StandardScaler) con toda la muestra antes del split: la media global contiene el futuro del test. Ajusta el scaler solo en train y transforma test.
+
+## Checklist
+
+- [ ] Construyes features solo con datos hasta t (shift + rolling trailing)
+- [ ] Detectas leakage con la prueba de desplazamiento de etiqueta
+- [ ] Ajustas cualquier scaler solo en train, nunca en todo el set
+- [ ] Quiz `c5_l1.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l1.ipynb`, agrega una feature con leakage a propósito (retorno sin shift) y mira cómo el R² se dispara: ese salto es la huella del futuro.
+- Quiz `c5_l1.json`: 3 preguntas, necesitas 2 bien para el QP.

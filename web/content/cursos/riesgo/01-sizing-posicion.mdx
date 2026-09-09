@@ -1,0 +1,65 @@
+---
+id: "c4-l1"
+curso: "riesgo"
+leccion: 1
+titulo: "Position sizing: arriesga el 1%, no el corazón"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Position sizing: arriesga el 1%, no el corazón
+
+> El tamaño de tu posición no es una corazonada: es `riesgo_usd / |entrada − stop|`. Con capital de 10.000 y riesgo del 1%, cada trade puede salir mal y apenas lo notas.
+
+## Objetivo
+
+Calcular el tamaño de posición a partir del capital, el porcentaje de riesgo y la distancia al stop, y verificarlo contra 50 trades reales del CSV.
+
+## TL;DR
+
+- Riesgo en dólares: `riesgo_usd = capital × riesgo_pct / 100`.
+- Tamaño: `tamano = riesgo_usd / |entrada − stop|`. El stop manda, no tu convicción.
+- 1% por trade ⇒ 10 pérdidas seguidas solo cuestan ~9,6% del capital.
+
+## 1. La fórmula que te salva de ti mismo
+
+```python
+df["riesgo_usd"] = df["capital"] * df["riesgo_pct"] / 100
+df["tamano_calc"] = df["riesgo_usd"] / (df["entrada"] - df["stop"]).abs()
+```
+
+En `c4_l1.csv` tienes 50 trades con capital fijo de 10.000 y riesgo de 1% o 2%. La columna `tamano` ya viene calculada: tu trabajo es replicarla y cazar diferencias.
+
+## 2. Por qué el stop define el tamaño (y no al revés)
+
+Trade 1: entrada 30.457,08, stop 30.013,08 → distancia 444. Con 100 USD de riesgo, el tamaño es 0,2252 BTC. Si el stop estuviera al doble de lejos, comprarías la mitad. Primero decides cuánto duele perder; después, cuánto compras.
+
+## 3. La racha que no te quiebra
+
+```python
+racha_1pct = 1 - (1 - 0.01) ** 10  # ≈ 0.0956: diez stops seguidos ≈ −9,6%
+```
+
+Arriesgar 1% por trade convierte una racha desastrosa en un mal mes, no en una cuenta muerta. Con 2% la misma racha cuesta ~18,3%. El sizing es tu airbag: no evita el choque, evita el funeral.
+
+## Visual
+
+Imagina un fusible eléctrico: el stop es el cable que se corta y el tamaño es el grosor que elegiste. Fusible fino (1%) y la casa sigue con luz tras diez cortocircuitos.
+
+## Error típico
+
+Agrandar la posición porque "esta sí es segura" sin mover el stop. Eso no es convicción, es riesgo del 5% disfrazado. Si la señal es mejor, ajusta el stop con criterio técnico; el porcentaje de riesgo no se negocia.
+
+## Checklist
+
+- [ ] Replicas `riesgo_usd` y `tamano` con dos líneas y difieren < 1e-6
+- [ ] Explicas por qué un stop más lejano reduce el tamaño
+- [ ] Calculas el costo de 10 pérdidas seguidas al 1% y al 2%
+- [ ] Quiz `c4_l1.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c4_l1.ipynb`, verifica que `tamano` coincide con tu cálculo en los 50 trades.
+- Quiz `c4_l1.json`: 3 preguntas, necesitas 2 bien para el QP.

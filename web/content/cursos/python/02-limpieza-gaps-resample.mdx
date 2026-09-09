@@ -1,0 +1,87 @@
+---
+id: "c2-l2"
+curso: "python"
+leccion: 2
+titulo: "Datos sucios, decisiones sucias: limpieza, gaps y resample"
+tipo: "lesson"
+xp: 110
+qp: 2
+duracion_video_min: 5
+---
+
+# Datos sucios, decisiones sucias: limpieza, gaps y resample
+
+> El mercado no te entrega datos limpios: te entrega feriados, cortes y horas muertas. Tu trabajo es dejarlos analizables sin inventar información.
+
+## Objetivo
+
+Detectar valores ausentes y duplicados, tratar gaps con criterio y cambiar la frecuencia de una serie (resample) sin romper su sentido financiero.
+
+## TL;DR
+
+- `isna().sum()` te dice dónde duelen los huecos; `dropna` y `fillna/ffill` los tratan.
+- Nunca rellenes hacia adelante un precio para calcular retornos sin pensarlo: creas velas falsas de 0%.
+- `resample("D").last()` convierte datos horarios en diarios; `ohlc()` si quieres velas completas.
+
+## 1. Inspección forense (2 minutos que ahorran 2 días)
+
+```python
+df.info()
+print(df.isna().sum())
+print("duplicados:", df.duplicated().sum())
+```
+
+Mi regla: ningún DataFrame se analiza antes de este chequeo. Una vez calculé un Sharpe precioso sobre una serie con 3 meses duplicados. Precioso y falso.
+
+## 2. Gaps: qué hacer con los huecos
+
+Tres opciones honestas:
+
+| Estrategia | Código | Cuándo |
+|---|---|---|
+| Eliminar | `df.dropna()` | Huecos pocos y aleatorios |
+| Arrastrar último valor | `df.ffill()` | Precios en feriados (mercado cerrado) |
+| Interpolar | `df.interpolate()` | Sensores o curvas suaves, no precios |
+
+Ojo con `ffill` en precios: crea retornos de 0% que achican la volatilidad real. Si vas a medir riesgo, mejor trabaja con los días que sí cotizaron.
+
+## 3. Resample: cambia el ritmo sin romper la música
+
+Datos horarios → velas diarias:
+
+```python
+df = df.set_index("timestamp")
+diario = df["price"].resample("D").ohlc()
+volumen_diario = df["volume"].resample("D").sum()
+```
+
+Precio se resume con `last` u `ohlc`; volumen se **suma**. Promediar volúmenes es uno de esos errores silenciosos que nadie nota hasta que duele.
+
+## 4. Duplicados y tipos
+
+```python
+df = df[~df.index.duplicated(keep="last")]
+df.index = pd.to_datetime(df.index)
+```
+
+Un timestamp duplicado rompe todo lo que venga después: resample, joins, backtests. Elimínalos pronto y documenta cuántos quitaste.
+
+## Visual
+
+Piensa en el resample como comprimir una escalera: 24 escalones horarios se vuelven un peldaño diario que conserva lo esencial (apertura, máximo, mínimo, cierre).
+
+## Error típico
+
+Rellenar todos los NaN con cero (`fillna(0)`). Un precio de 0 no es "sin dato": es una quiebra ficticia que destruye cualquier retorno. El cero casi nunca es la respuesta.
+
+## Checklist
+
+- [ ] Sabes contar NaN y duplicados en cualquier DataFrame
+- [ ] Distingues `dropna`, `ffill` e `interpolate` y cuándo usar cada uno
+- [ ] Ejecutaste `c2_l2.ipynb` y el resample diario cuadra con los datos horarios
+- [ ] Quiz `c2_l2.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En el notebook `c2_l2.ipynb`, compara la volatilidad con `dropna` vs `ffill` y explica la diferencia.
+- Quiz `c2_l2.json`: 3 preguntas, necesitas 2 bien para el QP.

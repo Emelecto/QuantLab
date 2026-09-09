@@ -1,0 +1,40 @@
+{
+  "id": "c6_l4",
+  "curso": "torneos",
+  "leccion": 4,
+  "questions": [
+    {
+      "q": "El criterio de Kelly dice que la fracción óptima es proporcional a…",
+      "options": [
+        "El número de eras dividido por el stake",
+        "El filo estimado dividido por la varianza",
+        "La volatilidad al cuadrado sin filo",
+        "El QP acumulado"
+      ],
+      "answer": 1,
+      "explain": "Kelly ≈ edge/varianza: más filo sube la apuesta, más ruido la baja."
+    },
+    {
+      "q": "¿Por qué los profesionales usan half-Kelly en vez de Kelly completo?",
+      "options": [
+        "Porque da el doble de crecimiento",
+        "Porque el filo estimado es optimista: la mitad absorbe el error con poco costo",
+        "Porque lo exige el torneo",
+        "Porque evita validar el formato"
+      ],
+      "answer": 1,
+      "explain": "Half-Kelly protege del filo sobreestimado recortando mucho riesgo por poco crecimiento."
+    },
+    {
+      "q": "Duplicas de forma permanente el stake por encima de Kelly full tras perder. ¿Qué esperas?",
+      "options": [
+        "Recuperación garantizada",
+        "Crecimiento esperado negativo y riesgo de ruina aunque la estrategia gane",
+        "El mismo crecimiento con más emoción",
+        "MMC más alto"
+      ],
+      "answer": 1,
+      "explain": "Pasarse de Kelly destruye: ni martingalear ni doblar tras perder, el stake sale de filo y varianza."
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+---
+id: "c4-l5"
+curso: "riesgo"
+leccion: 5
+titulo: "Futuros 2x en isolated: duplica todo, liquida rápido"
+tipo: "lesson"
+xp: 140
+qp: 2
+duracion_video_min: 5
+---
+
+# Futuros 2x en isolated: duplica todo, liquida rápido
+
+> Con 2x, un +12% del precio son +24% para ti… y una caída del 45% te liquida: pierdes los 100 USDT del margen. En 50 trades de ejemplo, 6 terminaron liquidados y el promedio fue −17,60%. El apalancamiento no perdona la mala racha.
+
+## Objetivo
+
+Simular 50 trades long con apalancamiento 2x en margen isolated (`c4_l5.csv`) y comprobar con números que el 2x duplica ganancias y pérdidas, que la liquidación llega con una caída de ~45–50% y que la pérdida máxima queda aislada al margen.
+
+## TL;DR
+
+Margen 100 USDT por trade, apalancamiento 2x, modo isolated. Mejor trade +24%, peor −100% (liquidado). Se liquidaron 6 de 50 trades y el PnL promedio fue −17,60%. Moraleja: el 2x convierte una mala racha normal en una sangría, y solo el modo isolated evita que un trade se coma toda la cuenta.
+
+## 1. Qué hace el 2x (la cuenta de servilleta)
+
+Con apalancamiento 2x, tu PnL es el doble del movimiento del precio: `pnl = 2 × movimiento`. Si el precio sube 12%, ganas 24%; si cae 10%, pierdes 20%. No hay magia: pides prestada la otra mitad del tamaño y el exchange la cobra primero si las cosas salen mal.
+
+```python
+df["mov"] = (df["precio_salida"] - df["precio_entrada"]) / df["precio_entrada"]
+df["pnl_calc"] = 2 * df["mov"] * 100  # % sobre el margen
+```
+
+El 2x suena modesto al lado del 20x o el 100x, pero ya duplica cada error de timing.
+
+## 2. La liquidación: el −50% teórico, el −45% real
+
+En teoría, un long 2x se liquida cuando el precio cae 50% (pierdes el 100% del margen). En la práctica, la comisión de liquidación y el margen de mantenimiento adelantan el golpe: en estos datos, todo trade con caída de 45% o más terminó liquidado. Seis de cincuenta. Cada uno perdió exactamente 100 USDT: todo el margen, ni un dólar más.
+
+```python
+liq = df[df["liquidado"] == 1]
+print(len(liq), "liquidados de", len(df))  # 6 de 50
+```
+
+Esa es la lección: con 2x no necesitas una catástrofe del mercado para perderlo todo en un trade, basta una mala semana.
+
+## 3. Por qué isolated (y no cross)
+
+En modo isolated, la pérdida máxima de un trade es su margen: 100 USDT aquí, nunca más. En modo cross, un trade perdedor puede devorar el balance completo de la cuenta para evitar la liquidación. Los 6 liquidados perdieron 100 USDT cada uno y la cuenta siguió viva; en cross, esa misma racha habría puesto en riesgo todo.
+
+## Visual: el 2x amplifica los dos lados
+
+Seis barras liquidadas en −100%, el resto entre −56% y +24%, y el promedio clavado en −17,60%: el apalancamiento duplica las ganancias pero las liquidaciones hunden el promedio.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="PnL de 50 trades 2x: 6 liquidados en menos 100 por ciento y promedio menos 17,60" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">50 trades 2x isolated: ¿dónde queda el promedio?</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="180" x2="520" y2="180" stroke="#52525b" stroke-width="1"/>
+<rect x="80" y="40" width="70" height="140" rx="3" fill="#5eead4"/>
+<text x="92" y="196" fill="#e5e5e5">mejor</text>
+<text x="92" y="208" fill="#5eead4">+24%</text>
+<rect x="230" y="120" width="70" height="60" rx="3" fill="#f59e0b"/>
+<text x="232" y="196" fill="#e5e5e5">promedio</text>
+<text x="232" y="208" fill="#f59e0b">−17,60%</text>
+<rect x="380" y="60" width="70" height="120" rx="3" fill="#f87171"/>
+<text x="384" y="196" fill="#e5e5e5">liquidado</text>
+<text x="388" y="208" fill="#f87171">−100% ×6</text>
+</g>
+</svg>
+
+## Error común
+
+Creer que 2x es "apalancamiento seguro". Seguro no hay: 6 de 50 trades liquidados con un apalancamiento modesto lo demuestran. El riesgo no lo pone el número del apalancamiento, lo pone la racha que no viste venir.
+
+## Checklist
+
+- [ ] Replico el PnL con `2 × movimiento` y verifico mejor (+24%) y promedio (−17,60%)
+- [ ] Cuento los 6 liquidados y confirmo que cada uno perdió exactamente el margen (100 USDT)
+- [ ] Explico por qué la liquidación real llega antes del −50% teórico
+- [ ] Explico la diferencia isolated vs cross con los 6 liquidados como ejemplo
+- [ ] Completo el quiz c4_l5 (3/3 para ganar 2 QP)

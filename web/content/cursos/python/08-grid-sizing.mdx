@@ -1,0 +1,85 @@
+---
+id: "c2-l8"
+curso: "python"
+leccion: 8
+titulo: "Grid search y sizing: Kelly pide locuras"
+tipo: "lesson"
+xp: 140
+qp: 2
+duracion_video_min: 4
+---
+
+# Grid search y sizing: Kelly pide locuras
+
+> Encontrar el mejor parámetro es la mitad del trabajo; la otra mitad es no arruinarte operándolo. Kelly te dice el tamaño óptimo y el óptimo es una locura: 1.040% de tu cuenta.
+
+## Objetivo
+
+Barrer un grid de 12 combinaciones (rápidas 5/8/10/15 × lentas 20/30/50) con costos incluidos, rankearlas por Sharpe, y asignar tamaño con dos criterios: Kelly teórico y objetivo de volatilidad 15% (`c2_l8_grid.csv`).
+
+## TL;DR
+
+La mejor es la (5,50): Sharpe 2,28, +50% anual, caída −9,46%. Kelly pide f = 10,4 (apostar diez veces tu cuenta: suicidio). El tamaño operable por volatilidad objetivo es 0,68. Siete combinaciones son robustas (Sharpe > 1,0), cinco débiles… y tu querida (10,30) de la lección 6 queda fuera con 0,94.
+
+## 1. El grid: 12 combinaciones, un ranking
+
+Mismo backtest honesto de la lección 6 (señal con pasado, 5 bps por trade) para cada pareja. El ranking por Sharpe lo encabeza la (5,50) con 2,28, seguida de (8,50) y (10,50) con 1,93. Patrón visible: las lentas de 50 dominan el top; las rápidas pelean abajo. El grid no vota: ordena, y el corte lo pones tú (aquí, Sharpe > 1,0).
+
+## 2. Kelly sin capar: matemáticas correctas, cuenta muerta
+
+Kelly dice f = μ/σ²: la fracción óptima para maximizar el crecimiento. Para la (5,50) sale 10,4, o sea apostar el 1.040% de tu cuenta. Todas las combinaciones piden entre 2,5 y 10,4 veces la cuenta. Kelly asume que conoces μ y σ de verdad y que toleras caídas del 90% en el camino. Tú no conoces lo primero ni toleras lo segundo. Kelly no está mal: está desnudo. Úsalo como brújula, jamás como orden de compra.
+
+## 3. Tamaño operable: volatilidad objetivo
+
+En vez de preguntar "¿cuánto maximiza?", pregunta "¿cuánto me deja dormir?": escala cada estrategia para que su volatilidad anual sea 15%.
+
+```python
+f_objetivo = min(1.0, 0.15 / vol_anual)
+```
+
+La (5,50), con vol 21,96%, queda en 0,68 de la cuenta. Las 12 quedan entre 0,58 y 0,70: el objetivo de riesgo empareja lo que el Sharpe separa. Esa es la gracia del sizing: convierte edges distintos en apuestas comparables.
+
+## Visual: Sharpe vs tamaño (Kelly pide la luna)
+
+Barras de Sharpe por combinación ordenadas; la línea marca el corte 1,0. Encima, el Kelly pedido: todas las barras querrían más del 100% de tu cuenta.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Sharpe por combinacion del grid con corte en 1" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Grid 12 combos: Sharpe (corte 1,0) — top: lentas de 50</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="9" fill="#8a8a93">
+<line x1="40" y1="140" x2="520" y2="140" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="46" y="134" fill="#f59e0b">corte 1,0</text>
+<rect x="48" y="60" width="28" height="80" rx="2" fill="#5eead4"/>
+<text x="48" y="152" fill="#e5e5e5">(5,50)</text>
+<rect x="96" y="72" width="28" height="68" rx="2" fill="#5eead4"/>
+<text x="96" y="152" fill="#e5e5e5">(8,50)</text>
+<rect x="144" y="72" width="28" height="68" rx="2" fill="#5eead4"/>
+<text x="140" y="152" fill="#e5e5e5">(10,50)</text>
+<rect x="192" y="77" width="28" height="63" rx="2" fill="#5eead4"/>
+<text x="188" y="152" fill="#e5e5e5">(15,50)</text>
+<rect x="240" y="98" width="28" height="42" rx="2" fill="#5eead4"/>
+<text x="240" y="152" fill="#e5e5e5">(8,20)</text>
+<rect x="288" y="100" width="28" height="40" rx="2" fill="#5eead4"/>
+<text x="288" y="152" fill="#e5e5e5">(8,30)</text>
+<rect x="336" y="103" width="28" height="37" rx="2" fill="#5eead4"/>
+<text x="332" y="152" fill="#e5e5e5">(10,20)</text>
+<rect x="384" y="107" width="28" height="33" rx="2" fill="#8a8a93"/>
+<text x="380" y="152" fill="#e5e5e5">(10,30)</text>
+<rect x="432" y="114" width="28" height="26" rx="2" fill="#8a8a93"/>
+<text x="432" y="152" fill="#e5e5e5">(5,30)</text>
+<text x="380" y="180" fill="#f59e0b">tu (10,30): 0,94 → débil</text>
+<text x="48" y="200" fill="#8a8a93">Kelly pide 2,5×–10,4× la cuenta en las 12: ni una es operable sin capar.</text>
+<text x="48" y="214" fill="#8a8a93">Tamaño operable (vol 15%): 0,58–0,70 de la cuenta.</text>
+</g>
+</svg>
+
+## Error común
+
+Operar la fracción de Kelly completa (o peor, la "Kelly apalancada porque confío"). La literatura y los cementerios de cuentas coinciden: media Kelly ya es agresiva. Si tu sizing no sobreviviría a que tu μ estimado esté a la mitad, no es sizing, es esperanza.
+
+## Checklist
+
+- [ ] Digo de memoria la mejor (5,50: Sharpe 2,28) y su tamaño operable (0,68)
+- [ ] Explico por qué f_kelly = 10,4 es inoperable aunque sea "óptimo"
+- [ ] Cuento 7 robustas y 5 débiles con el corte Sharpe > 1,0
+- [ ] Acepto que la (10,30) de la lección 6 es débil en el grid (0,94)
+- [ ] Completo el quiz c2_l8 (3/3 para ganar 2 QP)

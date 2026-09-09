@@ -1,0 +1,81 @@
+---
+id: "c2-l7"
+curso: "python"
+leccion: 7
+titulo: "Walk-forward: seis exámenes, una sola robusta"
+tipo: "lesson"
+xp: 140
+qp: 2
+duracion_video_min: 4
+---
+
+# Walk-forward: seis exámenes, una sola robusta
+
+> Optimizar en todo el pasado y rezar es overfitting con pasos extra. El walk-forward parte el pasado en seis exámenes: la ganadora de cada tramo rinde cuentas en datos que nunca vio.
+
+## Objetivo
+
+Correr un walk-forward real sobre los 120 días de la lección 6: 6 ventanas (entrena 50 días, prueba 15), grid de 9 combinaciones (rápida × lenta), y veredicto por ventana con el gap IS−OOS (`c2_l7_ventanas.csv`).
+
+## TL;DR
+
+La mejor pareja rota entre ventanas: (15,40), (5,30), (5,20), (15,30)… no hay parámetro mágico, hay regímenes. Solo 1 de 6 ventanas es robusta (W2: IS +3,27 → OOS +4,23). La W4 es la pesadilla: IS +2,67 que se vuelve OOS −5,54, gap de 8,21. Gap medio: +1,66.
+
+## 1. El protocolo: entrena aquí, rinde allá
+
+Cada ventana entrena en 50 días, elige la Sharpe IS más alta del grid 3×3 (rápidas 5/10/15 × lentas 20/30/40) y se examina en los 15 días siguientes, que no vio. El test usa contexto trailing (las medias necesitan historia), pero la elección del parámetro jamás toca el futuro.
+
+```python
+tr = precios[s:s + 50]          # aquí se elige la ganadora
+ext = precios[s:s + 50 + 15]    # el examen usa historia + 15 días nuevos
+oos = sharpe(neto_de(ext)[50:]) # solo se califica lo no visto
+```
+
+Seis ventanas arrancando en los días 0, 10, 20, 30, 40 y 50. Seis ganadoras, seis exámenes, cero segundas oportunidades.
+
+## 2. La ganadora rota (y eso es información)
+
+Ninguna pareja repite como campeona de forma estable: W1 elige (15,40), W2 y W3 la (5,30), W4 la (5,20), W5 la (15,30), W6 otra vez (15,40). Si el parámetro óptimo baila con la ventana, no existe el parámetro óptimo: existen regímenes de mercado. Perseguir al campeón del último tramo es el overfitting disfrazado de adaptación.
+
+## 3. El marcador: 1 robusta, 1 pesadilla, 4 tibias
+
+La W2 es la alumna ejemplar: IS +3,27, OOS +4,23, gap −0,96 (hasta mejora fuera). La W4 es la pesadilla: IS +2,67 que colapsa a OOS −5,54, gap 8,21. La W1 ni siquiera opera en su tramo (IS 0,0: lo mejor que encontró fue quedarse quieta) y pierde −0,96 fuera. Tres de seis ventanas terminan OOS en positivo, pero solo una combina OOS positivo con gap chico. Gap medio del experimento: +1,66.
+
+## Visual: IS vs OOS por ventana
+
+Cada etiqueta es una ventana. La W2 vive arriba a la derecha (bien dentro, mejor fuera). La W4 se despeña abajo. La diagonal es la honestidad: lejos de ella, ni te creo.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Sharpe dentro contra fuera por ventana walk-forward" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Walk-forward: IS (eje x) vs OOS (eje y) por ventana</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="40" x2="500" y2="200" stroke="#52525b" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="14" y="46" fill="#8a8a93">+5</text>
+<text x="14" y="125" fill="#8a8a93">0</text>
+<text x="10" y="205" fill="#8a8a93">−6</text>
+<circle cx="250" cy="150" r="7" fill="#f59e0b"/>
+<text x="240" y="172" fill="#e5e5e5">W1</text>
+<circle cx="360" cy="55" r="7" fill="#5eead4"/>
+<text x="350" y="77" fill="#e5e5e5">W2 ★</text>
+<circle cx="300" cy="125" r="7" fill="#f59e0b"/>
+<text x="290" y="147" fill="#e5e5e5">W3</text>
+<circle cx="335" cy="205" r="7" fill="#f59e0b"/>
+<text x="325" y="227" fill="#e5e5e5">W4 ✕</text>
+<circle cx="130" cy="60" r="7" fill="#f59e0b"/>
+<text x="120" y="82" fill="#e5e5e5">W5</text>
+<circle cx="410" cy="110" r="7" fill="#f59e0b"/>
+<text x="400" y="132" fill="#e5e5e5">W6</text>
+<text x="410" y="220" fill="#8a8a93">diagonal = gap 0</text>
+</g>
+</svg>
+
+## Error común
+
+Re-optimizar el grid después de ver el OOS ("la (5,20) falló, probemos (6,22)"). Eso convierte el examen en otro entrenamiento y el walk-forward en teatro. Los parámetros del test se congelan antes del test; si el OOS duele, se anota, no se rebusca.
+
+## Checklist
+
+- [ ] Explico el protocolo 50/15 con mis palabras y por qué el test usa contexto trailing
+- [ ] Digo qué ventana fue robusta (W2) y cuál fue la pesadilla (W4, gap 8,21)
+- [ ] Argumento por qué la rotación de ganadoras niega el parámetro mágico
+- [ ] Verifico en el CSV que gap = IS − OOS en las 6 filas
+- [ ] Completo el quiz c2_l7 (3/3 para ganar 2 QP)

@@ -1,0 +1,88 @@
+---
+id: "c2-l5"
+curso: "python"
+leccion: 5
+titulo: "Datos reales: tu primer cliente de Binance (klines demo)"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# Datos reales: tu primer cliente de Binance (klines demo)
+
+> Deja el CSV de juguete: descarga velas reales de Binance y conviértelas en DataFrame.
+
+## Objetivo
+
+Descargar klines (velas OHLCV) de Binance, normalizarlos en un DataFrame limpio y dejar una función reutilizable para el resto del curso.
+
+## TL;DR
+
+- El endpoint público `/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=50` devuelve velas sin necesidad de API key.
+- Cada vela trae open_time, open, high, low, close, volume (más campos que ignoramos).
+- Los precios llegan como texto: conviértelos a float y el tiempo a datetime.
+- Envuelve todo en `get_klines()` con fallback al CSV local si no hay red.
+
+## 1. La llamada mínima
+
+```python
+import requests
+url = "https://api.binance.com/api/v3/klines"
+params = {"symbol": "BTCUSDT", "interval": "1d", "limit": 50}
+data = requests.get(url, params=params, timeout=10).json()
+print(len(data), "velas,", len(data[0]), "campos cada una")
+```
+
+Sin key, sin registro: klines es un endpoint público. El `limit` máximo es 1000 por llamada; para más historia se pagina con `startTime`.
+
+## 2. De lista cruda a DataFrame
+
+```python
+import pandas as pd
+cols = ["open_time", "open", "high", "low", "close", "volume"]
+df = pd.DataFrame(data, columns=cols + [f"x{i}" for i in range(12 - 6)])[cols]
+df["open_time"] = pd.to_datetime(df["open_time"], unit="ms", utc=True)
+for c in ["open", "high", "low", "close", "volume"]:
+    df[c] = df[c].astype(float)
+df = df.sort_values("open_time").reset_index(drop=True)
+```
+
+Dos trampas clásicas: los números vienen como strings y el tiempo en milisegundos. Si olvidas convertir, el gráfico sale vacío y el `mean` concatena texto.
+
+## 3. Tu función reutilizable (con fallback)
+
+```python
+def get_klines(symbol="BTCUSDT", interval="1d", limit=50):
+    try:
+        r = requests.get(url, params={"symbol": symbol, "interval": interval, "limit": limit}, timeout=10)
+        r.raise_for_status()
+        df = pd.DataFrame(r.json())[[0, 1, 2, 3, 4, 5]]
+        df.columns = cols
+    except Exception as e:
+        print("Sin red, uso CSV demo:", e)
+        df = pd.read_csv("data/c2_l5.csv", parse_dates=["open_time"])
+    return df
+```
+
+Esta función te acompaña todo el curso: en la L6 el backtest la usa para traer precios. Escríbela una vez, úsala siempre.
+
+## Visual
+
+Imagina un grifo (Binance) llenando un balde (tu DataFrame): el agua cruda trae piedras (strings, milisegundos) que filtras antes de beber (analizar).
+
+## Error típico
+
+No ordenar por tiempo tras paginar. Si unes varias llamadas con `startTime`, las velas pueden llegar desordenadas y el `pct_change` calcula basura. Siempre `sort_values("open_time")` al final.
+
+## Checklist
+
+- [ ] Descargas 50 velas diarias de BTCUSDT con `requests`
+- [ ] Normalizas tipos: floats para precios, datetime para el tiempo
+- [ ] Tienes `get_klines()` con fallback al CSV local
+- [ ] Quiz `c2_l5.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c2_l5.ipynb`, cambia el símbolo a ETHUSDT y el intervalo a `1h`: ¿qué cambia en el DataFrame?
+- Quiz `c2_l5.json`: 3 preguntas, necesitas 2 bien para el QP.

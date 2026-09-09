@@ -1,0 +1,74 @@
+---
+id: "c3-l4"
+curso: "mates"
+leccion: 4
+titulo: "Volatilidad y ATR: stops con criterio"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 5
+---
+
+# Volatilidad y ATR: stops con criterio
+
+> Un stop fijo del 2% en un activo que respira 5% al día es una donación al mercado. La volatilidad te dice cuánto respira; el ATR convierte eso en un stop.
+
+## Objetivo
+
+Medir volatilidad realizada con log-retornos, calcular el True Range y el ATR(14) y colocar stops proporcionales (k × ATR) en vez de porcentajes arbitrarios.
+
+## TL;DR
+
+- Volatilidad realizada = std de log-retornos × √N (N = periodos por año). Sin anualizar no compares nada.
+- True Range = máx(high − low, |high − close previo|, |low − close previo|). Captura gaps que el rango simple ignora.
+- Stop = k × ATR con k ≈ 2–3. Si el stop no cabe en tu riesgo por trade, reduces tamaño, no el stop.
+
+## 1. Volatilidad realizada
+
+```python
+vol_diaria = df["ret_log"].std(ddof=1)
+vol_anual = vol_diaria * np.sqrt(365)  # crypto opera 365 días
+```
+
+50 días de BNB dan una vol diaria de ~2–3%, o sea ~40–55% anualizada. Ese número es tu "presupuesto de movimiento": cualquier stop menor que la vol diaria vive dentro del ruido.
+
+## 2. True Range y ATR(14)
+
+```python
+prev = df["close"].shift(1)
+df["tr"] = np.maximum(df["high"] - df["low"],
+      np.maximum((df["high"] - prev).abs(), (df["low"] - prev).abs()))
+df["tr"] = df["tr"].fillna(df["high"] - df["low"])  # fila 1: sin close previo
+df["atr14"] = df["tr"].rolling(14).mean()  # Wilder usa suavizado; la SMA basta aquí
+```
+
+El ATR es el "latido" del activo en sus propias unidades (USD). Cuando el ATR se expande, el mercado grita; cuando se comprime, susurra. Tus stops deben escuchar.
+
+## 3. Stops que respiran: k × ATR
+
+```python
+k = 2.0
+df["stop_long"] = df["close"] - k * df["atr14"]
+```
+
+Con ATR de 15 USD y k = 2, tu stop vive 30 USD bajo la entrada: fuera del ruido, dentro de tu riesgo si el tamaño acompaña. Regla de oro: primero el stop técnico (k × ATR), después el tamaño por riesgo. Nunca al revés.
+
+## Visual
+
+Imagina un perro con correa: el precio es el perro, el ATR es el largo de la correa. Correa muy corta y el perro te arrastra (stops prematuros); correa de 2–3 ATR y el perro pasea sin escaparse.
+
+## Error típico
+
+Achicar el stop para "arriesgar menos" sin tocar el tamaño. El riesgo lo fija el tamaño de posición, no la cercanía del stop: un stop pegado solo compra más probabilidad de liquidación al mismo riesgo.
+
+## Checklist
+
+- [ ] Anualizas una volatilidad diaria con √365 y la interpretas
+- [ ] Calculas True Range y ATR(14) de una serie OHLC
+- [ ] Colocas un stop 2×ATR y lo defiendes frente a un % fijo
+- [ ] Quiz `c3_l4.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c3_l4.ipynb`, prueba k = 1, 2 y 3: ¿qué fracción de días el mínimo toca el stop?
+- Quiz `c3_l4.json`: 3 preguntas, necesitas 2 bien para el QP.

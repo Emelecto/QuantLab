@@ -1,0 +1,78 @@
+---
+id: "c3-l1"
+curso: "mates"
+leccion: 1
+titulo: "Probabilidad, Bayes y valor esperado"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Probabilidad, Bayes y valor esperado
+
+> Un win rate del 70% puede perder dinero. Un win rate del 35% puede hacerte rico. La diferencia no es la puntería: es el valor esperado.
+
+## Objetivo
+
+Calcular la probabilidad de éxito de una señal, actualizarla con Bayes cuando llega evidencia nueva y decidir con valor esperado (EV), no con intuición.
+
+## TL;DR
+
+- EV = p × ganancia − (1 − p) × pérdida. Si EV ≤ 0 después de costos, no operes.
+- Bayes: P(señal válida | confirmación) = P(confirmación | válida) × P(válida) / P(confirmación). La evidencia actualiza, no reemplaza.
+- Un win rate alto con pagos asimétricos en contra es una máquina de perder despacio.
+
+## 1. El win rate miente, el EV no
+
+```python
+p, win, loss = 0.7, 50, 150
+ev = p * win - (1 - p) * loss  # 35 - 45 = -10
+```
+
+70% de aciertos y EV negativo: ganas muchas veces poco y pierdes pocas veces mucho. Los casinos viven de esto, pero del otro lado. En el notebook lo calculas con 50 trades reales del CSV.
+
+## 2. Bayes: actualiza tu creencia como un profesional
+
+Tu señal acierta el 55% de las veces (prior). Llega una confirmación —volumen alto— que aparece en el 80% de las ganadoras y solo en el 30% de las perdedoras. ¿Cuál es tu probabilidad ahora?
+
+```python
+prior = 0.55
+p_conf_si_gana, p_conf_si_pierde = 0.80, 0.30
+p_conf = p_conf_si_gana * prior + p_conf_si_pierde * (1 - prior)
+posterior = p_conf_si_gana * prior / p_conf  # ≈ 0.76
+```
+
+Pasaste de 55% a 76%. Eso es Bayes: el prior cuenta, la evidencia pesa, y el resultado es un número, no un "me late que sí".
+
+## 3. Regla de decisión con costos
+
+Un EV positivo en papel muere con comisiones y slippage. Resta el costo por trade antes de decidir:
+
+```python
+costo = 2.0  # USD por trade
+ev_neto = ev - costo
+opera = ev_neto > 0
+```
+
+Si el EV neto no supera cero con margen, la estrategia va al cajón. Sin excepciones.
+
+## Visual
+
+Imagina una balanza: a la izquierda, tus ganancias frecuentes pero livianas; a la derecha, tus pérdidas raras pero pesadas. El win rate cuenta cuántas pesas hay; el EV pesa la balanza.
+
+## Error típico
+
+Confundir P(A|B) con P(B|A): que el 80% de las ganadoras tengan volumen alto no significa que el 80% de los días de volumen alto ganen. Sin el prior y la tasa base, el número te engaña.
+
+## Checklist
+
+- [ ] Calculas el EV de una serie de trades con su fórmula
+- [ ] Actualizas una probabilidad con el teorema de Bayes
+- [ ] Descuentas costos antes de declarar un EV "operable"
+- [ ] Quiz `c3_l1.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c3_l1.ipynb`, cambia el costo por trade de 2 a 5 USD: ¿sigue operable la estrategia?
+- Quiz `c3_l1.json`: 3 preguntas, necesitas 2 bien para el QP.

@@ -1,0 +1,77 @@
+---
+id: "c6-l2"
+curso: "torneos"
+leccion: 2
+titulo: "Spearman y MMC"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Spearman y MMC
+
+> En los torneos no importa si aciertas el número exacto: importa que ordenes bien los activos. Eso se mide con Spearman, y tu filo real con MMC.
+
+## Objetivo
+
+Calcular la correlación de Spearman por era y entender el MMC (contribución al metamodelo) como medida de tu valor añadido.
+
+## TL;DR
+
+- **Spearman = Pearson sobre rangos**: mide si ordenas bien, no si clavas el valor.
+- Se promedia por era: cada semana es un examen independiente.
+- **MMC** mide cuánto aportas por encima del consenso (metamodelo): originalidad que suma, no copia que repite.
+
+## 1. Ordenar bien vale más que clavar el número
+
+Predecir 0.52 en vez de 0.51 no te quita puntos si el orden es correcto. Spearman convierte predicción y realidad en rankings (1.º, 2.º, 3.º…) y calcula su correlación. Un Spearman de 0.05 sostenido ya es señal en finanzas ruidosas.
+
+```python
+pred_rank = pred.rank()
+actual_rank = actual.rank()
+spearman = pred_rank.corr(actual_rank)  # Pearson sobre rangos
+```
+
+En el notebook lo calculas a mano por era y confirmas que coincide con la función de referencia.
+
+## 2. Cada era vota por separado
+
+El score oficial es la media de las correlaciones por era, no una correlación global. Una correlación global deja que las semanas fáciles tapen las difíciles; el promedio por era te obliga a ser consistente semana a semana.
+
+```python
+score = df.groupby('era').apply(lambda g: g['pred'].rank().corr(g['actual'].rank())).mean()
+```
+
+Con 12 eras del CSV obtienes un score medio y su dispersión: filo y consistencia de un vistazo.
+
+## 3. MMC: tu aporte sobre el consenso
+
+El metamodelo es el promedio de todos los participantes. El MMC mide la correlación de tu predicción con el target **residual**, lo que queda del objetivo tras quitar el consenso. Copiar al resto da CORR decente y MMC nulo; solo la originalidad direccional paga MMC.
+
+```python
+residuo = actual - mm_pred
+mmc = pred_rank.corr(residuo.rank())
+```
+
+En el notebook comparas una copia del consenso (MMC ≈ 0) contra tu señal con ruido propio (MMC > 0).
+
+## Visual
+
+Piensa en ordenar una fila de corredores por llegada: no necesitas su tiempo exacto, solo el orden. Y el MMC es tu nota por descubrir algo que el resto de la clase no vio.
+
+## Error típico
+
+Reportar una sola correlación global sobre todas las filas: esconde que tu modelo solo funciona en semanas tranquilas. Promedia siempre por era y mira la desviación.
+
+## Checklist
+
+- [ ] Calculas Spearman como correlación de rangos por era y lo promedias
+- [ ] Distingues CORR (ordenar bien) de MMC (aportar sobre el consenso)
+- [ ] Verificas que copiar al metamodelo da MMC ≈ 0
+- [ ] Quiz `c6_l2.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c6_l2.ipynb`, invierte tu predicción (1 - pred) y observa el signo del score: el ranking manda.
+- Quiz `c6_l2.json`: 3 preguntas, necesitas 2 bien para el QP.

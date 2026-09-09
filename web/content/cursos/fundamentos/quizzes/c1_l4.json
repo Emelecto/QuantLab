@@ -1,0 +1,40 @@
+{
+  "id": "c1_l4",
+  "curso": "fundamentos",
+  "leccion": 4,
+  "questions": [
+    {
+      "q": "Dos estrategias rinden lo mismo, pero una tiene Sharpe 0,4 y la otra 1,6. Cual prefieres?",
+      "options": [
+        "La de 0,4: menos Sharpe es mejor",
+        "La de 1,6: mismo retorno con menos volatilidad",
+        "Da igual: el retorno es el mismo",
+        "Ninguna: el Sharpe no sirve"
+      ],
+      "answer": 1,
+      "explain": "Sharpe es retorno por unidad de riesgo. A igual retorno, mas Sharpe es un camino mas tranquilo al mismo destino."
+    },
+    {
+      "q": "Que castiga el Sortino que el Sharpe no?",
+      "options": [
+        "Solo la volatilidad hacia abajo (las perdidas), no las subidas fuertes",
+        "Las comisiones del broker",
+        "El slippage en la ejecucion",
+        "El numero de operaciones"
+      ],
+      "answer": 0,
+      "explain": "Al trader le duelen las caidas, no las subidas. El Sortino solo penaliza la volatilidad mala."
+    },
+    {
+      "q": "Tu equity llego a 120 y ahora esta en 90. Tu drawdown es...",
+      "options": [
+        "-10%",
+        "-25%",
+        "-30%",
+        "0%: mientras no vendas no pierdes"
+      ],
+      "answer": 1,
+      "explain": "90/120 - 1 = -25%. El drawdown se mide desde el pico, y 'no vender' no lo borra."
+    }
+  ]
+}

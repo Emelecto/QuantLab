@@ -1,0 +1,102 @@
+---
+id: "c5-l6"
+curso: "ml"
+leccion: 6
+titulo: "Stacking con OOF"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# Stacking con OOF
+
+> Dos modelos mediocres que se equivocan en cosas distintas valen más que un genio que siempre falla igual. La clave es combinarlos sin hacer trampa.
+
+## Objetivo
+
+Combinar un Ridge con un boosting mediante stacking con predicciones out-of-fold (OOF), entrenar el meta-modelo sin leakage y decidir con accuracy OOS si el ensemble paga.
+
+## TL;DR
+
+- Stacking = bases que predicen + meta que aprende a combinarlas.
+- OOF = cada tramo lo predice un modelo que NO lo vio entrenando: sin esto hay leakage.
+- Si el stack no supera a la mejor base en OOS, quédate con lo simple.
+
+## 1. Bases que se equivocan distinto
+
+Ridge es lineal y estable; el boosting (HistGradientBoosting si no hay LightGBM) caza no-linealidades pero es nervioso. Esa diversidad es el combustible del stacking: si ambos fallaran igual, combinarlos no sumaría nada.
+
+```python
+from sklearn.linear_model import RidgeClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
+base_a = RidgeClassifier()
+base_b = HistGradientBoostingClassifier(max_iter=100)
+```
+
+En el notebook verás que cada base gana en tramos distintos del holdout. Esa es la señal de que combinar tiene sentido.
+
+## 2. OOF: el meta no debe ver el sobreajuste
+
+El error clásico es entrenar el meta con predicciones in-sample de las bases: como ya memorizaron el train, el meta aprende a confiar en su memoria, no en su criterio. La cura es KFold: parte el train en 5, predice cada tramo con un modelo entrenado en los otros 4 y apila esas predicciones OOF como features del meta.
+
+```python
+from sklearn.model_selection import KFold
+from sklearn.linear_model import LogisticRegression
+kf = KFold(n_splits=5, shuffle=False)  # sin shuffle: respeta el orden temporal
+oof = np.zeros((len(X_tr), 2))
+for tr, va in kf.split(X_tr):
+    for j, base in enumerate([base_a, base_b]):
+        base.fit(X_tr[tr], y_tr[tr])
+        oof[va, j] = base.predict(X_tr[va])
+meta = LogisticRegression().fit(oof, y_tr)
+```
+
+Sin shuffle porque son series temporales: mezclar rompería la causalidad que cuidaste desde la L2.
+
+## 3. Veredicto en OOS
+
+Bases reentrenadas en todo el train, meta congelado, y accuracy en el 30% final que nadie vio. Reporta base A, base B y stack lado a lado: el stack suele empatar con la mejor base y con menos varianza entre tramos. Empatar siendo más estable también es ganar.
+
+```python
+acc = lambda yt, yp: (yt == yp).mean()
+print(f"Ridge={acc:.3f}  GBM={acc:.3f}  STACK={acc:.3f}")
+```
+
+## Visual
+
+Dos cabezas piensan mejor que una solo si ninguna copia el examen de la otra: cada pliegue predice a ciegas y el meta aprende de esos errores honestos.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 200" role="img" aria-label="Stacking OOF: 5 pliegues predicen a ciegas y el meta combina">
+  <rect x="10" y="20" width="150" height="60" rx="8" fill="#1b2a4a"/>
+  <text x="85" y="46" text-anchor="middle" fill="#fff" font-size="13">Ridge</text>
+  <text x="85" y="64" text-anchor="middle" fill="#9fb3d9" font-size="11">lineal, estable</text>
+  <rect x="10" y="100" width="150" height="60" rx="8" fill="#1b2a4a"/>
+  <text x="85" y="126" text-anchor="middle" fill="#fff" font-size="13">Boosting</text>
+  <text x="85" y="144" text-anchor="middle" fill="#9fb3d9" font-size="11">no-lineal, nervioso</text>
+  <rect x="200" y="60" width="150" height="60" rx="8" fill="#243b63"/>
+  <text x="275" y="86" text-anchor="middle" fill="#fff" font-size="13">OOF × 5 folds</text>
+  <text x="275" y="104" text-anchor="middle" fill="#9fb3d9" font-size="11">predice a ciegas</text>
+  <rect x="390" y="60" width="160" height="60" rx="8" fill="#0e7c5b"/>
+  <text x="470" y="86" text-anchor="middle" fill="#fff" font-size="13">Meta LogReg</text>
+  <text x="470" y="104" text-anchor="middle" fill="#d7f0e6" font-size="11">combina en OOS</text>
+  <line x1="160" y1="50" x2="200" y2="80" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="160" y1="130" x2="200" y2="100" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="350" y1="90" x2="390" y2="90" stroke="#7d8fb0" stroke-width="2"/>
+</svg>
+
+## Error típico
+
+Meta entrenado con predicciones in-sample, o KFold con shuffle en datos temporales: ambos son leakage y el stack se ve genial en train y plano en OOS. OOF ordenado y holdout final intacto.
+
+## Checklist
+
+- [ ] Generas OOF con KFold sin shuffle (5 pliegues)
+- [ ] El meta solo ve predicciones OOF, nunca in-sample
+- [ ] Comparas Ridge vs GBM vs stack en el holdout final
+- [ ] Quiz `c5_l6.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l6.ipynb`, cambia el meta a promedio simple y anota si el LogReg aporta: a veces el promedio ya captura casi todo.
+- Quiz `c5_l6.json`: 3 preguntas, necesitas 2 bien para el QP.

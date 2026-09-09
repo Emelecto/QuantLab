@@ -1,0 +1,70 @@
+---
+id: "c4-l4"
+curso: "riesgo"
+leccion: 4
+titulo: "VaR: cuánto puedes perder mañana (con 95% de confianza)"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# VaR: cuánto puedes perder mañana (con 95% de confianza)
+
+> El VaR no predice el futuro: le pone número a tu miedo. "Con 95% de confianza, mañana no pierdo más de X". El 5% restante es donde viven las crisis.
+
+## Objetivo
+
+Calcular el Valor en Riesgo (VaR) al 95% por método histórico y paramétrico sobre 50 retornos, más el Expected Shortfall, y traducirlo a dólares sobre 20.000 de capital.
+
+## TL;DR
+
+- VaR histórico 95% = percentil 5 de los retornos (el "mal día normal").
+- VaR paramétrico = `μ − 1,645·σ` (asume normalidad: rápido pero miente en colas gordas).
+- Expected Shortfall = promedio de lo que excede al VaR: cuánto duele cuando el VaR falla.
+
+## 1. El VaR histórico: deja hablar a los datos
+
+```python
+var_hist = df["retorno"].quantile(0.05)
+print(f"VaR 95% histórico: {var_hist:.4f} ({var_hist*20000:+.0f} USD sobre 20.000)")
+```
+
+Ordenas los 50 retornos y tomas el percentil 5: ese es tu "mal día normal". Sin asumir distribuciones, solo historia. Su debilidad: 50 días no contienen ninguna crisis de verdad.
+
+## 2. El VaR paramétrico: rápido y optimista
+
+```python
+mu, sigma = df["retorno"].mean(), df["retorno"].std()
+var_param = mu - 1.645 * sigma
+```
+
+Asume retornos normales y te da el número en una línea. En este CSV casi clava al histórico (−0,0294 vs −0,0293), pero no te confíes: con colas más gordas el paramétrico se queda corto. Úsalo como referencia, no como escudo.
+
+## 3. Expected Shortfall: ¿y si hoy es el 5% malo?
+
+```python
+es = df.loc[df["retorno"] <= var_hist, "retorno"].mean()
+```
+
+El VaR dice "hasta aquí llega el 95%"; el Shortfall promedia el 5% que lo rompe. Si el VaR es el cinturón, el ES es el airbag: te dice cuánto duele el choque que el cinturón no contiene. Reporta ambos en porcentaje y en dólares.
+
+## Visual
+
+Imagina la distribución de retornos como una colina con una cola izquierda larga: el VaR clava una bandera en el percentil 5 y el Shortfall promedia todo el terreno que queda más allá de la bandera, donde están los cráteres.
+
+## Error típico
+
+Leer "VaR 95% = −2%" como "lo máximo que puedo perder es 2%". No: es lo máximo que pierdes en un día *normal*. El 5% de los días pierdes más, y esos días definen tu supervivencia. VaR sin Shortfall es medio diagnóstico.
+
+## Checklist
+
+- [ ] Calculas el VaR 95% histórico y lo expresas en USD sobre 20.000
+- [ ] Calculas el VaR paramétrico y explicas por qué difiere
+- [ ] Calculas el Expected Shortfall y lo comparas con el VaR
+- [ ] Quiz `c4_l4.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c4_l4.ipynb`, compara VaR histórico vs paramétrico y decide cuál usarías para dimensionar tu stop diario.
+- Quiz `c4_l4.json`: 3 preguntas, necesitas 2 bien para el QP.

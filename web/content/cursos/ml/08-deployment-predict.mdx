@@ -1,0 +1,100 @@
+---
+id: "c5-l8"
+curso: "ml"
+leccion: 8
+titulo: "Deployment: predict_demo.py"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Deployment: predict_demo.py
+
+> Un modelo que solo vive en tu notebook es un experimento; uno que predice desde un script con validación es un sistema. El puente entre ambos cabe en 60 líneas.
+
+## Objetivo
+
+Empaquetar el modelo en `predict_demo.py`: validar el esquema de entrada con falla cerrada, reutilizar el mismo featurizador del entrenamiento y emitir la predicción como JSON consumible.
+
+## TL;DR
+
+- Falla cerrada: mejor no operar que predecir con datos corruptos.
+- Mismo código de features en train y en serving: evita el skew train-serve.
+- La demo reentrena por simplicidad; en producción se sirve el artefacto versionado.
+
+## 1. Valida antes de predecir
+
+El script exige las columnas `dia,close,high,low,volumen`, un mínimo de 30 filas y cero nulos en OHLCV. Cualquier violación emite `{"ok": false, "error": ...}` y sale con código 2: sin señal y con alerta, nunca con una predicción inventada.
+
+```python
+if faltantes:
+    fail(f"columnas faltantes: {faltantes}")  # sys.exit(2), sin predicción
+```
+
+Pruébalo en el notebook rompiendo el CSV a propósito: esa es la prueba más barata de todo el curso.
+
+## 2. Un solo featurizador, dos usos
+
+El skew train-serve aparece cuando producción calcula los lags distinto que el entrenamiento y el modelo ve un mundo que nunca aprendió. La defensa es estructural: `featurizar()` vive en el script y es la única que existe.
+
+```python
+def featurizar(df):
+    df["ret"] = df["close"].pct_change()
+    df["rango"] = (df["high"] - df["low"]) / df["close"]
+    for k in (1, 2, 3, 5):
+        df[f"lag_{k}"] = df["ret"].shift(k)
+    df["mom5"] = df["close"] / df["close"].shift(5) - 1
+    return df.dropna().reset_index(drop=True)
+```
+
+## 3. De la demo a producción
+
+Ejecuta y consume el JSON desde cualquier sistema: `python predict_demo.py --input ../data/c5_l8.csv` responde `{"ok": true, "pred": 1, "mom5": ..., "filas": ...}`. En producción real el único cambio es serio: el modelo llega serializado y versionado (pickle/onnx + hash), no reentrenado al vuelo; el featurizador y la validación quedan intactos.
+
+```bash
+python predict_demo.py --input ../data/c5_l8.csv
+# {"ok": true, "pred": 1, "mom5": 0.008421, "filas": 44}
+```
+
+## Visual
+
+El deployment es una tubería con guardias: si los datos no pasan la validación, la tubería se cierra antes de llegar al modelo.
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 170" role="img" aria-label="Tuberia de deployment: CSV, validacion, features, modelo, JSON">
+  <rect x="8" y="55" width="90" height="55" rx="8" fill="#1b2a4a"/>
+  <text x="53" y="79" text-anchor="middle" fill="#fff" font-size="12">CSV</text>
+  <text x="53" y="96" text-anchor="middle" fill="#9fb3d9" font-size="10">OHLCV</text>
+  <rect x="115" y="55" width="110" height="55" rx="8" fill="#8a6d1f"/>
+  <text x="170" y="79" text-anchor="middle" fill="#fff" font-size="12">Validación</text>
+  <text x="170" y="96" text-anchor="middle" fill="#f5e8c4" font-size="10">o falla cerrada</text>
+  <rect x="242" y="55" width="100" height="55" rx="8" fill="#243b63"/>
+  <text x="292" y="79" text-anchor="middle" fill="#fff" font-size="12">Features</text>
+  <text x="292" y="96" text-anchor="middle" fill="#9fb3d9" font-size="10">mismo código</text>
+  <rect x="359" y="55" width="90" height="55" rx="8" fill="#0e7c5b"/>
+  <text x="404" y="79" text-anchor="middle" fill="#fff" font-size="12">Modelo</text>
+  <text x="404" y="96" text-anchor="middle" fill="#d7f0e6" font-size="10">Ridge</text>
+  <rect x="466" y="55" width="86" height="55" rx="8" fill="#1b2a4a"/>
+  <text x="509" y="79" text-anchor="middle" fill="#fff" font-size="12">JSON</text>
+  <text x="509" y="96" text-anchor="middle" fill="#9fb3d9" font-size="10">ok/pred</text>
+  <line x1="98" y1="82" x2="115" y2="82" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="225" y1="82" x2="242" y2="82" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="342" y1="82" x2="359" y2="82" stroke="#7d8fb0" stroke-width="2"/>
+  <line x1="449" y1="82" x2="466" y2="82" stroke="#7d8fb0" stroke-width="2"/>
+</svg>
+
+## Error típico
+
+Imputar silenciosamente columnas faltantes, o recalcular features "parecidas" en producción: lo primero fabrica señales falsas, lo segundo es skew train-serve. Valida estricto y comparte el código.
+
+## Checklist
+
+- [ ] Corres `predict_demo.py` con el CSV bueno y lees el JSON
+- [ ] Lo rompes (columna menos, nulos) y confirmas la falla cerrada
+- [ ] Verificas que el featurizador es el mismo del entrenamiento
+- [ ] Quiz `c5_l8.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c5_l8.ipynb`, agrega una validación extra (precios no positivos) al script generado y confirma que un CSV con `close = 0` falla cerrado.
+- Quiz `c5_l8.json`: 3 preguntas, necesitas 2 bien para el QP.

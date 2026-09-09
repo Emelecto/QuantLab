@@ -1,0 +1,67 @@
+---
+id: "c4-l3"
+curso: "riesgo"
+leccion: 3
+titulo: "Drawdown y Monte Carlo: mide tu peor racha antes de vivirla"
+tipo: "lesson"
+xp: 130
+qp: 2
+duracion_video_min: 5
+---
+
+# Drawdown y Monte Carlo: mide tu peor racha antes de vivirla
+
+> El drawdown no pregunta si llegará: pregunta cuándo y cuánto. Con 50 días de equity y 2.000 caminos simulados, lo estimas antes de poner un dólar.
+
+## Objetivo
+
+Reconstruir la curva de equity desde los retornos, calcular el drawdown máximo y estimar con Monte Carlo la probabilidad de sufrir caídas severas.
+
+## TL;DR
+
+- Equity: `equity = 10.000 × Π(1 + retorno)`. Peak: máximo acumulado. Drawdown: `(equity − peak) / peak`.
+- En `c4_l3.csv` el drawdown máximo ronda −4,6%: molesto, no mortal.
+- Monte Carlo reordena tus retornos 2.000 veces: si el 5% de los caminos cae más de 8%, tu sizing es optimista.
+
+## 1. Del retorno al equity, paso a paso
+
+```python
+df["equity_calc"] = 10000 * (1 + df["retorno"]).cumprod()
+df["peak_calc"] = df["equity_calc"].cummax()
+df["dd_calc"] = (df["equity_calc"] - df["peak_calc"]) / df["peak_calc"] * 100
+```
+
+Día 3: retorno −2,008% y el equity cae a 9.809,72 con drawdown de −2,35%. Reproduce las tres columnas y verifica que tu máximo drawdown coincide con el mínimo de `drawdown_pct`.
+
+## 2. El máximo drawdown: tu número más honesto
+
+El retorno te dice cuánto ganaste; el drawdown te dice cuánto sufriste para ganarlo. Un sistema de +15% con un drawdown de −4,6% se opera tranquilo. El mismo +15% con −40% se abandona a mitad de camino. El drawdown mide si tu estrategia es psicológicamente operable.
+
+## 3. Monte Carlo con una baraja de retornos
+
+```python
+rng = np.random.default_rng(42)
+sims = np.sort(rng.choice(df["retorno"].to_numpy(), size=(2000, len(df))).cumsum(axis=1).min(axis=1))
+```
+
+Reordenas los 50 retornos 2.000 veces y miras la distribución del peor punto de cada camino. Sin inventar datos nuevos, descubres que tu "peor caso visto" rara vez es el peor caso posible.
+
+## Visual
+
+Imagina 2.000 hilos partiendo del mismo punto y enredándose hacia la derecha: la mayoría avanza, algunos se hunden. Monte Carlo te muestra el grosor del manojo hundido antes de caminar tú.
+
+## Error típico
+
+Dimensionar la cuenta por el retorno esperado e ignorar el drawdown ("gana 2% mensual, le meto todo"). El que quiebra no es el que gana poco: es el que no sobrevive a su primer −20% apalancado.
+
+## Checklist
+
+- [ ] Reconstruyes equity, peak y drawdown desde `retorno`
+- [ ] Reportas el máximo drawdown del CSV con fecha (fila)
+- [ ] Corres Monte Carlo (≥1.000 caminos) y estimas P(drawdown < −5%)
+- [ ] Quiz `c4_l3.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c4_l3.ipynb`, encuentra el peor drawdown y estima por simulación cuán frecuente es.
+- Quiz `c4_l3.json`: 3 preguntas, necesitas 2 bien para el QP.

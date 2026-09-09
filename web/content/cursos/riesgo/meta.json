@@ -1,0 +1,8 @@
+{
+  "slug": "riesgo",
+  "titulo": "Risk Management",
+  "nivel": "Intermedio",
+  "orden": 4,
+  "gate_qp": 30,
+  "total_qp": 16
+}

@@ -1,0 +1,83 @@
+---
+id: "c1-l5"
+curso: "fundamentos"
+leccion: 5
+titulo: "Correlación y beta: con quién se mueve tu moneda"
+tipo: "lesson"
+xp: 150
+qp: 1
+duracion_video_min: 4
+---
+
+# Correlación y beta: con quién se mueve tu moneda
+
+> Tener BTC, ETH y SOL no es tener tres apuestas. Si las tres se mueven juntas, tienes una sola apuesta disfrazada de tres. Esta lección te enseña a medir esa compañía.
+
+## 1. Correlación: ¿se mueven juntos?
+
+La correlación va de −1 a +1. Cerca de +1: suben y bajan juntos. Cerca de 0: cada uno va a lo suyo. Cerca de −1: cuando uno sube, el otro baja (el santo grial para diversificar, y lo más raro de encontrar).
+
+Ojo: correlación no es causalidad. Que BTC y ETH se muevan juntos no significa que BTC "cause" los movimientos de ETH. Solo significa que comparten el mismo clima de mercado.
+
+## 2. La matriz del demo: BTC, ETH y SOL
+
+Con 60 días de retornos, la matriz queda así:
+
+|  | BTC | ETH | SOL |
+|---|---|---|---|
+| **BTC** | 1.00 | 0.91 | 0.74 |
+| **ETH** | 0.91 | 1.00 | 0.70 |
+| **SOL** | 0.74 | 0.70 | 1.00 |
+
+BTC y ETH (0.91) son casi gemelos: tener los dos apenas diversifica. SOL (0.74 y 0.70) acompaña al grupo pero con más vida propia; aun así, todo el trío se mueve en manada.
+
+```python
+import pandas as pd
+
+df = pd.read_csv("../data/c1_l5_btc_eth_sol.csv")
+print(df[["btc_ret", "eth_ret", "sol_ret"]].corr().round(2))
+```
+
+## 3. Beta: ¿cuánto se mueve cuando BTC se mueve 1%?
+
+La beta mide sensibilidad respecto a un mercado de referencia, aquí BTC. Beta = covarianza(activo, BTC) / varianza(BTC).
+
+En el demo, la beta de ETH es ≈ 0.87 y la de SOL ≈ 0.66: si BTC se mueve 2% en un día, ETH tiende a moverse ~1.7% y SOL ~1.3%, en la misma dirección. Beta menor que 1 no significa "seguro": significa "se mueve menos que el jefe, para arriba y para abajo".
+
+## Visual: matriz de correlación BTC / ETH / SOL
+
+El bloque BTC–ETH es el más intenso (0.91): gemelos. SOL acompaña con menos fuerza (0.70–0.74): familia, pero con carácter.
+
+<svg viewBox="0 0 560 220" role="img" aria-label="Matriz de correlacion entre BTC, ETH y SOL" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Correlación — 60 días</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="12">
+<rect x="120" y="50" width="100" height="44" rx="6" fill="#5eead4"/><text x="152" y="77" fill="#0a0a0b">1.00</text>
+<rect x="230" y="50" width="100" height="44" rx="6" fill="#14b8a6"/><text x="262" y="77" fill="#0a0a0b">0.91</text>
+<rect x="340" y="50" width="100" height="44" rx="6" fill="#0e7490"/><text x="372" y="77" fill="#ffffff">0.74</text>
+<rect x="120" y="100" width="100" height="44" rx="6" fill="#14b8a6"/><text x="152" y="127" fill="#0a0a0b">0.91</text>
+<rect x="230" y="100" width="100" height="44" rx="6" fill="#5eead4"/><text x="262" y="127" fill="#0a0a0b">1.00</text>
+<rect x="340" y="100" width="100" height="44" rx="6" fill="#0e7490"/><text x="372" y="127" fill="#ffffff">0.70</text>
+<rect x="120" y="150" width="100" height="44" rx="6" fill="#0e7490"/><text x="152" y="177" fill="#ffffff">0.74</text>
+<rect x="230" y="150" width="100" height="44" rx="6" fill="#0e7490"/><text x="262" y="177" fill="#ffffff">0.70</text>
+<rect x="340" y="150" width="100" height="44" rx="6" fill="#5eead4"/><text x="372" y="177" fill="#0a0a0b">1.00</text>
+<text x="40" y="77" fill="#8a8a93">BTC</text><text x="40" y="127" fill="#8a8a93">ETH</text><text x="40" y="177" fill="#8a8a93">SOL</text>
+<text x="152" y="42" fill="#8a8a93">BTC</text><text x="262" y="42" fill="#8a8a93">ETH</text><text x="372" y="42" fill="#8a8a93">SOL</text>
+</g>
+</svg>
+
+## Error común
+
+Creer que tener cinco monedas es diversificar. Si las cinco correlacionan 0.9 entre sí, no tienes un portafolio: tienes una apuesta con cinco nombres. Diversificar de verdad es mezclar cosas que no se mueven juntas, no coleccionar logos.
+
+## Checklist
+
+- [ ] Interpreto una correlación (−1 a +1) sin confundirla con causalidad
+- [ ] Leo la matriz del demo: BTC–ETH 0.91, BTC–SOL 0.74
+- [ ] Calculo una beta como covarianza / varianza del mercado
+- [ ] Explico por qué tres criptos correlacionadas no diversifican
+- [ ] Completo el quiz c1_l5 (3/3 para ganar 1 QP)
+
+## Practica
+
+- Abre `c1_l5.ipynb`: calcula la matriz de correlación y las betas sobre `c1_l5_btc_eth_sol.csv`, y dibuja el scatter de SOL contra BTC.
+- Quiz `c1_l5.json`: 3 preguntas, necesitas el pleno para el QP.

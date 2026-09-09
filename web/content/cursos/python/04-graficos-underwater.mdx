@@ -1,0 +1,82 @@
+---
+id: "c2-l4"
+curso: "python"
+leccion: 4
+titulo: "Gráficos que duelen: matplotlib, plotly y el underwater"
+tipo: "lesson"
+xp: 100
+qp: 2
+duracion_video_min: 4
+---
+
+# Gráficos que duelen: matplotlib, plotly y el underwater
+
+> Un backtest sin gráfico es un rumor. El underwater te dice cuánto dolió ganar.
+
+## Objetivo
+
+Graficar precio, equity y drawdown (underwater) con matplotlib y plotly para juzgar una estrategia de un vistazo.
+
+## TL;DR
+
+- `matplotlib` es rápido y estático; `plotly` es interactivo (zoom, hover) y mejor para explorar.
+- El equity es tu capital acumulado; el pico (running max) marca lo más alto hasta cada fecha.
+- El drawdown = (equity − pico) / pico: siempre ≤ 0, y su mínimo es el max drawdown.
+- El gráfico underwater (área bajo cero) muestra cuándo y cuánto sufrió la estrategia.
+
+## 1. Precio y equity con matplotlib
+
+```python
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+ax[0].plot(df["date"], df["close"])
+ax[0].set_title("Precio")
+ax[1].plot(df["date"], df["equity"], color="green")
+ax[1].set_title("Equity")
+plt.tight_layout()
+```
+
+Dos paneles, mismo eje X: arriba el mercado, abajo tu bolsillo. Si el equity sube cuando el precio lateraliza, tu estrategia aporta algo.
+
+## 2. El underwater: cuánto dolió
+
+```python
+df["peak"] = df["equity"].cummax()
+df["drawdown"] = (df["equity"] - df["peak"]) / df["peak"]
+max_dd = df["drawdown"].min()
+print(f"max drawdown = {max_dd:.2%}")
+```
+
+El `cummax` es el mejor momento de tu cuenta hasta cada día. Todo lo que esté por debajo es pérdida desde el pico. El mínimo de esa serie es tu peor momento: el max drawdown.
+
+## 3. El mismo gráfico en plotly (interactivo)
+
+```python
+import plotly.graph_objects as go
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df["date"], y=df["equity"], name="equity"))
+fig.add_trace(go.Scatter(x=df["date"], y=df["drawdown"], name="underwater", fill="tozeroy"))
+fig.show()
+```
+
+Con hover ves fecha y valor exacto de cada caída. Para un reporte usa matplotlib; para investigar, plotly.
+
+## Visual
+
+Imagina la línea del equity como una montaña rusa vista de lado: el underwater es la sombra roja bajo cada cima, y su punto más profundo es tu max drawdown.
+
+## Error típico
+
+Calcular el drawdown sobre el precio en vez de sobre el equity. El precio no es tu cuenta: el drawdown mide tu capital, no el mercado. Siempre sobre la columna de equity.
+
+## Checklist
+
+- [ ] Graficas precio y equity en dos paneles con matplotlib
+- [ ] Calculas pico, drawdown y max drawdown con `cummax`
+- [ ] Repites el gráfico en plotly con área bajo cero
+- [ ] Quiz `c2_l4.json`: 2 de 3 bien para el QP
+
+## Practica
+
+- En `c2_l4.ipynb`, marca en qué fecha ocurrió el max drawdown y cuánto tardó el equity en recuperar el pico.
+- Quiz `c2_l4.json`: 3 preguntas, necesitas 2 bien para el QP.

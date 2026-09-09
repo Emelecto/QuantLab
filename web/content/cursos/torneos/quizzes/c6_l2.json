@@ -1,0 +1,40 @@
+{
+  "id": "c6_l2",
+  "curso": "torneos",
+  "leccion": 2,
+  "questions": [
+    {
+      "q": "¿Qué mide la correlación de Spearman en el torneo?",
+      "options": [
+        "Si clavas el valor exacto del target",
+        "Si ordenas bien los activos (correlación de rangos)",
+        "El tamaño del stake",
+        "La volatilidad del mercado"
+      ],
+      "answer": 1,
+      "explain": "Spearman es Pearson sobre rangos: premia el orden correcto, no el número exacto."
+    },
+    {
+      "q": "¿Cómo se calcula el score oficial a partir de las eras?",
+      "options": [
+        "Una correlación global con todas las filas juntas",
+        "Promedio de la correlación por era, cada semana vota por separado",
+        "Solo la mejor era cuenta",
+        "El máximo menos el mínimo"
+      ],
+      "answer": 1,
+      "explain": "El promedio por era obliga a ser consistente semana a semana."
+    },
+    {
+      "q": "Copias exactamente la predicción del metamodelo. ¿Qué pasa con tu MMC?",
+      "options": [
+        "Se dispara, copiar paga",
+        "Queda en ≈ 0: no aportas nada sobre el consenso",
+        "Se vuelve negativo siempre",
+        "No se puede calcular"
+      ],
+      "answer": 1,
+      "explain": "El MMC premia la originalidad direccional: la copia no suma sobre el consenso."
+    }
+  ]
+}

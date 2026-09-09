@@ -1,0 +1,40 @@
+{
+  "id": "c2_l3",
+  "curso": "python",
+  "leccion": 3,
+  "questions": [
+    {
+      "q": "¿Por qué el cálculo vectorizado con NumPy es más rápido que un bucle for?",
+      "options": [
+        "Porque usa menos memoria RAM siempre",
+        "Porque el bucle interno corre en C sobre todo el array a la vez",
+        "Porque evita importar pandas",
+        "Porque redondea los decimales"
+      ],
+      "answer": 1,
+      "explain": "Vectorizar mueve el bucle a código C compilado: una sola llamada procesa miles de elementos sin el costo del for de Python."
+    },
+    {
+      "q": "¿Qué hace df['close'].pct_change()?",
+      "options": [
+        "Calcula el retorno simple de cada fila respecto a la anterior",
+        "Calcula la media móvil de 20 días",
+        "Ordena el DataFrame por fecha",
+        "Elimina los valores NaN"
+      ],
+      "answer": 0,
+      "explain": "pct_change() = (actual - previo) / previo. Es el retorno simple fila a fila, con NaN en la primera."
+    },
+    {
+      "q": "En df['senal'] = np.where(df['close'] > df['sma20'], 1, -1), ¿qué significa 1?",
+      "options": [
+        "Que el precio está por encima de su media: señal larga/alcista",
+        "Que hay un dato ausente",
+        "Que la media no existe todavía",
+        "Que el volumen fue cero"
+      ],
+      "answer": 0,
+      "explain": "np.where elige 1 donde la condición es True (precio sobre la media) y -1 donde no. Es el patrón indicador → regla → señal."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+ronda,spearman,spearman_neutral,stake,costo_bps,decision
+1,0.042,0.0368,50,2,enviar
+2,0.018,0.0121,0,2,enviar
+3,-0.011,-0.0137,50,2,no_enviar
+4,0.055,0.0521,50,2,enviar
+5,0.031,0.0284,50,2,enviar
+6,0.008,0.0039,0,2,no_enviar
+7,-0.023,-0.0293,0,2,no_enviar
+8,0.047,0.0426,50,2,enviar
+9,0.022,0.0158,50,2,enviar
+10,0.061,0.0578,50,2,enviar
+11,-0.005,-0.0133,50,2,no_enviar
+12,0.036,0.0245,50,2,enviar

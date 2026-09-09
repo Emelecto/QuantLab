@@ -1,0 +1,81 @@
+---
+id: "c4-l7"
+curso: "riesgo"
+leccion: 7
+titulo: "Plan auditable: si no está escrito, no existe"
+tipo: "lesson"
+xp: 120
+qp: 2
+duracion_video_min: 4
+---
+
+# Plan auditable: si no está escrito, no existe
+
+> 50 trades, dos grupos: los 30 hechos con plan y siguiéndolo ganan el 63% con +0,63R promedio; los 20 sin plan ganan el 30% con −0,21R. Misma persona, mismo mercado, distinta preparación. El plan no predice el futuro: te impide improvisar.
+
+## Objetivo
+
+Comparar 50 trades con y sin plan de trading (`c4_l7.csv`) usando winrate y múltiplo R, y construir la plantilla mínima de un plan que cualquiera pueda auditar después.
+
+## TL;DR
+
+Con plan y disciplina (30 trades): winrate 63%, +0,63R por trade. Sin plan (20 trades): winrate 30%, −0,21R por trade. Moraleja: el plan convierte la misma estrategia en rentable porque filtra entradas malas y estandariza el riesgo en unidades R.
+
+## 1. Qué es un plan auditable (la plantilla de 5 líneas)
+
+Un plan auditable cabe en cinco líneas escritas ANTES de entrar: setup de entrada, stop loss exacto, take profit exacto, tamaño en riesgo (p. ej. 1R = 1% de la cuenta) y condición de invalidez. Si después puedes revisar cada trade y marcar "cumplió / no cumplió", es auditable. Si no, era una corazonada con vocabulario.
+
+```python
+con = df[df["tiene_plan"] == "si"]
+print(con["resultado"].eq("win").mean())  # 0,63 → 63%
+print(con["r_multiple"].mean())           # +0,63R
+```
+
+## 2. El plan paga: +0,63R contra −0,21R
+
+La diferencia no es suerte: con 30 y 20 trades, el grupo con plan casi duplica el winrate (63% vs 30%) y el resultado por trade difiere casi 0,85R. Medir en R (múltiplos de tu riesgo) es clave: un +0,63R significa que cada trade aporta en promedio el 63% de lo arriesgado, gane o pierda en dólares.
+
+```python
+sin = df[df["tiene_plan"] == "no"]
+print(sin["resultado"].eq("win").mean())  # 0,30 → 30%
+print(sin["r_multiple"].mean())           # −0,21R
+```
+
+Ojo honesto: el plan no crea edge de la nada; aquí el grupo con plan también eligió mejores setups. Eso ES parte del plan: filtrar.
+
+## 3. Auditar: el ritual de 10 minutos
+
+Al cerrar el día, marca cada trade: ¿tenía plan escrito? ¿lo seguí? Un trade ganador sin plan cuenta como FALLO de proceso (refuerza lo peor). Meta: 90%+ de trades con plan seguido al mes. Lo que no se audita no mejora; lo que se audita con dinero de por medio, mejora rápido.
+
+## Visual: la misma estrategia, dos resultados
+
+Winrate 63% vs 30% y +0,63R vs −0,21R por trade: la brecha entre improvisar y ejecutar un plan escrito.
+
+<svg viewBox="0 0 560 250" role="img" aria-label="Con plan winrate 63 y mas 0,63R; sin plan winrate 30 y menos 0,21R" style="width:100%;height:auto;background:#0a0a0b;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+<text x="20" y="24" fill="#e5e5e5" font-size="13" font-family="Inter,system-ui,sans-serif">Con plan vs sin plan: winrate y R promedio</text>
+<g font-family="Inter,system-ui,sans-serif" font-size="10" fill="#8a8a93">
+<line x1="40" y1="150" x2="520" y2="150" stroke="#52525b" stroke-width="1"/>
+<rect x="80" y="60" width="70" height="90" rx="3" fill="#5eead4"/>
+<text x="88" y="166" fill="#e5e5e5">con plan</text>
+<text x="96" y="178" fill="#5eead4">63%</text>
+<text x="88" y="52" fill="#5eead4">+0,63R</text>
+<rect x="230" y="108" width="70" height="42" rx="3" fill="#f59e0b"/>
+<text x="238" y="166" fill="#e5e5e5">sin plan</text>
+<text x="244" y="178" fill="#f59e0b">30%</text>
+<rect x="380" y="150" width="70" height="26" rx="3" fill="#f87171"/>
+<text x="384" y="166" fill="#e5e5e5">brecha R</text>
+<text x="384" y="190" fill="#f87171">−0,21R</text>
+</g>
+</svg>
+
+## Error común
+
+Confundir "tener un plan" con "seguir el plan". El grupo ganador no es el que escribe bonito, es el que tiene "si" en tiene_plan Y en sigue_plan. Un plan ignorado es decoración; audita las dos columnas.
+
+## Checklist
+
+- [ ] Calculo winrate y R promedio por grupo: 63% / +0,63R vs 30% / −0,21R
+- [ ] Explico qué es 1R y por qué medir en R en vez de dólares
+- [ ] Escribo mi plantilla de plan de 5 líneas para el próximo trade
+- [ ] Defino mi ritual de auditoría diaria (cumplió / no cumplió por trade)
+- [ ] Completo el quiz c4_l7 (3/3 para ganar 2 QP)
