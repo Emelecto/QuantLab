@@ -554,3 +554,44 @@
 }
 .academia-hist-dentro { background: var(--ac-accent); }
 .academia-hist-n { font-size: 10px; color: var(--ac-muted); font-family: "JetBrains Mono", monospace; }
+
+/* ---------- Hub: grid de cursos abiertos ---------- */
+.academia-course-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+}
+@media (min-width: 720px) {
+  .academia-course-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1100px) {
+  .academia-course-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.academia-course-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--ac-card);
+  border: 1px solid var(--ac-line);
+  border-radius: var(--ac-radius);
+  padding: 22px;
+  color: var(--ac-ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.academia-course-card:hover { border-color: rgba(255, 255, 255, 0.22); transform: translateY(-2px); }
+.academia-course-top { display: flex; align-items: center; gap: 14px; }
+.academia-course-top .academia-kicker { margin-bottom: 0; }
+.academia-course-card h3 { margin: 0; font-size: 19px; font-weight: 650; }
+.academia-course-meta { font-size: 13px; color: var(--ac-muted); }
+.academia-course-card .academia-progress-track { margin-top: 2px; }
+.academia-course-cta {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ac-ink);
+}
+.academia-course-card:hover .academia-course-cta { text-decoration: underline; }

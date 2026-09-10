@@ -5,7 +5,6 @@ import {
   getCourse,
   getCourseLessons,
   getLessonQuiz,
-  gateCheck,
   totalQP,
   requiredScore,
   PERFECT_BONUS_QP,
@@ -26,7 +25,6 @@ export default async function AcademiaCoursePage({
   const { curso } = await params;
   if (!getCourses().some((c) => c.slug === curso)) notFound();
   const course = getCourse(curso);
-  const gate = gateCheck(0, curso);
   const lessons = getCourseLessons(curso);
   const qp = totalQP(curso);
   const lessonCount = lessons.filter((l) => l.tipo !== "exam").length;
@@ -47,9 +45,6 @@ export default async function AcademiaCoursePage({
             {lessonCount} lecciones{examCount > 0 ? ` + ${examCount} examen` : ""} · +{qp} QP + {PERFECT_BONUS_QP} bonus todo-perfecto
           </p>
           <AcademiaProgress totalLessons={lessons.length} />
-          {!gate.unlocked && (
-            <div className="academia-locked-note">🔒 Te faltan {gate.missing} QP para entrar.</div>
-          )}
         </header>
 
         <section>
