@@ -60,11 +60,13 @@ export async function POST(req: NextRequest) {
 
     const plan = PLANS[planId];
 
-    // 3. Obtener URL base
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
+    // 3. Obtener URL base: NEXT_PUBLIC_SITE_URL > VERCEL_URL > localhost
+    const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+    const vercel = process.env.VERCEL_URL?.trim();
+    const baseUrl = explicit
+      ? explicit
+      : vercel
+        ? `https://${vercel}`
         : "http://localhost:3000";
 
     // 4. Crear sesión de Stripe Checkout

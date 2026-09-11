@@ -67,6 +67,33 @@ if _cors_env:
 else:
     _cors_allow_origins = []  # sin lista blanca: CORS cerrado (no se refleja Origin)
 
+
+def _is_origin_allowed(origin: str | None) -> bool:
+    """True si el Origin está permitido: lista exacta o preview de Vercel.
+
+    Además de la lista blanca exacta de CORS_ORIGINS, acepta cualquier
+    origen https://*.vercel.app (sufijo, solo https) para que los preview
+    deployments de Vercel no se bloqueen. Nunca refleja "null" ni orígenes
+    vacíos; el resto queda cerrado (fail-closed).
+    """
+    if not origin or origin == "null":
+        return False
+    if origin in _cors_allow_origins:
+        return True
+    if origin.startswith("https://"):
+        host = origin[len("https://"):]
+        if (
+            host.endswith(".vercel.app")
+            and len(host) > len(".vercel.app")
+            and "/" not in host
+            and "?" not in host
+            and "#" not in host
+            and "@" not in host
+            and ":" not in host
+        ):
+            return True
+    return False
+
 # Middleware CORS personalizado (fail-closed): sin lista blanca no se emite
 # ningun Access-Control-Allow-Origin; el navegador bloquea las lecturas
 # cross-origin.
@@ -81,7 +108,7 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
             from starlette.responses import Response
             resp = Response(status_code=200)
             if _cors_env:
-                if origin and origin in _cors_allow_origins:
+                if _is_origin_allowed(origin):
                     resp.headers["Access-Control-Allow-Origin"] = origin
                     resp.headers["Access-Control-Allow-Credentials"] = "true"
             # Sin lista blanca: sin Allow-Origin (CORS cerrado por defecto).
@@ -93,8 +120,8 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         if _cors_env:
-            # Lista blanca configurada: reflejar solo si el Origin está en ella.
-            if origin and origin in _cors_allow_origins:
+            # Lista blanca o preview https://*.vercel.app: reflejar + credentials.
+            if _is_origin_allowed(origin):
                 response.headers["Access-Control-Allow-Origin"] = origin
                 response.headers["Access-Control-Allow-Credentials"] = "true"
         # Sin lista blanca: no se emite Allow-Origin (CORS cerrado por defecto).
@@ -123,7 +150,7 @@ def _cors_headers_for(request: Request) -> dict:
         "Access-Control-Max-Age": "600",
     }
     if _cors_env:
-        if origin and origin in _cors_allow_origins:
+        if _is_origin_allowed(origin):
             h["Access-Control-Allow-Origin"] = origin
             h["Access-Control-Allow-Credentials"] = "true"
     # Sin lista blanca: sin Allow-Origin (CORS cerrado por defecto).

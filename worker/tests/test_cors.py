@@ -95,3 +95,63 @@ def test_cors_no_origin_header_gets_wildcard():
     assert resp.status_code == 200
     # Cerrado: sin Origin que validar y sin lista blanca → sin Allow-Origin.
     assert resp.headers.get("access-control-allow-origin") is None
+
+
+def test_cors_allows_vercel_preview_deployments():
+    """Preview deployments https://*.vercel.app se reflejan sin estar en la lista."""
+    app = _make_app_with_cors("https://quant-lab-nine.vercel.app,http://localhost:3000")
+    client = TestClient(app)
+
+    # Preview deployment NO listado explícitamente → permitido por sufijo.
+    resp = client.options(
+        "/health",
+        headers={
+            "Origin": "https://quant-ki13rynyx-emilio21.vercel.app",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == "https://quant-ki13rynyx-emilio21.vercel.app"
+    assert resp.headers.get("access-control-allow-credentials") == "true"
+
+    # Producción exacta → sigue permitida.
+    resp_prod = client.options(
+        "/health",
+        headers={
+            "Origin": "https://quant-lab-nine.vercel.app",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert resp_prod.headers.get("access-control-allow-origin") == "https://quant-lab-nine.vercel.app"
+
+    # GET real (no preflight) con preview también refleja.
+    resp_get = client.get(
+        "/health",
+        headers={"Origin": "https://quant-abc123-emilio21.vercel.app"},
+    )
+    assert resp_get.status_code == 200
+    assert resp_get.headers.get("access-control-allow-origin") == "https://quant-abc123-emilio21.vercel.app"
+    assert resp_get.headers.get("access-control-allow-credentials") == "true"
+
+
+def test_cors_rejects_spoofed_vercel_and_null():
+    """Solo https://*.vercel.app: http, spoof de sufijo y 'null' quedan cerrados."""
+    app = _make_app_with_cors("https://quant-lab-nine.vercel.app,http://localhost:3000")
+    client = TestClient(app)
+
+    bad_origins = [
+        "http://foo.vercel.app",  # solo https
+        "https://vercel.app.evil.com",  # sufijo falso
+        "https://evil-vercel.app",  # dominio distinto
+        "https://vercel.app",  # sin subdominio
+        "null",  # nunca reflejar null
+        "https://evil.com",  # fuera de lista
+    ]
+    for bad in bad_origins:
+        resp = client.options(
+            "/health",
+            headers={"Origin": bad, "Access-Control-Request-Method": "GET"},
+        )
+        assert resp.status_code == 200
+        assert resp.headers.get("access-control-allow-origin") is None, bad
+        assert resp.headers.get("access-control-allow-credentials") is None, bad

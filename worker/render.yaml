@@ -10,6 +10,8 @@ services:
     envVars:
       - key: PORT
         value: 8000
+      - key: CORS_ORIGINS
+        value: https://quant-lab-nine.vercel.app,http://localhost:3000
       - key: SUPABASE_URL
         sync: false        # pon tu valor real en el dashboard de Render
       - key: SUPABASE_SERVICE_ROLE_KEY

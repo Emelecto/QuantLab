@@ -30,6 +30,25 @@ import { NextResponse, type NextRequest } from "next/server";
 const ADMIN_USER_IDS = ["2ca7b197-86f5-4605-9789-266bf8a0df01"];
 
 export async function proxy(request: NextRequest) {
+  // 1) Pinneo de dominio canónico: redirige al host de NEXT_PUBLIC_SITE_URL
+  // cuando el host entrante difiera (excepto localhost / 127.0.0.1).
+  const canonicalRaw = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (canonicalRaw) {
+    try {
+      const canonicalHost = new URL(canonicalRaw).host.toLowerCase();
+      const incomingHost = request.headers.get("host")?.toLowerCase() ?? "";
+      const isLocal =
+        incomingHost.startsWith("localhost") ||
+        incomingHost.startsWith("127.0.0.1");
+      if (incomingHost && !isLocal && incomingHost !== canonicalHost) {
+        const canonicalUrl = new URL(request.nextUrl.pathname + request.nextUrl.search, canonicalRaw);
+        return NextResponse.redirect(canonicalUrl, 308);
+      }
+    } catch {
+      // NEXT_PUBLIC_SITE_URL malformada: no bloquear el request.
+    }
+  }
+
   // Respuesta que iremos reemplazando si Supabase decide setear cookies.
   let supabaseResponse = NextResponse.next({ request });
 
