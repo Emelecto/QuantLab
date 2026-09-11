@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { submitToTournament } from "@/lib/tournaments";
 import { getMyStrategies, type MyStrategy } from "@/lib/db";
 import { useAuth } from "@/lib/useAuth";
@@ -75,6 +75,23 @@ export function SubmitStrategyModal({
   // ofrecemos reemplazarla en vez de dejar al usuario bloqueado.
   const [needsReplace, setNeedsReplace] = useState(false);
 
+  // Espejo del id seleccionado: el auto-select inicial no debe re-disparar la carga.
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+
+  const applyStrategy = useCallback((s: MyStrategy) => {
+    setCode(s.code ?? "");
+    setAssetType(s.asset_type || "crypto");
+    setSymbol(s.symbol || "");
+    setTimeframe(s.timeframe || "1d");
+    setCommissionPct(
+      typeof s.commission === "number" ? Math.round(s.commission * 1000) / 10 : 0.1,
+    );
+    setCapital(typeof s.capital === "number" ? s.capital : 1000);
+    setFolds(typeof s.folds === "number" ? s.folds : 3);
+    setSplit(typeof s.split === "number" ? s.split : 70);
+  }, []);
+
   // Cargar estrategias del usuario al abrir en modo "existente".
   useEffect(() => {
     if (mode !== "existing" || !user) return;
@@ -86,13 +103,13 @@ export function SubmitStrategyModal({
         const list = await getMyStrategies();
         if (!alive) return;
         setStrategies(list);
-        if (list.length > 0 && !selectedId) {
+        if (list.length > 0 && !selectedIdRef.current) {
           applyStrategy(list[0]);
           setSelectedId(list[0].id);
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!alive) return;
-        setStratError(e.message || "No se pudieron cargar tus estrategias.");
+        setStratError(e instanceof Error && e.message ? e.message : "No se pudieron cargar tus estrategias.");
       } finally {
         if (alive) setStratLoading(false);
       }
@@ -100,21 +117,7 @@ export function SubmitStrategyModal({
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, user]);
-
-  function applyStrategy(s: MyStrategy) {
-    setCode(s.code ?? "");
-    setAssetType(s.asset_type || "crypto");
-    setSymbol(s.symbol || "");
-    setTimeframe(s.timeframe || "1d");
-    setCommissionPct(
-      typeof s.commission === "number" ? Math.round(s.commission * 1000) / 10 : 0.1,
-    );
-    setCapital(typeof s.capital === "number" ? s.capital : 1000);
-    setFolds(typeof s.folds === "number" ? s.folds : 3);
-    setSplit(typeof s.split === "number" ? s.split : 70);
-  }
+  }, [mode, user, applyStrategy]);
 
   function handleSelectStrategy(id: string) {
     setSelectedId(id);
@@ -152,8 +155,8 @@ export function SubmitStrategyModal({
           : "¡Estrategia enviada al torneo!",
       });
       window.setTimeout(() => onClose(), 1400);
-    } catch (e: any) {
-      const msg = e?.message || "Error al enviar la estrategia.";
+    } catch (e: unknown) {
+      const msg = e instanceof Error && e.message ? e.message : "Error al enviar la estrategia.";
       // El worker avisa que ya existe una submission: ofrecer reemplazo.
       if (/ya enviaste/i.test(msg)) setNeedsReplace(true);
       setFeedback({ type: "err", msg });

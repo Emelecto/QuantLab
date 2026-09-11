@@ -10,6 +10,9 @@ export function useCountUp(target: number, duration = 400): number {
   const [value, setValue] = useState(target);
   const fromRef = useRef(target);
   const rafRef = useRef<number | null>(null);
+  // Espejo del último valor para el cleanup sin leer estado en el efecto.
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -38,9 +41,8 @@ export function useCountUp(target: number, duration = 400): number {
     rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      fromRef.current = value;
+      fromRef.current = valueRef.current;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, duration]);
 
   return value;

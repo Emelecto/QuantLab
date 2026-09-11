@@ -40,10 +40,8 @@ export function QPBadge({
 
 export function QPTierBadge({
   tier,
-  showLabel = true,
 }: {
   tier: string;
-  showLabel?: boolean;
 }) {
   const gradient = tierColors[tier] || tierColors.free;
   const label = tierLabels[tier] || tier;

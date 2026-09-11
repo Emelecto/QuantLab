@@ -8,6 +8,8 @@ interface EquityPoint {
   oos?: number;
 }
 
+const EMPTY_POINTS: EquityPoint[] = [];
+
 /**
  * Gráfico de equity curve con SVG inline (sin dependencias externas).
  * Muestra las curvas IS y OOS normalizadas a 100.
@@ -23,7 +25,8 @@ export function EquityChart({
   height?: number;
   showIS?: boolean;
 }) {
-  const points = data ?? curve ?? [];
+  // Array estable cuando no llegan props: evita que el useMemo recalcule en cada render.
+  const points = data ?? curve ?? EMPTY_POINTS;
   const { isPath, oosPath } = useMemo(() => {
     if (!points.length) return { isPath: "", oosPath: "" };
 

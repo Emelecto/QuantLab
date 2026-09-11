@@ -16,6 +16,8 @@ import {
 } from "@/lib/api";
 import { saveRun } from "@/lib/runs";
 import { setStrategyPublic, saveBacktestRun } from "@/lib/db";
+import { markStep } from "@/lib/activation";
+import { markOnboardingStart, trackFirstBacktest } from "@/lib/analytics";
 import {
   publishStrategy,
   submitToTournament,
@@ -52,6 +54,7 @@ function NewStrategyPageInner() {
   });
   const [isPublic, setIsPublic] = useState(false);
   const [running, setRunning] = useState(false);
+  const [wakeMsg, setWakeMsg] = useState<string | null>(null);
   // Modo demo (landing → ?demo=1): config precargada lista para correr.
   const [demoMode, setDemoMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,8 +114,7 @@ function NewStrategyPageInner() {
         "Modo demo: estrategia SMA clásica con datos reales de BTC. Solo pulsa Ejecutar.",
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   /** Publica la estrategia actual en el marketplace. */
   async function handlePublish() {
@@ -134,6 +136,7 @@ function NewStrategyPageInner() {
       });
       setPublishedId(res.id);
       setShareMsg("✅ Estrategia publicada en el marketplace.");
+      markStep("publica");
     } catch (e) {
       setShareMsg(`❌ ${e instanceof Error ? e.message : "No se pudo publicar."}`);
     } finally {
@@ -149,6 +152,7 @@ function NewStrategyPageInner() {
     try {
       const res = await submitToTournament(tournamentId, config.code, { ...config }, 0);
       setShareMsg(`✅ Enviada al torneo (submission ${res.id.slice(0, 8)}…, estado ${res.status}).`);
+      markStep("compite");
     } catch (e) {
       setShareMsg(`❌ ${e instanceof Error ? e.message : "No se pudo enviar al torneo."}`);
     } finally {
@@ -234,6 +238,7 @@ function NewStrategyPageInner() {
   async function handleBacktest() {
     setRunning(true);
     setError(null);
+    setWakeMsg(null);
     setDemoMode(false); // el banner demo desaparece al ejecutar
     try {
       const validation = await validateStrategy(config);
@@ -246,7 +251,11 @@ function NewStrategyPageInner() {
         console.warn("[QuantLab warnings]", validation.warnings);
       }
 
-      const result: BacktestResult = await runBacktest(config);
+      const result: BacktestResult = await runBacktest(config, (attempt, max) => {
+        if (attempt > 1) {
+          setWakeMsg(`Despertando worker… reintento ${attempt}/${max}`);
+        }
+      });
 
       const run: BacktestResult = {
         id: result.id || crypto.randomUUID(),
@@ -268,11 +277,16 @@ function NewStrategyPageInner() {
       } catch (dbErr) {
         console.warn("No se pudo completar el guardado en la nube:", dbErr);
       }
+      markOnboardingStart();
+      trackFirstBacktest("studio");
+      markStep("crea");
+      markStep("corre");
       router.push(`/app/strategies/${run.id}/results`);
     } catch (err) {
       if (err instanceof BacktestError) setError(err.message);
       else setError(err instanceof Error ? err.message : "Error inesperado.");
       setRunning(false);
+      setWakeMsg(null);
     }
   }
 
@@ -592,8 +606,13 @@ function NewStrategyPageInner() {
               disabled={running}
               className={buttonClasses("primary", "lg") + " mt-5 w-full justify-center"}
             >
-              {running ? "Ejecutando backtest…" : "Ejecutar backtest OOS"}
+              {running ? (wakeMsg ?? "Ejecutando backtest…") : "Ejecutar backtest OOS"}
             </button>
+            {running && (
+              <p role="status" aria-live="polite" className="mt-2 text-center text-[11px] text-muted">
+                {wakeMsg ?? "Ejecutando backtest…"}
+              </p>
+            )}
             <p className="mt-2 text-center text-[11px] text-muted">
               Walk-forward · {config.folds} folds · split {config.split}/{100 - config.split}
             </p>

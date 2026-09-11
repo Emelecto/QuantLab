@@ -9,7 +9,7 @@ export const NAV = [
   { href: "/app/tournaments", label: "Competencias", group: "General" },
   { href: "/app/strategies", label: "Estrategias", group: "General" },
   { href: "/app/marketplace", label: "Marketplace", group: "General" },
-  { href: "/app/learn", label: "Aprendizaje", group: "General" },
+  { href: "/app/academia", label: "Academia", group: "General" },
   { href: "/app/library", label: "Datasets", group: "General" },
   { href: "/app/rankings", label: "Rankings", group: "General" },
   { href: "/app/wallet", label: "Wallet QP", group: "General" },

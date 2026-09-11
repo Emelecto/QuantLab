@@ -1,7 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllPosts } from "@/lib/blog";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Blog de trading cuantitativo",
+  description:
+    "Artículos sobre trading cuantitativo, backtesting walk-forward, machine learning y la comunidad QuantLab.",
+  alternates: { canonical: "/blog" },
+  openGraph: {
+    title: "Blog de QuantLab",
+    description:
+      "Trading cuantitativo, backtesting walk-forward y machine learning, en español.",
+    url: "/blog",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
+};
 
 export default function BlogPage() {
   const posts = getAllPosts();

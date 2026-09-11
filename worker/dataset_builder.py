@@ -113,6 +113,9 @@ def generar_panel_real(
     universo: list[tuple[str, str]],
     dias: int = 900,
     timeframe: str = "1d",
+    *,
+    fin=None,
+    ini=None,
 ) -> tuple[pd.DataFrame, list[str], dict]:
     """Panel derivado de datos REALES, con las fugas ya cerradas.
 
@@ -122,13 +125,26 @@ def generar_panel_real(
       - solo fechas con el universo COMPLETO: nº de filas por era constante.
       - normalizacion por era (en `obfuscar`): la escala no delata la clase.
       - eras permutadas (en `obfuscar`): el numero no revela el orden.
+
+    Reproducibilidad: `fin`/`ini` fijan la ventana (por defecto, últimos
+    `dias` hasta ahora). Para pinnear una versión exacta del dataset, pasar
+    `fin`/`ini` explícitos + leer desde el caché de Storage (que evita
+    re-descargar Binance/yfinance): mismos bytes cacheados => misma versión.
     """
     from datetime import datetime, timedelta, timezone
 
     import data_feed
 
-    fin = datetime.now(timezone.utc)
-    ini = fin - timedelta(days=dias)
+    _fin = pd.Timestamp(fin) if fin is not None else datetime.now(timezone.utc)
+    if getattr(_fin, "tzinfo", None) is None:
+        _fin = pd.Timestamp(_fin).tz_localize("UTC")
+    if ini is not None:
+        _ini = pd.Timestamp(ini)
+        if getattr(_ini, "tzinfo", None) is None:
+            _ini = pd.Timestamp(_ini).tz_localize("UTC")
+    else:
+        _ini = _fin - timedelta(days=dias)
+    fin, ini = _fin, _ini
 
     series: dict[str, pd.DataFrame] = {}
     for asset_type, symbol in universo:

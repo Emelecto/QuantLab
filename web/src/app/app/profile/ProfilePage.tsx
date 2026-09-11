@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/useAuth";
 import { getBalance } from "@/lib/tokens";
-import { useProgress } from "@/lib/learn/progress";
-import { modules } from "@/lib/learn/modules";
+import { LESSONS } from "@/lib/academia/catalog";
+import { loadAcademiaProgress } from "@/components/academia/progress-store";
 import { TIER } from "@/lib/constants";
 import { TierBadge } from "@/components/ui/TierBadge";
 import { Avatar } from "@/components/ui/Avatar";
@@ -73,11 +73,40 @@ function StatTile({
 
 export function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  const progress = useProgress();
+  // Progreso de Academia (store local multi-curso C1–C6; el panel del quiz
+  // lo sincroniza a Supabase en completed_lessons + QP vía earnQP).
+  const [academiaDone, setAcademiaDone] = useState<string[]>([]);
+  const [tournamentsEntered, setTournamentsEntered] = useState<number | null>(null);
+  useEffect(() => {
+    setAcademiaDone(loadAcademiaProgress().completed);
+  }, []);
+  // Torneos entrados: conteo real en Supabase (tabla submissions).
+  useEffect(() => {
+    if (!user) {
+      setTournamentsEntered(null);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const { count } = await supabase
+          .from("submissions")
+          .select("tournament_id", { count: "exact", head: true })
+          .eq("user_id", user.id);
+        if (active) setTournamentsEntered(count ?? 0);
+      } catch {
+        if (active) setTournamentsEntered(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
+  const [, setProfileLoading] = useState(false);
 
   // Estado para cambio de username
   const [usernameEdit, setUsernameEdit] = useState(false);
@@ -184,14 +213,12 @@ export function ProfilePage() {
   const tier = balance?.tier || "free";
   const tierInfo = TIER[tier as keyof typeof TIER] || TIER.free;
 
-  const completedModules = progress.completedModules.length;
-  const totalModules = modules.length;
+  const completedModules = academiaDone.length;
+  const totalModules = LESSONS.filter((l) => !l.draft).length;
   const coursePercent =
     totalModules > 0
       ? Math.round((completedModules / totalModules) * 100)
       : 0;
-
-  const tournamentsEntered = progress.tournamentsEntered.length;
 
   // --- Handlers: avatar upload ---
   const handleAvatarClick = () => {
@@ -508,16 +535,16 @@ export function ProfilePage() {
             </CardBody>
           </Card>
 
-          {/* Progreso del curso */}
+          {/* Progreso en Academia */}
           <Card className="lg:col-span-1">
             <CardBody className="p-6">
               <h2 className="text-sm font-semibold text-ink mb-4">
-                Progreso del curso
+                Progreso en Academia
               </h2>
               <div className="space-y-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-muted">
-                    Modulos completados
+                    Lecciones completadas
                   </p>
                   <p className="text-sm text-ink mt-0.5">
                     {completedModules} de {totalModules}
@@ -531,10 +558,10 @@ export function ProfilePage() {
                   />
                 </div>
                 <p className="metric text-xs text-muted">{coursePercent}% completado</p>
-                {progress.badgeEarned && (
+                {totalModules > 0 && completedModules >= totalModules && (
                   <div className="mt-2">
                     <span className="inline-flex items-center gap-1 rounded border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
-                      Insignia de curso completada
+                      Academia completada: 6 cursos
                     </span>
                   </div>
                 )}

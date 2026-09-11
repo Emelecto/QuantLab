@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/useAuth";
+import { useCallback, useEffect, useState } from "react";
 import { useDashboardData, type DashboardTournament } from "./useDashboardData";
-import { modules as courseModules } from "@/lib/learn/modules";
+import { NextAction } from "@/components/onboarding/NextAction";
+import { LESSONS } from "@/lib/academia/catalog";
+import { loadAcademiaProgress } from "@/components/academia/progress-store";
 import {
   getQPRanking,
   getTournamentRanking,
@@ -112,20 +113,6 @@ function useCountdown(deadline: string | null): string | null {
   if (days > 0) return `${days}d ${String(hours).padStart(2, "0")}h`;
   if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
   return `${minutes}m`;
-}
-
-function StatusBadge({
-  label,
-  tone = "neutral",
-}: {
-  label: string;
-  tone?: "neutral" | "positive" | "negative" | "pending";
-}) {
-  return (
-    <span className={`ql-dashboard-status ql-dashboard-status--${tone}`}>
-      {label}
-    </span>
-  );
 }
 
 function Card({
@@ -240,8 +227,7 @@ function SkeletonEstrategias() {
 }
 
 function DashboardHome() {
-  const { user } = useAuth();
-  const { qp, course, ranking, strategies, tournaments, loading, error, sources } =
+  const { strategies, tournaments, loading, error, sources } =
     useDashboardData();
 
   const [rankingTab, setRankingTab] = useState<RankingTab>("qp");
@@ -250,21 +236,20 @@ function DashboardHome() {
   const [tournamentRanking, setTournamentRanking] = useState<TournamentRankingEntry[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
 
-  const fullName = user?.user_metadata?.full_name;
-  const name =
-    typeof fullName === "string" && fullName.trim()
-      ? fullName
-      : user?.email?.split("@")[0] ?? "Usuario";
-
-  const completedModuleIds = new Set<string>(
-      ((course as { completed_modules?: number[] | null })?.completed_modules ?? []).map(String),
-    );
-    const totalModules = courseModules.length;
-    const completedCount = completedModuleIds.size;
+  // Progreso de Academia (51 piezas C1–C6): el quiz perfecto marca la
+  // lección en el store local y la sincroniza a Supabase (completed_lessons).
+  const [academiaDone, setAcademiaDone] = useState<string[]>([]);
+  useEffect(() => {
+    setAcademiaDone(loadAcademiaProgress().completed);
+  }, []);
+  const totalModules = LESSONS.filter((l) => !l.draft).length;
+    const completedCount = academiaDone.filter((id) =>
+      LESSONS.some((l) => l.id === id),
+    ).length;
     const coursePct =
       totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0;
 
-  const loadRanking = async (tab: RankingTab, p: RankingPeriod) => {
+  const loadRanking = useCallback(async (tab: RankingTab, p: RankingPeriod) => {
     setRankingLoading(true);
     try {
       if (tab === "qp") {
@@ -279,16 +264,14 @@ function DashboardHome() {
     } finally {
       setRankingLoading(false);
     }
-  };
+  }, []);
 
   const handleTabChange = (tab: RankingTab) => {
     setRankingTab(tab);
-    loadRanking(tab, period);
   };
 
   const handlePeriodChange = (p: RankingPeriod) => {
     setPeriod(p);
-    loadRanking(rankingTab, p);
   };
 
   const rankingEntries = rankingTab === "qp" ? qpRanking : tournamentRanking;
@@ -306,11 +289,10 @@ function DashboardHome() {
       })
       .slice(0, 6);
 
-  // Cargar el ranking al montar para que aparezca instantáneamente sin requerir click.
+  // Ranking instantáneo al montar y recarga única ante cambio de tab/período.
   useEffect(() => {
     loadRanking(rankingTab, period);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadRanking, rankingTab, period]);
 
   return (
     <main className="ql-dash-content" aria-busy={loading}>
@@ -318,6 +300,14 @@ function DashboardHome() {
         <div className="ql-dashboard-notice ql-dashboard-notice--error" role="alert">
           <span>{error}</span>
         </div>
+      )}
+
+      {!loading && (
+        <NextAction
+          strategyCount={strategies.length}
+          ranBacktest={strategies.some((s) => s.last_sharpe_oos != null)}
+          competing={tournaments.some((t) => t.submission != null)}
+        />
       )}
 
       <div className="ql-bento-grid">
@@ -340,7 +330,7 @@ function DashboardHome() {
               <SkeletonCompetencias />
             ) : myTournaments.length === 0 ? (
               <div className="ql-bento-empty">
-                <p>No estás inscrito en ninguna competencia.</p>
+                <p>Paso 4 de tu activación: compite y gana QP.</p>
                 <Link href="/app/tournaments" className="ql-btn-primary">
                   Explorar competencias
                 </Link>
@@ -425,6 +415,9 @@ function DashboardHome() {
                     </span>
                     <div className="ql-ranking-avatar">
                       {(entry as QPRankingEntry).avatar_url ? (
+                        // Avatar externo y dinámico (Supabase/Google): <img> directo,
+                        // next/image exigiría remotePatterns abierto.
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={(entry as QPRankingEntry).avatar_url!}
                           alt=""
@@ -483,9 +476,9 @@ function DashboardHome() {
                 <SkeletonEstrategias />
               ) : myStrategies.length === 0 ? (
                 <div className="ql-bento-empty">
-                  <p>No tienes estrategias aún.</p>
-                  <Link href="/app/strategies/new" className="ql-btn-primary">
-                    Crear estrategia
+                  <p>Paso 1 de tu activación: crea con la plantilla lista en &lt;1 min (+10 QP).</p>
+                  <Link href="/app/strategies/new?demo=1" className="ql-btn-primary">
+                    Crear mi primer backtest
                   </Link>
                 </div>
               ) : (
@@ -527,8 +520,8 @@ function DashboardHome() {
                   <path d="M6 12v5c3 3 9 3 12 0v-5" />
                 </svg>
               }
-              title="Cursos de aprendizaje"
-              subtitle="Continúa donde lo dejaste"
+              title="Academia"
+              subtitle="Los 6 cursos están abiertos"
             />
             <div className="ql-aprendizaje-body">
               <div className="ql-aprendizaje-progress">
@@ -557,14 +550,14 @@ function DashboardHome() {
                   <span className="ql-aprendizaje-percent">{coursePct}%</span>
                 </div>
                 <div className="ql-aprendizaje-text">
-                  <p className="ql-aprendizaje-label">Progreso del curso</p>
+                  <p className="ql-aprendizaje-label">Progreso en Academia</p>
                   <p className="ql-aprendizaje-detail">
-                    {completedCount} de {totalModules} módulos
+                    {completedCount} de {totalModules} lecciones
                   </p>
                 </div>
               </div>
-              <Link href="/app/learn" className="ql-btn-secondary ql-aprendizaje-cta">
-                Continuar aprendizaje
+              <Link href="/app/academia" className="ql-btn-secondary ql-aprendizaje-cta">
+                Continuar en la Academia
               </Link>
             </div>
           </Card>

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/Button";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { AuthAwareCTA } from "@/components/AuthAwareCTA";
 import { HeroChart } from "@/components/charts/HeroChart";
-import { SpotlightCard } from "@/components/SpotlightCard";
 import { OverfitMiniChart, OosMiniChart } from "@/components/charts/MiniCharts";
 
 const STEPS = [

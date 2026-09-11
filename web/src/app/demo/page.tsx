@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { QuantChart, type QuantPoint } from "@/components/charts/QuantChart";
 import { buttonClasses } from "@/components/ui/Button";
+import { markOnboardingStart, trackFirstBacktest } from "@/lib/analytics";
+import { markStep } from "@/lib/activation";
+import { fetchWithWakeRetry } from "@/lib/worker-fetch";
+
+// Timeout por intento y reintentos: la ruta /api/demo es local (datos
+// simulados), pero el proxy/CDN puede devolver 502/503/504 en frío.
+const DEMO_TIMEOUT_MS = 30_000;
+const DEMO_MAX_ATTEMPTS = 3;
 
 interface DemoResult {
   success: boolean;
@@ -90,24 +98,57 @@ export default function DemoPage() {
   const [fast, setFast] = useState(20);
   const [slow, setSlow] = useState(50);
   const [loading, setLoading] = useState(false);
+  const [wakeMsg, setWakeMsg] = useState<string | null>(null);
   const [result, setResult] = useState<DemoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    markOnboardingStart();
+  }, []);
 
   const runBacktest = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setWakeMsg(null);
     try {
-      const res = await fetch(`/api/demo?fast=${fast}&slow=${slow}`);
+      const res = await fetchWithWakeRetry(
+        `/api/demo?fast=${fast}&slow=${slow}`,
+        undefined,
+        {
+          timeoutMs: DEMO_TIMEOUT_MS,
+          maxAttempts: DEMO_MAX_ATTEMPTS,
+          onAttempt: (attempt, max) => {
+            if (attempt > 1) {
+              setWakeMsg(`Despertando worker… reintento ${attempt}/${max}`);
+            }
+          },
+        },
+      );
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Error al ejecutar el backtest");
+        if ([502, 503, 504].includes(res.status)) {
+          setError(
+            "El worker está despertando (cold start) y no respondió a tiempo. Espera unos segundos y reintenta.",
+          );
+        } else {
+          setError(json.error || "Error al ejecutar el backtest");
+        }
         return;
       }
       setResult(json);
+      trackFirstBacktest("demo");
+      markStep("corre");
     } catch (e: any) {
-      setError(e.message || "Error de conexión");
+      const aborted =
+        e instanceof DOMException && e.name === "AbortError";
+      setError(
+        aborted
+          ? `La petición tardó demasiado tras ${DEMO_MAX_ATTEMPTS} intentos. El worker puede estar despertando; reintenta en unos segundos.`
+          : e.message || "Error de conexión",
+      );
     } finally {
       setLoading(false);
+      setWakeMsg(null);
     }
   }, [fast, slow]);
 
@@ -171,8 +212,17 @@ export default function DemoPage() {
                 disabled={loading}
                 className={buttonClasses("primary", "lg") + " w-full mt-6"}
               >
-                {loading ? "Ejecutando..." : "Correr backtest"}
+                {loading ? (wakeMsg ?? "Ejecutando...") : "Correr backtest"}
               </button>
+              {loading && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="mt-2 text-center text-[12px] text-muted"
+                >
+                  {wakeMsg ?? "Ejecutando backtest…"}
+                </p>
+              )}
             </div>
 
             {/* Tips */}

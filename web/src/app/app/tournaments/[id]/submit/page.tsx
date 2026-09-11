@@ -28,7 +28,7 @@ export default function TournamentSubmitPage() {
     setError(null);
     try {
       const finalCode = `fast=${fast},slow=${slow}\n${code.split("\n").slice(1).join("\n")}`;
-      const result = await submitToTournament(id, finalCode, {
+      await submitToTournament(id, finalCode, {
         asset_type: assetType,
         symbol,
         timeframe,
@@ -43,8 +43,8 @@ export default function TournamentSubmitPage() {
         capital: 1000,
       }, qpStake);
       router.push(`/app/tournaments/${id}`);
-    } catch (e: any) {
-      setError(e.message || "Error al enviar");
+    } catch (e: unknown) {
+      setError(e instanceof Error && e.message ? e.message : "Error al enviar");
     } finally {
       setLoading(false);
     }

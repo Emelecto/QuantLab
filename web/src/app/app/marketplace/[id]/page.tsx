@@ -7,7 +7,7 @@ import { EquityChart } from "@/components/EquityChart";
 import { Badge } from "@/components/ui/Badge";
 import { buttonClasses } from "@/components/ui/Button";
 import { getMarketplaceStrategy, type MarketplaceStrategy } from "@/lib/tokens";
-import { getStrategySignals, subscribeToStrategy, call, type Signal } from "@/lib/tournaments";
+import { getStrategySignals, subscribeToStrategy, type Signal } from "@/lib/tournaments";
 import { getPublicStrategy, supabaseRunToResult } from "@/lib/db";
 import type { BacktestResult } from "@/lib/api";
 import { IntegritySeal } from "@/components/IntegritySeal";

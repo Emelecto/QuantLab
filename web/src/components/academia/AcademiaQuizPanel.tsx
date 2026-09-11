@@ -9,10 +9,9 @@ import { loadAcademiaProgress, markLessonComplete } from "./progress-store";
 // Panel del quiz de la lección. Renderiza N preguntas (N varía por
 // lección) y otorga lesson.qp QP con N/N en lecciones (1 en C1, 2 en C2–C6)
 // o con ≥70% en el examen final (prop `umbral`, 7 QP con 14/20 en C6).
-// Reutiliza el CourseProgressBridge existente (montado en la página) para
-// la sesión/Supabase y acredita vía earnQP; además persiste el progreso
-// local y sincroniza completed_lessons (best-effort: si la migración aún
-// no está aplicada, no tumba la UI).
+// Acredita vía earnQP con la sesión del navegador y persiste el progreso
+// local; además sincroniza completed_lessons (best-effort: si la migración
+// aún no está aplicada, no tumba la UI).
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -87,7 +86,7 @@ export function AcademiaQuizPanel({
     } finally {
       setAwarding(false);
     }
-  }, [lessonId, total, qp, required, isExam, score]);
+  }, [lessonId, total, qp, isExam, score]);
 
   useEffect(() => {
     if (passed && !awarded) void awardQP();

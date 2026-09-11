@@ -17,7 +17,6 @@ import {
   AreaSeries,
   LineSeries,
   LineSeriesOptions,
-  type IChartApi,
   type UTCTimestamp,
 } from "lightweight-charts";
 
@@ -117,7 +116,7 @@ function useMiniChart(
     chart.timeScale().fitContent();
 
     return () => chart.remove();
-  }, [stratData, splitIndex, crashAfterSplit]);
+  }, [stratData, splitIndex, crashAfterSplit, containerRef]);
 }
 
 export function OverfitMiniChart() {

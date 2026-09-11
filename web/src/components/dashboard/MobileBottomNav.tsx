@@ -8,7 +8,7 @@ import { Icon } from "./Sidebar";
 const ITEMS = [
   { href: "/app", label: "Inicio", icon: "home" },
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
-  { href: "/app/learn", label: "Aprende", icon: "book" },
+  { href: "/app/academia", label: "Academia", icon: "book" },
   { href: "/app/profile", label: "Perfil", icon: "user" },
 ] as const;
 

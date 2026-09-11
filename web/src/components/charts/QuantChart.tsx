@@ -171,8 +171,7 @@ export function QuantChart({
       chart.remove();
       chartRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, height, showBenchmark]);
+  }, [series, height, showBenchmark, drawdown]);
 
   // Rango rápido: aplica visible range según selección.
   useEffect(() => {
@@ -186,8 +185,7 @@ export function QuantChart({
     const days = range === "1M" ? 30 : range === "3M" ? 90 : 365;
     const last = series.strat[series.strat.length - 1].time as number;
     ts.setVisibleRange({ from: (last - days * 86400) as UTCTimestamp, to: last as UTCTimestamp });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range]);
+  }, [range, series]);
 
   if (series.strat.length === 0) {
     return (

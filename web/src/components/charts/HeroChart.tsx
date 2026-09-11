@@ -58,7 +58,6 @@ function QuantChartReveal({ points }: { points: Parameters<typeof QuantChart>[0]
   return (
     <div
       className="qlv3-chart-reveal"
-      // eslint-disable-next-line @next/next/no-css-element
       style={{ animationDuration: "1.8s" }}
     >
       <QuantChart points={points} height={300} showRanges={false} />

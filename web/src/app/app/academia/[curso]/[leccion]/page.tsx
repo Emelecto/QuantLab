@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { LESSONS, getCourse, getLesson, getLessonHtml, getLessonQuiz, getLessonToc, EXAM_PASS_RATE } from "@/lib/academia/registry";
 import { AcademiaQuizPanel } from "@/components/academia/AcademiaQuizPanel";
 import { AcademiaVisuals } from "@/components/academia/AcademiaVisuals";
-import { CourseProgressBridge } from "@/app/app/learn/CourseProgressBridge";
 import "../../academia.css";
 
 export function generateStaticParams() {
@@ -37,7 +36,6 @@ export default async function AcademiaLessonPage({
 
   return (
     <div className="academia-scope">
-      <CourseProgressBridge />
       <div>
         <Link href={`/app/academia/${curso}`} className="academia-back">
           ← {getCourse(curso).titulo}

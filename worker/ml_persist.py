@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import logging
 import os
+import random
+import time
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -23,6 +26,79 @@ _SALT = os.environ.get("DATASET_SALT") or os.environ.get(
     "SUPABASE_SERVICE_ROLE_KEY", ""
 )[:32]
 
+# Reintento con backoff para operaciones de DB/Storage (igual política que
+# ml_storage: exponencial + jitter, 4 intentos por defecto).
+_DB_RETRY_ATTEMPTS = 4
+_DB_RETRY_BASE_DELAY = 0.5
+
+
+def _with_retry(fn, *, op: str):
+    """Reintenta `fn()` con backoff exponencial + jitter."""
+    last_exc: Exception | None = None
+    for attempt in range(1, _DB_RETRY_ATTEMPTS + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= _DB_RETRY_ATTEMPTS:
+                break
+            delay = _DB_RETRY_BASE_DELAY * (2 ** (attempt - 1)) + random.uniform(0, _DB_RETRY_BASE_DELAY)
+            logger.warning("%s: intento %d/%d falló (%s); reintento en %.2fs",
+                           op, attempt, _DB_RETRY_ATTEMPTS, exc, delay)
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
+# ---------------------------------------------------------------------------
+# Versionado determinista del dataset (misma versión = mismo resultado)
+# ---------------------------------------------------------------------------
+def frame_hash(df: pd.DataFrame) -> str:
+    """Checksum SHA-256 estable del contenido de un frame publicado."""
+    try:
+        return store.sha256_df(df)
+    except Exception:
+        # Fallback sin pyarrow: CSV ordenado (nunca debe fallar el versionado).
+        ordered = df.sort_values(by=list(df.columns)).reset_index(drop=True)
+        return hashlib.sha256(ordered.to_csv(index=False).encode("utf-8")).hexdigest()
+
+
+def verify_frame_hash(df: pd.DataFrame, expected: str) -> bool:
+    """True si el contenido del frame coincide con el hash esperado."""
+    try:
+        import hmac
+        return hmac.compare_digest(frame_hash(df), expected)
+    except Exception:
+        return False
+
+
+def compute_dataset_version(*, mode: str, seed_obfuscar, seed_gen,
+                            salt_hash: str, feature_cols: list,
+                            frames: dict, row_counts: dict,
+                            n_activos: int, n_eras: int,
+                            ic_objetivo=None) -> dict:
+    """Huella determinista del dataset.
+
+    `frames`: {kind: sha256 del frame publicado} (train/validation/live).
+    Devuelve {"version": "v1-<12hex>", "data_hash": "<64hex>"}.
+    Mismos inputs (mismo seed, sal, features y contenido) => misma versión,
+    de modo que el paper es reproducible: fijar `version` fija el resultado.
+    """
+    canonical = json.dumps({
+        "mode": mode,
+        "seed_obfuscar": seed_obfuscar,
+        "seed_gen": seed_gen,
+        "salt_hash": salt_hash,
+        "feature_cols": list(feature_cols),
+        "frames": {k: frames[k] for k in sorted(frames)},
+        "row_counts": {k: int(row_counts[k]) for k in sorted(row_counts)},
+        "n_activos": int(n_activos),
+        "n_eras": int(n_eras),
+        "ic_objetivo": ic_objetivo,
+    }, sort_keys=True, separators=(",", ":"))
+    data_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return {"version": f"v1-{data_hash[:12]}", "data_hash": data_hash}
+
 
 # ---------------------------------------------------------------------------
 # Generación de una ronda (cron / scheduler)
@@ -33,6 +109,12 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
     guarda el holdout en dataset_targets. Devuelve el dict del dataset creado.
 
     Para 'real' se requiere `universo` (lista de (tipo, simbolo)).
+
+    Reproducibilidad: los registros de `ml_datasets` llevan `version`,
+    `data_hash` (checksum global), `seed` y `params`. Mismos inputs (mismo
+    seed, sal, features y contenido) => misma `version`; el paper fija la
+    versión y obtiene siempre el mismo resultado. La subida a Storage usa
+    reintento con backoff + sidecar SHA-256 (ver `ml_storage`).
     """
     from datetime import datetime, timezone
     now = now or datetime.now(timezone.utc)
@@ -56,13 +138,50 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
     supabase = get_supabase()
 
     base = f"{mode}/{tournament_id[:8]}/r{round_number:03d}"
+    salt_hash = hashlib.sha256(_SALT.encode()).hexdigest()[:16]
+    # Semilla efectiva de la obfuscación (la que fija los ids/features) y
+    # semilla pedida al generador (informativa; el generador no siempre la
+    # devuelve en `meta`). Ambas entran al versionado.
+    _sg = gen_kwargs.get("seed", meta.get("seed", 0))
+    try:
+        seed_gen = int(_sg) if _sg is not None else None
+    except (TypeError, ValueError):
+        seed_gen = None
+    _so = meta.get("seed", 0)
+    try:
+        seed_obf = int(_so) if _so is not None else 0
+    except (TypeError, ValueError):
+        seed_obf = 0
+    params = {
+        "n_activos": n_activos,
+        "n_eras": n_eras,
+        "n_features": gen_kwargs.get("n_features", len(mapeos["feat_cols"])),
+        "n_features_utiles": gen_kwargs.get("n_features_utiles"),
+        "ic_objetivo": meta.get("ic_objetivo"),
+        "seed_gen": seed_gen,
+        "seed_obfuscar": seed_obf,
+        "dias": gen_kwargs.get("dias"),
+        "timeframe": gen_kwargs.get("timeframe"),
+    }
+    if "universo" in gen_kwargs:
+        try:
+            params["universo"] = [list(u) for u in gen_kwargs["universo"]]
+        except Exception:
+            params["universo"] = None
+    params = {k: v for k, v in params.items() if v is not None}
+
+    _DROP = ["era_idx", "activo_idx", "target_raw", "target"]
+    frame_hashes: dict[str, str] = {}
+    row_counts: dict[str, int] = {}
     recs = []
     for kind, df in (("train", partes["train"]), ("validation", partes["validation"])):
         path = f"{base}/{kind}.parquet"
         # Quitar columnas internas y el target real (nunca se publica).
         # era_idx es server-side; activo_idx/target_raw ya no existen en interno.
-        df_pub = df.drop(columns=["era_idx", "activo_idx", "target_raw", "target"], errors="ignore")
-        store.upload_parquet(df_pub, path)
+        df_pub = df.drop(columns=_DROP, errors="ignore")
+        store.upload_parquet(df_pub, path)  # reintento + sidecar SHA-256 internos
+        frame_hashes[kind] = frame_hash(df_pub)
+        row_counts[kind] = len(df)
         recs.append({
             "tournament_id": tournament_id,
             "round_number": round_number,
@@ -75,20 +194,39 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
             "feature_cols": mapeos["feat_cols"],
             "bucket_path": path,
             "row_count": len(df),
-            "salt_hash": hashlib.sha256(_SALT.encode()).hexdigest()[:16],
+            "salt_hash": salt_hash,
             "ic_objetivo": meta.get("ic_objetivo"),
             "closes_at": closes_at,
             "created_at": now.isoformat(),
+            "data_hash": frame_hashes[kind],
+            "seed": seed_gen,
+            "params": params,
         })
+
+    # Huella del holdout (sin subirlo): fija la versión del live también.
+    live = partes["live"]
+    live_pub = live.drop(columns=_DROP, errors="ignore")
+    frame_hashes["live"] = frame_hash(live_pub)
+    row_counts["live"] = len(live)
+    ver = compute_dataset_version(
+        mode=mode, seed_obfuscar=seed_obf, seed_gen=seed_gen,
+        salt_hash=salt_hash, feature_cols=mapeos["feat_cols"],
+        frames=frame_hashes, row_counts=row_counts,
+        n_activos=n_activos, n_eras=n_eras, ic_objetivo=meta.get("ic_objetivo"),
+    )
+    for r in recs:
+        r["version"] = ver["version"]
 
     # Insertar los tres kind (train, validation, live-vacio que se llena abajo)
     inserted = []
     for r in recs:
-        res = supabase.table("ml_datasets").insert(r).execute()
+        res = _with_retry(
+            lambda r=r: supabase.table("ml_datasets").insert(r).execute(),
+            op=f"insert ml_datasets {r['kind']}",
+        )
         inserted.append(res.data[0])
 
     # El live es privado: NO se sube a Storage. Guardamos su holdout en DB.
-    live = partes["live"]
     live_rec = {
         "tournament_id": tournament_id,
         "round_number": round_number,
@@ -101,12 +239,19 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
         "feature_cols": mapeos["feat_cols"],
         "bucket_path": None,  # deliberadamente nulo: el live no se publica
         "row_count": len(live),
-        "salt_hash": hashlib.sha256(_SALT.encode()).hexdigest()[:16],
+        "salt_hash": salt_hash,
         "ic_objetivo": meta.get("ic_objetivo"),
         "closes_at": closes_at,
         "created_at": now.isoformat(),
+        "data_hash": frame_hashes["live"],
+        "version": ver["version"],
+        "seed": seed_gen,
+        "params": params,
     }
-    res = supabase.table("ml_datasets").insert(live_rec).execute()
+    res = _with_retry(
+        lambda: supabase.table("ml_datasets").insert(live_rec).execute(),
+        op="insert ml_datasets live",
+    )
     live_dataset = res.data[0]
     inserted.append(live_dataset)
 
@@ -117,7 +262,10 @@ def crear_dataset(tournament_id: str, round_number: int, mode: str = "sintetico"
     feat_cols = mapeos["feat_cols"]
     targets = live[["id", "target", "era"] + feat_cols].rename(columns={"id": "row_id"})
     targets = targets.assign(dataset_id=live_dataset["id"])
-    supabase.table("dataset_targets").insert(targets.to_dict("records")).execute()
+    _with_retry(
+        lambda: supabase.table("dataset_targets").insert(targets.to_dict("records")).execute(),
+        op="insert dataset_targets",
+    )
 
     logger.info(f"Dataset {mode} creado para torneo {tournament_id} ronda {round_number}: "
                 f"{len(inserted)} registros, holdout {len(targets)} filas.")

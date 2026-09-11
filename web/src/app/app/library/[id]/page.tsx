@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "../library.css";
 
 type Row = { date: string; open: number; high: number; low: number; close: number; volume: number };
 
@@ -39,20 +40,6 @@ function isLimit(value: number): value is Limit {
 function buildSearch(symbol: string, source: "binance" | "yahoo", interval: string, limit: number) {
   const p = new URLSearchParams({ symbol, source, interval, limit: String(limit) });
   return `/api/datasets/download?${p.toString()}`;
-}
-
-const CRYPTO_SYMBOLS = new Set([
-  "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT",
-  "BTCUSD", "ETHUSD", "BNBUSD", "SOLUSD", "XRPUSD", "ADAUSD", "DOGEUSD",
-  "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE",
-]);
-
-function isCrypto(symbol: string): boolean {
-  const s = symbol.toUpperCase().replace(/[^A-Z]/g, "");
-  if (CRYPTO_SYMBOLS.has(symbol.toUpperCase())) return true;
-  if (/^(BTC|ETH|BNB|SOL|XRP|ADA|DOGE|AVAX|MATIC|LINK|UNI|ATOM|LTC|DOT|TRX)/.test(s)) return true;
-  if (/USDT$|USD$/.test(symbol.toUpperCase())) return true;
-  return false;
 }
 
 // Mirrors regionales de Binance. `api.binance.com` es geobloqueada con HTTP 451

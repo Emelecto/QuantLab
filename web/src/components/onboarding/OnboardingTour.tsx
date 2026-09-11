@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { markOnboardingStart, trackEvent } from "@/lib/analytics";
 
 type TourStep = {
   title: string;
@@ -18,32 +19,31 @@ type TourStep = {
 
 const STEPS: TourStep[] = [
   {
-    title: "Bienvenido a QuantLab",
-    text: "Este tour toma 30 segundos. Te mostramos los 3 lugares clave para empezar.",
+    title: "Tu primer backtest en <3 minutos",
+    text: "Este tour toma 30 segundos. Al terminar podrás correr tu primer backtest con datos reales y ganar tus primeros QP.",
     selector: null,
   },
   {
-    title: "Crea tu primera estrategia",
-    text: "Escribe o arma tu estrategia con datos reales y pruébala con rigor out-of-sample.",
-    selector: '[data-tour="nueva-estrategia"]',
+    title: "Paso 1: prueba sin cuenta",
+    text: "La demo corre un backtest SMA con datos reales de BTC en ~30 segundos. Sin registro, sin riesgo.",
+    selector: null,
+    cta: { label: "Probar demo (30 s) →", href: "/demo" },
   },
   {
-    title: "Compite en torneos",
-    text: "Envía tu estrategia a torneos semanales, súbete en el ranking y gana QP.",
-    // data-tour explícito; fallback al href si el atributo no existe.
+    title: "Paso 2: crea tu estrategia",
+    text: "La plantilla SMA ya viene precargada con datos reales: solo pulsa Ejecutar backtest OOS.",
+    selector: '[data-tour="nueva-estrategia"], a[href="/app/strategies"]',
+  },
+  {
+    title: "Paso 3: compite y gana QP",
+    text: "Envía tu estrategia al round activo, súbete en el ranking y gana hasta 50 QP por activación.",
     selector: '[data-tour="tournaments-link"], a[href="/app/tournaments"]',
   },
   {
     title: "Tu wallet de QuantPoints",
-    text: "Aquí ves tu balance QP en vivo: gana en torneos, gástalos en el marketplace.",
-    // El badge completo está display:none en móvil; el link compacto lo cubre.
+    text: "Aquí ves tu balance QP en vivo: ganas al completar pasos y en torneos, los gastas en el marketplace.",
     selector: '[data-tour="qp-badge"], a[href="/app/wallet"]',
-  },
-  {
-    title: "Envía tu primer modelo",
-    text: "Cuando tu estrategia esté lista, envíala al round activo del torneo para recibir tu primer score oficial.",
-    selector: null,
-    cta: { label: "Crear mi primer modelo →", href: "/app/strategies/new" },
+    cta: { label: "Crear mi primer backtest →", href: "/app/strategies/new?demo=1" },
   },
 ];
 
@@ -171,8 +171,7 @@ export function OnboardingTour() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, open]);
+  }, [step, open, measure]);
 
   // Sigue al elemento en scroll/resize y re-mide ante cualquier cambio de layout.
   useEffect(() => {
@@ -198,7 +197,7 @@ export function OnboardingTour() {
     };
   }, [open, measure]);
 
-  const finish = useCallback(() => {
+  const finish = useCallback((completed = false) => {
     setOpen(false);
     setStep(0);
     try {
@@ -206,6 +205,7 @@ export function OnboardingTour() {
     } catch {
       /* noop */
     }
+    void trackEvent(completed ? "tour_finished" : "tour_skipped", { completed });
   }, []);
 
   // Auto-inicio en la primera visita, solo cuando el layout haya asentado:
@@ -227,7 +227,10 @@ export function OnboardingTour() {
         .catch(() => undefined)
         .then(() => {
           timer = setTimeout(() => {
-            if (!cancelled) setOpen(true);
+            if (cancelled) return;
+            setOpen(true);
+            markOnboardingStart();
+            void trackEvent("tour_started", { auto: true });
           }, 600);
         });
     };
@@ -249,6 +252,8 @@ export function OnboardingTour() {
     const onStart = () => {
       setStep(0);
       setOpen(true);
+      markOnboardingStart();
+      void trackEvent("tour_started");
     };
     window.addEventListener(TOUR_EVENT, onStart);
     return () => window.removeEventListener(TOUR_EVENT, onStart);
@@ -269,7 +274,7 @@ export function OnboardingTour() {
   const isLast = step === STEPS.length - 1;
   const cta = current.cta;
 
-  const next = () => (isLast ? finish() : goToStep(step + 1));
+  const next = () => (isLast ? finish(true) : goToStep(step + 1));
   const prev = () => goToStep(Math.max(0, step - 1));
 
   // Posicionamiento del tooltip: al lado con más espacio. Nunca tapa al target.
@@ -347,13 +352,13 @@ export function OnboardingTour() {
             outline: "2px solid rgba(248,250,252,0.75)",
             outlineOffset: "-1px",
           }}
-          onClick={finish}
+          onClick={() => finish(true)}
         />
       ) : (
         <div
           className="fixed inset-0 z-[90]"
           style={{ background: "rgba(4,6,10,0.88)" }}
-          onClick={finish}
+          onClick={() => finish(true)}
         />
       )}
 
@@ -390,7 +395,7 @@ export function OnboardingTour() {
           <button
             onClick={() => {
               // Navegar abandona el dashboard: marcar el tour como visto.
-              finish();
+              finish(true);
               router.push(cta.href);
             }}
             className="mt-3 w-full rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
@@ -400,7 +405,7 @@ export function OnboardingTour() {
         )}
         <div className="mt-4 flex items-center justify-between gap-2">
           <button
-            onClick={finish}
+            onClick={() => finish(true)}
             className="text-xs font-medium text-muted transition-colors hover:text-ink"
           >
             Saltar

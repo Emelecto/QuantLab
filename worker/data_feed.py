@@ -16,12 +16,21 @@ CACHE (opcional, best-effort):
   Si no, descarga de la fuente en vivo y (opcionalmente) escribe a cache.
   Cualquier fallo de cache es SILENCIOSO y cae siempre a la descarga directa,
   de modo que el comportamiento de red nunca se rompe por culpa del cache.
+
+RESILIENCIA:
+  - Lecturas de red (Binance/Bybit/yfinance) y operaciones de cache usan
+    reintento con backoff exponencial + jitter. Los errores deterministas
+    (símbolo inexistente HTTP 400, columnas faltantes) NO se reintentan.
+  - Cada objeto de cache lleva un sidecar '<ruta>.sha256'; si el checksum no
+    coincide, el cache se trata como MISS y se descarga en vivo.
 """
 from __future__ import annotations
 
+import hashlib
 import io
 import logging
 import os
+import random
 import time
 from datetime import datetime, timezone
 from typing import Union
@@ -67,6 +76,51 @@ _BINANCE_INTERVALS = {
 
 # Cliente Supabase cacheado en memoria (lazy). None = sin credenciales/indisponible.
 _CACHE_CLIENT = None
+
+# Reintento con backoff exponencial + jitter (solo errores transitorios).
+_RETRY_ATTEMPTS = 4
+_RETRY_BASE_DELAY = 0.5
+_CACHE_RETRY_ATTEMPTS = 3
+_SIDECAR_SUFFIX = ".sha256"
+
+
+def _with_retry(fn, *, op: str, attempts: int = _RETRY_ATTEMPTS,
+                base_delay: float = _RETRY_BASE_DELAY):
+    """Reintenta `fn()` ante errores transitorios; los ValueError (errores
+    deterministas: símbolo inexistente, columnas faltantes) NO se reintentan."""
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn()
+        except ValueError:
+            raise
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= attempts:
+                break
+            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, base_delay)
+            logger.warning("%s: intento %d/%d falló (%s); reintento en %.2fs",
+                           op, attempt, attempts, exc, delay)
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
+def _is_retryable_http(status: int | None) -> bool:
+    """HTTP 429 y 5xx son transitorios; 400/404 son deterministas."""
+    return status == 429 or (isinstance(status, int) and 500 <= status < 600)
+
+
+def _http_get(url: str, params: dict, op: str):
+    """GET con reintento ante fallos de red y HTTP transitorios (429/5xx)."""
+
+    def _do():
+        resp = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
+        if _is_retryable_http(resp.status_code):
+            raise requests.HTTPError(f"{op}: HTTP {resp.status_code} transitorio")
+        return resp
+
+    return _with_retry(_do, op=op)
 
 
 # ---------------------------------------------------------------------------
@@ -174,10 +228,23 @@ def read_from_cache(
         return None
     path = _cache_path(asset_type, symbol, timeframe)
     try:
-        data = client.storage.from_(_CACHE_BUCKET).download(path)
+        data = _with_retry(
+            lambda: client.storage.from_(_CACHE_BUCKET).download(path),
+            op=f"cache read {path}", attempts=_CACHE_RETRY_ATTEMPTS,
+        )
     except Exception as exc:
         logger.info("Cache miss para %s: %s", path, exc)
         return None
+    # Verificar checksum contra el sidecar (si existe; los caches viejos no lo
+    # tienen y se aceptan por compatibilidad). Mismatch -> MISS.
+    try:
+        sidecar = client.storage.from_(_CACHE_BUCKET).download(path + _SIDECAR_SUFFIX)
+        expected = sidecar.decode("utf-8").strip() if isinstance(sidecar, (bytes, bytearray)) else str(sidecar).strip()
+        if expected and hashlib.sha256(data).hexdigest() != expected:
+            logger.warning("Cache corrupto para %s (checksum no coincide); se ignora.", path)
+            return None
+    except Exception:
+        pass  # sin sidecar: se acepta el cache (compatibilidad hacia atrás)
     try:
         df = _df_from_bytes(data, path)
     except Exception as exc:
@@ -209,14 +276,26 @@ def write_to_cache(
         return False
     path = _cache_path(asset_type, symbol, timeframe)
     data = _df_to_bytes(df)
+    digest = hashlib.sha256(data).hexdigest()
     content_type = "application/octet-stream"
     try:
-        client.storage.from_(_CACHE_BUCKET).upload(
-            path,
-            data,
-            file_options={"upsert": "true", "content-type": content_type},
+        _with_retry(
+            lambda: client.storage.from_(_CACHE_BUCKET).upload(
+                path,
+                data,
+                file_options={"upsert": "true", "content-type": content_type},
+            ),
+            op=f"cache write {path}", attempts=_CACHE_RETRY_ATTEMPTS,
         )
         logger.info("Cache escrito: %s (%d bytes).", path, len(data))
+        try:  # sidecar de checksum (best-effort, nunca rompe el write)
+            client.storage.from_(_CACHE_BUCKET).upload(
+                path + _SIDECAR_SUFFIX,
+                digest.encode("utf-8"),
+                file_options={"upsert": "true", "content-type": "text/plain"},
+            )
+        except Exception as exc:
+            logger.debug("sidecar de cache no escrito %s: %s", path, exc)
         return True
     except Exception as exc:
         logger.warning("No se pudo escribir cache %s: %s", path, exc)
@@ -286,7 +365,7 @@ def _fetch_binance(symbol: str, interval: str, start_ms: int, end_ms: int) -> li
             "limit": _BINANCE_LIMIT,
         }
         try:
-            resp = requests.get(BINANCE_KLINES, params=params, timeout=_REQUEST_TIMEOUT)
+            resp = _http_get(BINANCE_KLINES, params=params, op=f"Binance {symbol}")
         except requests.RequestException as exc:
             raise ValueError(
                 f"Binance: fallo de red al consultar '{symbol}' ({interval}): {exc}"
@@ -341,7 +420,7 @@ def _fetch_bybit(symbol: str, interval: str, start_ms: int, end_ms: int) -> list
             "limit": _BYBIT_LIMIT,
         }
         try:
-            resp = requests.get(BYBIT_KLINES, params=params, timeout=_REQUEST_TIMEOUT)
+            resp = _http_get(BYBIT_KLINES, params=params, op=f"Bybit {symbol}")
         except requests.RequestException as exc:
             raise ValueError(
                 f"Bybit: fallo de red al consultar '{symbol}' ({interval}): {exc}"
@@ -406,14 +485,17 @@ def _fetch_yfinance(symbol: str, interval: str, start, end) -> pd.DataFrame:
     # yfinance sólo garantiza '1d' de forma fiable; forzamos 1d para stock.
     yf_interval = "1d" if interval not in ("1d", "1wk", "1mo") else interval
     try:
-        df = yf.download(
-            symbol,
-            start=start,
-            end=end,
-            interval=yf_interval,
-            auto_adjust=False,
-            progress=False,
-            threads=False,
+        df = _with_retry(
+            lambda: yf.download(
+                symbol,
+                start=start,
+                end=end,
+                interval=yf_interval,
+                auto_adjust=False,
+                progress=False,
+                threads=False,
+            ),
+            op=f"yfinance {symbol}",
         )
     except Exception as exc:  # yfinance lanza excepciones variadas en fallos de red
         raise ValueError(

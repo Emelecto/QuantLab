@@ -16,7 +16,7 @@ const NAV = [
   { href: "/app/tournaments", label: "Competencias", icon: "trophy" },
   { href: "/app/strategies", label: "Estrategias", icon: "strategies" },
   { href: "/app/marketplace", label: "Marketplace", icon: "store" },
-  { href: "/app/learn", label: "Aprendizaje", icon: "book" },
+  { href: "/app/academia", label: "Academia", icon: "book" },
   { href: "/app/library", label: "Datasets", icon: "database" },
   { href: "/app/api-keys", label: "API Keys", icon: "key" },
 ] as const;
@@ -347,6 +347,7 @@ export function Sidebar() {
         {!collapsed && (
           <Link
             href="/app/wallet"
+            data-tour="qp-badge"
             className="ql-qp-button"
             title="Mi wallet de QuantPoints"
           >
@@ -375,6 +376,13 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            data-tour={
+              item.href === "/app/strategies"
+                ? "nueva-estrategia"
+                : item.href === "/app/tournaments"
+                  ? "tournaments-link"
+                  : undefined
+            }
             className={`ql-nav-item${isActive(item.href) ? " active" : ""}`}
             title={collapsed ? item.label : undefined}
           >
