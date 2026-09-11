@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getBalance } from "@/lib/tokens";
 import {
   getMyCourseProgress,
@@ -49,6 +49,10 @@ export type DashboardData = {
   tournaments: DashboardTournament[];
   loading: boolean;
   error: string | null;
+  /** Detalle técnico del error real (para diagnóstico y consola). */
+  errorDetail: string | null;
+  /** Reintenta la carga completa del dashboard. */
+  retry: () => void;
   sources: {
     qp: DashboardSourceState;
     course: DashboardSourceState;
@@ -67,6 +71,8 @@ const INITIAL_DATA: DashboardData = {
   tournaments: [],
   loading: true,
   error: null,
+  errorDetail: null,
+  retry: () => {},
   sources: {
     qp: "loading",
     course: "loading",
@@ -124,6 +130,13 @@ function appendSubmissionError(existing: string | null): string {
 
 export function useDashboardData(): DashboardData {
   const [data, setData] = useState<DashboardData>(INITIAL_DATA);
+  const [retryKey, setRetryKey] = useState(0);
+  // Marcar carga y disparar recarga sin setState dentro del efecto
+  // (evita el anti-patrón set-state-in-effect).
+  const retry = useCallback(() => {
+    setData((current) => ({ ...current, loading: true, error: null, errorDetail: null }));
+    setRetryKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -143,6 +156,31 @@ export function useDashboardData(): DashboardData {
       const qp =
         balanceResult.status === "fulfilled"
           ? numberOrNull(balanceResult.value.balance)
+          : null;
+      // Preservar y loguear el error real: antes se descartaba el motivo
+      // del allSettled y la UI solo mostraba "No se pudo cargar los QP".
+      const rejectedReasons: Record<string, unknown> = {};
+      if (balanceResult.status === "rejected") rejectedReasons.qp = balanceResult.reason;
+      if (strategiesResult.status === "rejected") rejectedReasons.strategies = strategiesResult.reason;
+      if (tournamentsResult.status === "rejected") rejectedReasons.tournaments = tournamentsResult.reason;
+      if (courseResult.status === "rejected") rejectedReasons.course = courseResult.reason;
+      if (rankingResult.status === "rejected") rejectedReasons.ranking = rankingResult.reason;
+      if (Object.keys(rejectedReasons).length > 0) {
+        console.error("[dashboard] error cargando fuentes:", rejectedReasons);
+      }
+      const errorDetail =
+        Object.keys(rejectedReasons).length > 0
+          ? Object.entries(rejectedReasons)
+              .map(([source, reason]) => {
+                const msg =
+                  reason instanceof Error
+                    ? reason.message
+                    : typeof reason === "string"
+                      ? reason
+                      : JSON.stringify(reason);
+                return `${source}: ${msg}`;
+              })
+              .join(" | ")
           : null;
       const strategies =
         strategiesResult.status === "fulfilled" && Array.isArray(strategiesResult.value)
@@ -188,6 +226,8 @@ export function useDashboardData(): DashboardData {
         tournaments,
         loading: false,
         error: messageForFailedSources(failedSources),
+        errorDetail,
+        retry,
         sources: sourceStates,
       });
 
@@ -228,6 +268,12 @@ export function useDashboardData(): DashboardData {
       const submissionLoadFailed =
         codeSubmissionsResult.status === "rejected" ||
         mlSubmissionsResult.status === "rejected";
+      if (submissionLoadFailed) {
+        console.error("[dashboard] error cargando envíos:", {
+          code: codeSubmissionsResult.status === "rejected" ? codeSubmissionsResult.reason : null,
+          ml: mlSubmissionsResult.status === "rejected" ? mlSubmissionsResult.reason : null,
+        });
+      }
 
       setData((current) => ({
         ...current,
@@ -264,12 +310,15 @@ export function useDashboardData(): DashboardData {
       }));
     }
 
-    void load().catch(() => {
+    void load().catch((err: unknown) => {
       if (!active) return;
+      console.error("[dashboard] error fatal cargando dashboard:", err);
       setData({
         ...INITIAL_DATA,
         loading: false,
         error: "No se pudo cargar el dashboard. Intenta recargar.",
+        errorDetail: err instanceof Error ? err.message : String(err),
+        retry,
         sources: {
           qp: "error",
           course: "error",
@@ -284,7 +333,7 @@ export function useDashboardData(): DashboardData {
     return () => {
       active = false;
     };
-  }, []);
+  }, [retryKey, retry]);
 
-  return data;
+  return { ...data, retry };
 }

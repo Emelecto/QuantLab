@@ -227,7 +227,7 @@ function SkeletonEstrategias() {
 }
 
 function DashboardHome() {
-  const { strategies, tournaments, loading, error, sources } =
+  const { strategies, tournaments, loading, error, errorDetail, retry, sources } =
     useDashboardData();
 
   const [rankingTab, setRankingTab] = useState<RankingTab>("qp");
@@ -299,6 +299,12 @@ function DashboardHome() {
       {error && (
         <div className="ql-dashboard-notice ql-dashboard-notice--error" role="alert">
           <span>{error}</span>
+          {errorDetail && (
+            <small className="ql-dashboard-notice-detail">{errorDetail}</small>
+          )}
+          <button type="button" className="ql-btn-secondary" onClick={retry}>
+            Reintentar
+          </button>
         </div>
       )}
 

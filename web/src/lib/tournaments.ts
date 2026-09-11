@@ -3,6 +3,7 @@
  * Fuente: Worker FastAPI (NEXT_PUBLIC_WORKER_URL).
  */
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { fetchWithWakeRetry } from "@/lib/worker-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                               */
@@ -185,28 +186,59 @@ export type LeaderboardTab = "qp" | "tournaments" | "country";
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-const WORKER = process.env.NEXT_PUBLIC_WORKER_URL || "http://localhost:8001";
+function resolveWorkerUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_WORKER_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  // Sin variable configurada: en producción el fallback a localhost:8001
+  // es inalcanzable desde el navegador, así que se falla con mensaje claro
+  // en vez de un silencioso "Failed to fetch".
+  if (process.env.NODE_ENV === "production") {
+    const err = new Error(
+      "NEXT_PUBLIC_WORKER_URL no está configurada en Vercel. Ve a Settings → Environment Variables y añade la URL de tu worker en Render (ej: https://tu-worker.onrender.com).",
+    ) as Error & { code?: string };
+    err.code = "WORKER_URL_MISSING";
+    throw err;
+  }
+  return "http://localhost:8001";
+}
 
 // Diagnóstico: en producción, sin NEXT_PUBLIC_WORKER_URL el fetch SIEMPRE falla
 // porque cae al fallback localhost:8001, que el navegador no puede alcanzar.
 // Esto da un error descriptivo en vez de "Failed to fetch" genérico.
 function preflight(): string {
+  const worker = resolveWorkerUrl();
   if (
-    (WORKER.startsWith("http://localhost") || WORKER.startsWith("http://127.0.0.1")) &&
+    (worker.startsWith("http://localhost") || worker.startsWith("http://127.0.0.1")) &&
     process.env.NODE_ENV === "production"
   ) {
     throw new Error(
       "NEXT_PUBLIC_WORKER_URL no está configurada en Vercel. Ve a Settings → Environment Variables y añade la URL de tu worker en Render (ej: https://tu-worker.onrender.com).",
     );
   }
-  return WORKER;
+  return worker;
 }
 
-export async function call<T>(path: string, init?: RequestInit): Promise<T> {
+/** Timeout por intento: el cold start de Render tarda ~50 s. */
+const WORKER_TIMEOUT_MS = 55_000;
+/** Intentos ante 502/503/504/429 o timeout (cold start). */
+const WORKER_MAX_ATTEMPTS = 3;
+
+export type CallOptions = {
+  timeoutMs?: number;
+  maxAttempts?: number;
+  onWake?: (attempt: number, maxAttempts: number) => void;
+};
+
+export async function call<T>(
+  path: string,
+  init?: RequestInit,
+  opts: CallOptions = {},
+): Promise<T> {
   let workerUrl: string;
   try {
     workerUrl = preflight();
   } catch (e) {
+    console.error(`[tournaments] configuración inválida para ${path}:`, e);
     throw e;
   }
   const supabase = getSupabase();
@@ -219,18 +251,28 @@ export async function call<T>(path: string, init?: RequestInit): Promise<T> {
   if (token) headers["Authorization"] = `Bearer ${token}`;
   // Anti-cache: timestamp para evitar que el navegador sirva respuestas cacheadas viejas.
   const cacheBust = `${path.includes("?") ? "&" : "?"}_t=${Date.now()}`;
-  // El fetch solo rechaza ante fallos de red (worker caído/reiniciándose,
-  // DNS, bloqueadores). Sin este try/catch el navegador muestra el críptico
-  // "Failed to fetch"; lo convertimos en un error accionable con la URL.
+  // Cold start de Render (~50 s o 502/503/504): fetchWithWakeRetry reintenta
+  // con backoff en vez de un solo fetch, igual que el backtest.
+  const timeoutMs = opts.timeoutMs ?? WORKER_TIMEOUT_MS;
+  const maxAttempts = opts.maxAttempts ?? WORKER_MAX_ATTEMPTS;
   let res: Response;
   try {
-    res = await fetch(`${workerUrl}${path}${cacheBust}`, { ...init, headers });
-  } catch {
+    res = await fetchWithWakeRetry(
+      `${workerUrl}${path}${cacheBust}`,
+      { ...init, headers },
+      { timeoutMs, maxAttempts, onAttempt: opts.onWake },
+    );
+  } catch (originalError) {
+    console.error(
+      `[tournaments] ${path} falló tras ${maxAttempts} intentos contra ${workerUrl}:`,
+      originalError,
+    );
     const err = new Error(
-      `No se pudo conectar con el worker en ${workerUrl}${path}. ` +
-        `Reintenta en unos segundos (puede estar reiniciándose) y revisa tu conexión o bloqueadores del navegador.`,
-    ) as Error & { code?: string };
+      `No se pudo conectar con el worker en ${workerUrl}${path} tras ${maxAttempts} intentos. ` +
+        `Reintenta en unos segundos (puede estar despertando tras inactividad) y revisa tu conexión o bloqueadores del navegador.`,
+    ) as Error & { code?: string; cause?: unknown };
     err.code = "WORKER_UNREACHABLE";
+    err.cause = originalError;
     throw err;
   }
   const json = await res.json().catch(() => ({}));
@@ -240,7 +282,9 @@ export async function call<T>(path: string, init?: RequestInit): Promise<T> {
     // FastAPI serializa HTTPException como {detail}, no como {error}.
     const detail =
       (json as any).error || (json as any).detail || `HTTP ${res.status}`;
-    const err = new Error(`${path}: ${detail}`) as Error & { code?: string };
+    const message = `${path}: ${detail}`;
+    console.error(`[tournaments] ${message}`, { status: res.status, body: json });
+    const err = new Error(message) as Error & { code?: string };
     if (res.status === 502 || res.status === 503) err.code = "WORKER_UNAVAILABLE";
     else if (res.status === 504) err.code = "WORKER_TIMEOUT";
     throw err;
