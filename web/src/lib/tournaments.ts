@@ -229,6 +229,46 @@ export type CallOptions = {
   onWake?: (attempt: number, maxAttempts: number) => void;
 };
 
+/**
+ * Detecta errores típicos de CORS / red bloqueada en el navegador.
+ * Un fallo CORS se manifiesta como TypeError: Failed to fetch sin status
+ * HTTP, indistinguible a priori de un corte de red: por eso el mensaje
+ * sugiere ambas causas. Revisa también `cause` (el WORKER_UNREACHABLE
+ * envuelve el error original ahí).
+ */
+export function isCorsLikeError(err: unknown): boolean {
+  const texts: string[] = [];
+  if (err instanceof Error) {
+    texts.push(err.message);
+    const cause = (err as Error & { cause?: unknown }).cause;
+    if (cause instanceof Error) texts.push(cause.message);
+    else if (typeof cause === "string") texts.push(cause);
+  } else if (typeof err === "string") {
+    texts.push(err);
+  }
+  const joined = texts.join(" ").toLowerCase();
+  return (
+    joined.includes("failed to fetch") ||
+    joined.includes("networkerror") ||
+    joined.includes("network request failed") ||
+    joined.includes("load failed") ||
+    joined.includes("cors")
+  );
+}
+
+/** True si el fallo es 401 / sesión ausente o expirada (no es fallo de red). */
+export function isAuthError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const code = (err as Error & { code?: unknown }).code;
+    if (code === "UNAUTHENTICATED") return true;
+    const status = (err as Error & { status?: unknown }).status;
+    if (status === 401) return true;
+  }
+  const msg =
+    err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  return msg.toLowerCase().includes("inicia sesión") || msg.includes("401");
+}
+
 export async function call<T>(
   path: string,
   init?: RequestInit,
@@ -267,9 +307,12 @@ export async function call<T>(
       `[tournaments] ${path} falló tras ${maxAttempts} intentos contra ${workerUrl}:`,
       originalError,
     );
+    const corsHint = isCorsLikeError(originalError);
     const err = new Error(
       `No se pudo conectar con el worker en ${workerUrl}${path} tras ${maxAttempts} intentos. ` +
-        `Reintenta en unos segundos (puede estar despertando tras inactividad) y revisa tu conexión o bloqueadores del navegador.`,
+        (corsHint
+          ? "Esto puede ser CORS o bloqueador del navegador (ad-block, VPN o extensiones de privacidad): desactívalos y reintenta."
+          : "Reintenta en unos segundos (puede estar despertando tras inactividad) y revisa tu conexión o bloqueadores del navegador."),
     ) as Error & { code?: string; cause?: unknown };
     err.code = "WORKER_UNREACHABLE";
     err.cause = originalError;
@@ -277,6 +320,27 @@ export async function call<T>(
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // 401 = sin sesión válida, NO fallo de red: no reintentar, pedir login.
+    // fetchWithWakeRetry solo reintenta fallos de red y 502/503/504/429, así
+    // que el 401 llega aquí tras un único intento.
+    if (res.status === 401) {
+      const body401 = json as { error?: unknown; detail?: unknown };
+      const detail401 =
+        typeof body401.error === "string"
+          ? body401.error
+          : typeof body401.detail === "string"
+            ? body401.detail
+            : `HTTP ${res.status}`;
+      const message401 = `${path}: inicia sesión para continuar (HTTP 401: ${detail401}). Tu sesión puede haber expirado.`;
+      console.error(`[tournaments] ${message401}`, { status: res.status, body: json });
+      const err401 = new Error(message401) as Error & {
+        code?: string;
+        status?: number;
+      };
+      err401.code = "UNAUTHENTICATED";
+      err401.status = 401;
+      throw err401;
+    }
     // Incluir el path: /app/admin dispara 3 llamadas en Promise.all y sin
     // esto es imposible saber cuál falló. Leer también `detail` porque
     // FastAPI serializa HTTPException como {detail}, no como {error}.

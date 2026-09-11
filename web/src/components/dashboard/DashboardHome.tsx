@@ -227,7 +227,7 @@ function SkeletonEstrategias() {
 }
 
 function DashboardHome() {
-  const { strategies, tournaments, loading, error, errorDetail, retry, sources } =
+  const { strategies, tournaments, loading, error, errorDetail, retry, sources, authRequired } =
     useDashboardData();
 
   const [rankingTab, setRankingTab] = useState<RankingTab>("qp");
@@ -302,9 +302,16 @@ function DashboardHome() {
           {errorDetail && (
             <small className="ql-dashboard-notice-detail">{errorDetail}</small>
           )}
-          <button type="button" className="ql-btn-secondary" onClick={retry}>
-            Reintentar
-          </button>
+          <div className="flex items-center gap-2">
+            {authRequired && (
+              <Link href="/login" className="ql-btn-primary">
+                Iniciar sesión
+              </Link>
+            )}
+            <button type="button" className="ql-btn-secondary" onClick={retry}>
+              Reintentar
+            </button>
+          </div>
         </div>
       )}
 

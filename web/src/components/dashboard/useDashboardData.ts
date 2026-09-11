@@ -16,7 +16,7 @@ import type {
   MyStrategy,
   TournamentSubmissionSnapshot,
 } from "@/lib/db";
-import { listTournaments } from "@/lib/tournaments";
+import { listTournaments, isAuthError, isCorsLikeError } from "@/lib/tournaments";
 import type { Tournament } from "@/lib/tournaments";
 
 export type DashboardSourceState = "loading" | "ready" | "error";
@@ -51,6 +51,8 @@ export type DashboardData = {
   error: string | null;
   /** Detalle técnico del error real (para diagnóstico y consola). */
   errorDetail: string | null;
+  /** True si alguna fuente falló con 401: la UI debe pedir login, no reintento de red. */
+  authRequired: boolean;
   /** Reintenta la carga completa del dashboard. */
   retry: () => void;
   sources: {
@@ -72,6 +74,7 @@ const INITIAL_DATA: DashboardData = {
   loading: true,
   error: null,
   errorDetail: null,
+  authRequired: false,
   retry: () => {},
   sources: {
     qp: "loading",
@@ -210,13 +213,33 @@ export function useDashboardData(): DashboardData {
             : "error",
         submissions: tournaments.length ? "loading" : "ready",
       };
+      // 401 (sin sesión) no es fallo de red: se informa como "inicia sesión"
+      // en vez de mezclarlo con el error de conectividad. CORS/Failed to fetch
+      // en torneos mantiene sus reintentos de red en call(), pero el mensaje
+      // aclara que puede ser CORS o un bloqueador.
+      const qpAuthFailed =
+        balanceResult.status === "rejected" && isAuthError(balanceResult.reason);
+      const tournamentsCorsFailed =
+        tournamentsResult.status === "rejected" &&
+        isCorsLikeError(tournamentsResult.reason);
       const failedSources = [
-        sourceStates.qp === "error" ? "los QP" : null,
+        !qpAuthFailed && sourceStates.qp === "error" ? "los QP" : null,
         sourceStates.course === "error" ? "el progreso del curso" : null,
         sourceStates.ranking === "error" ? "el ranking" : null,
         sourceStates.strategies === "error" ? "las estrategias" : null,
-        sourceStates.tournaments === "error" ? "los torneos" : null,
+        sourceStates.tournaments === "error"
+          ? tournamentsCorsFailed
+            ? "los torneos (puede ser CORS o bloqueador del navegador)"
+            : "los torneos"
+          : null,
       ].filter((label): label is string => label !== null);
+      const baseError = messageForFailedSources(failedSources);
+      const error =
+        qpAuthFailed && baseError
+          ? `Para ver tus QP, inicia sesión e inténtalo de nuevo. ${baseError}`
+          : qpAuthFailed
+            ? "Para ver tus QP, inicia sesión e inténtalo de nuevo."
+            : baseError;
 
       setData({
         qp,
@@ -225,8 +248,9 @@ export function useDashboardData(): DashboardData {
         strategies,
         tournaments,
         loading: false,
-        error: messageForFailedSources(failedSources),
+        error,
         errorDetail,
+        authRequired: qpAuthFailed,
         retry,
         sources: sourceStates,
       });
