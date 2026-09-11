@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     return [
       // Compat: la Ruta Aprendiz heredada vive ahora en Academia.
       { source: "/app/learn", destination: "/app/academia", permanent: true },
+      { source: "/app/learn/:path*", destination: "/app/academia", permanent: true },
     ];
   },
 };
